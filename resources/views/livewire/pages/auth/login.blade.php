@@ -1,6 +1,8 @@
 <?php
 
 use App\Livewire\Forms\LoginForm;
+use App\Models\LoginSession;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -19,6 +21,11 @@ new #[Layout('layouts.guest')] class extends Component
         $this->form->authenticate();
 
         Session::regenerate();
+
+        // Created with the post-regenerate session ID (see the note in
+        // LoginForm::authenticate()) so EnsureSessionNotExpired can find it
+        // on every later request.
+        LoginSession::startFor(Auth::user(), session()->getId(), request()->ip(), request()->userAgent());
 
         $this->redirectIntended(default: route('dashboard', absolute: false), navigate: true);
     }

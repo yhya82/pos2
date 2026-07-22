@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ReceiptController;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'welcome');
@@ -41,5 +42,21 @@ Route::view('products', 'products.index')
 Route::view('purchase-orders', 'purchase-orders.index')
     ->middleware(['auth', 'permission:purchase_orders,view', 'module:purchase_management'])
     ->name('purchase-orders.index');
+
+Route::view('inventory', 'inventory.index')
+    ->middleware(['auth', 'permission:inventory,view'])
+    ->name('inventory.index');
+
+Route::view('pos', 'pos.index')
+    ->middleware(['auth', 'permission:sales,create'])
+    ->name('pos.index');
+
+Route::view('sales', 'sales.index')
+    ->middleware(['auth', 'permission:sales,view'])
+    ->name('sales.index');
+
+Route::get('sales/{sale}/receipt', [ReceiptController::class, 'show'])
+    ->middleware(['auth'])
+    ->name('sales.receipt');
 
 require __DIR__.'/auth.php';

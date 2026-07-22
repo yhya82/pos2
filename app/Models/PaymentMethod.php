@@ -1,0 +1,23 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class PaymentMethod extends Model
+{
+    public $timestamps = false;
+
+    protected $fillable = [
+        'name',
+        'code',
+        'is_enabled',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'is_enabled' => 'boolean',
+        ];
+    }
+}

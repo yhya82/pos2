@@ -52,4 +52,20 @@ class SaleLineItem extends Model
     {
         return $this->hasMany(SaleLineItemBatch::class);
     }
+
+    public function returnLineItems(): HasMany
+    {
+        return $this->hasMany(SalesReturnLineItem::class);
+    }
+
+    /**
+     * How much of this line is still eligible to be returned — originally
+     * sold quantity minus whatever prior returns already claimed. There's
+     * no DB constraint for this (the schema doesn't track it per-batch),
+     * so ReturnService checks it here before processing a new return.
+     */
+    public function remainingReturnableQty(): float
+    {
+        return (float) $this->quantity - (float) $this->returnLineItems()->sum('quantity');
+    }
 }

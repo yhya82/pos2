@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ReceiptController;
+use App\Http\Controllers\ReturnReceiptController;
 use App\Models\Customer;
 use Illuminate\Support\Facades\Route;
 
@@ -67,5 +68,13 @@ Route::view('customers', 'customers.index')
 Route::get('customers/{customer}', fn (Customer $customer) => view('customers.show', ['customer' => $customer]))
     ->middleware(['auth', 'permission:customers,view'])
     ->name('customers.show');
+
+Route::view('returns', 'returns.index')
+    ->middleware(['auth', 'permission:returns,view', 'module:return_management'])
+    ->name('returns.index');
+
+Route::get('returns/{salesReturn}/receipt', [ReturnReceiptController::class, 'show'])
+    ->middleware(['auth'])
+    ->name('returns.receipt');
 
 require __DIR__.'/auth.php';

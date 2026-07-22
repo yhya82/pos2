@@ -38,4 +38,8 @@ Route::view('products', 'products.index')
     ->middleware(['auth', 'permission:products,view'])
     ->name('products.index');
 
+Route::view('purchase-orders', 'purchase-orders.index')
+    ->middleware(['auth', 'permission:purchase_orders,view', 'module:purchase_management'])
+    ->name('purchase-orders.index');
+
 require __DIR__.'/auth.php';

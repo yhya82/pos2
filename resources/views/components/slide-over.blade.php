@@ -2,7 +2,15 @@
     'name',
     'show' => false,
     'title' => '',
+    'maxWidth' => 'md',
 ])
+
+@php
+$panelWidth = match ($maxWidth) {
+    '2xl' => 'sm:w-full md:w-[42rem]',
+    default => 'sm:w-96 md:w-[28rem]',
+};
+@endphp
 
 {{--
     SRS Sec. 20.6: editing any record uses a slide-over panel, not a
@@ -45,7 +53,7 @@
         x-transition:leave="transform transition ease-in-out duration-200"
         x-transition:leave-start="translate-x-0"
         x-transition:leave-end="translate-x-full"
-        class="absolute inset-y-0 right-0 w-full sm:w-96 md:w-[28rem] bg-white dark:bg-gray-800 shadow-xl flex flex-col"
+        class="absolute inset-y-0 right-0 w-full {{ $panelWidth }} bg-white dark:bg-gray-800 shadow-xl flex flex-col"
     >
         <div class="flex items-center justify-between px-4 py-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
             <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100">{{ $title }}</h2>

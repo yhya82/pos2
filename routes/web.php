@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ReceiptController;
+use App\Models\Customer;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'welcome');
@@ -58,5 +59,13 @@ Route::view('sales', 'sales.index')
 Route::get('sales/{sale}/receipt', [ReceiptController::class, 'show'])
     ->middleware(['auth'])
     ->name('sales.receipt');
+
+Route::view('customers', 'customers.index')
+    ->middleware(['auth', 'permission:customers,view'])
+    ->name('customers.index');
+
+Route::get('customers/{customer}', fn (Customer $customer) => view('customers.show', ['customer' => $customer]))
+    ->middleware(['auth', 'permission:customers,view'])
+    ->name('customers.show');
 
 require __DIR__.'/auth.php';

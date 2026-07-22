@@ -5,12 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 class Product extends Model
 {
     protected $fillable = [
         'name',
         'description',
+        'image_path',
         'category_id',
         'supplier_id',
         'barcode',
@@ -51,6 +53,11 @@ class Product extends Model
     public function sellingUnit(): BelongsTo
     {
         return $this->belongsTo(Unit::class, 'selling_unit_id');
+    }
+
+    public function imageUrl(): ?string
+    {
+        return $this->image_path ? Storage::disk('public')->url($this->image_path) : null;
     }
 
     /**

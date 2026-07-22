@@ -29,6 +29,7 @@ class User extends Authenticatable
         'password_hash',
         'role_id',
         'status',
+        'theme',
     ];
 
     /**

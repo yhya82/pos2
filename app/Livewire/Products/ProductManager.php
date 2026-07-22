@@ -8,13 +8,15 @@ use App\Models\Category;
 use App\Models\Product;
 use App\Models\Supplier;
 use App\Models\Unit;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 
 class ProductManager extends Component
 {
-    use WithPagination, AuthorizesModuleActions;
+    use WithPagination, WithFileUploads, AuthorizesModuleActions;
 
     public string $search = '';
 
@@ -23,6 +25,10 @@ class ProductManager extends Component
     public string $name = '';
 
     public string $description = '';
+
+    public $photo = null;
+
+    public ?string $existingImagePath = null;
 
     public ?int $categoryId = null;
 
@@ -95,8 +101,9 @@ class ProductManager extends Component
         return [
             'name' => ['required', 'string', 'max:200'],
             'description' => ['nullable', 'string'],
-            'categoryId' => ['nullable', 'exists:categories,id'],
-            'supplierId' => ['nullable', 'exists:suppliers,id'],
+            'photo' => ['nullable', 'image', 'max:2048'],
+            'categoryId' => ['required', 'exists:categories,id'],
+            'supplierId' => ['required', 'exists:suppliers,id'],
             'barcode' => ['nullable', 'string', 'max:64', Rule::unique('products', 'barcode')->ignore($this->editingProductId)],
             'purchaseUnitId' => ['required', 'exists:units,id'],
             'sellingUnitId' => ['required', 'exists:units,id'],
@@ -112,7 +119,7 @@ class ProductManager extends Component
     {
         $this->authorizeAction('products', 'create');
 
-        $this->reset(['editingProductId', 'name', 'description', 'categoryId', 'supplierId', 'barcode', 'purchaseUnitId', 'sellingUnitId']);
+        $this->reset(['editingProductId', 'name', 'description', 'photo', 'existingImagePath', 'categoryId', 'supplierId', 'barcode', 'purchaseUnitId', 'sellingUnitId']);
         $this->conversionQty = '1.000';
         $this->costPrice = '0.00';
         $this->sellingPrice = '';
@@ -132,6 +139,8 @@ class ProductManager extends Component
         $this->editingProductId = $product->id;
         $this->name = $product->name;
         $this->description = (string) $product->description;
+        $this->photo = null;
+        $this->existingImagePath = $product->image_path;
         $this->categoryId = $product->category_id;
         $this->supplierId = $product->supplier_id;
         $this->barcode = (string) $product->barcode;
@@ -153,9 +162,18 @@ class ProductManager extends Component
 
         $validated = $this->validate();
 
+        $imagePath = $this->existingImagePath;
+        if ($this->photo) {
+            if ($this->existingImagePath) {
+                Storage::disk('public')->delete($this->existingImagePath);
+            }
+            $imagePath = $this->photo->store('products', 'public');
+        }
+
         $attributes = [
             'name' => $validated['name'],
             'description' => $validated['description'] ?: null,
+            'image_path' => $imagePath,
             'category_id' => $validated['categoryId'],
             'supplier_id' => $validated['supplierId'],
             'barcode' => $validated['barcode'] ?: null,

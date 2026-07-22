@@ -85,4 +85,8 @@ Route::view('reports', 'reports.index')
     ->middleware(['auth', 'permission:reports,view'])
     ->name('reports.index');
 
+Route::view('settings', 'settings.index')
+    ->middleware(['auth', 'permission:settings,view'])
+    ->name('settings.index');
+
 require __DIR__.'/auth.php';

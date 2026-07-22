@@ -77,4 +77,8 @@ Route::get('returns/{salesReturn}/receipt', [ReturnReceiptController::class, 'sh
     ->middleware(['auth'])
     ->name('returns.receipt');
 
+Route::view('notifications', 'notifications.index')
+    ->middleware(['auth', 'module:notifications'])
+    ->name('notifications.index');
+
 require __DIR__.'/auth.php';

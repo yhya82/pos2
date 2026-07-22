@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Roles;
 
+use App\Livewire\Concerns\AuthorizesModuleActions;
 use App\Models\AuditLog;
 use App\Models\Permission;
 use App\Models\Role;
@@ -11,7 +12,7 @@ use Livewire\WithPagination;
 
 class RoleManager extends Component
 {
-    use WithPagination;
+    use WithPagination, AuthorizesModuleActions;
 
     public string $search = '';
 
@@ -49,6 +50,8 @@ class RoleManager extends Component
 
     public function create(): void
     {
+        $this->authorizeAction('roles', 'create');
+
         $this->reset(['editingRoleId', 'name', 'description', 'selectedPermissions']);
         $this->status = 'active';
         $this->resetValidation();
@@ -58,6 +61,8 @@ class RoleManager extends Component
 
     public function edit(int $roleId): void
     {
+        $this->authorizeAction('roles', 'update');
+
         $role = Role::findOrFail($roleId);
 
         $this->editingRoleId = $role->id;
@@ -72,10 +77,12 @@ class RoleManager extends Component
 
     public function save(): void
     {
+        $isCreating = ! $this->editingRoleId;
+        $this->authorizeAction('roles', $isCreating ? 'create' : 'update');
+
         $this->validate();
 
         $previous = null;
-        $isCreating = ! $this->editingRoleId;
 
         if ($isCreating) {
             $role = Role::create([
@@ -110,12 +117,16 @@ class RoleManager extends Component
 
     public function confirmDeactivate(int $roleId): void
     {
+        $this->authorizeAction('roles', 'delete');
+
         $this->roleIdPendingDeactivation = $roleId;
         $this->dispatch('open-modal', 'confirm-deactivate-role');
     }
 
     public function toggleStatus(): void
     {
+        $this->authorizeAction('roles', 'delete');
+
         $role = Role::withCount('users')->findOrFail($this->roleIdPendingDeactivation);
 
         if ($role->status === 'active' && $role->users_count > 0) {

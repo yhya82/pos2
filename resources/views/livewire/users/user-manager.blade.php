@@ -4,9 +4,11 @@
             <x-text-input wire:model.live.debounce.300ms="search" type="search" placeholder="Search users..." class="w-full" />
         </div>
 
-        <x-primary-button wire:click="create">
-            Create User
-        </x-primary-button>
+        @if (auth()->user()->hasPermission('users', 'create'))
+            <x-primary-button wire:click="create">
+                Create User
+            </x-primary-button>
+        @endif
     </div>
 
     <div class="bg-white dark:bg-gray-800 shadow sm:rounded-lg overflow-hidden">
@@ -38,12 +40,16 @@
                             </span>
                         </td>
                         <td class="px-4 py-3 text-sm text-right space-x-3">
-                            <button wire:click="edit({{ $user->id }})" class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium">
-                                Edit
-                            </button>
-                            <button wire:click="confirmDeactivate({{ $user->id }})" class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 font-medium">
-                                {{ $user->status === 'active' ? 'Deactivate' : 'Reactivate' }}
-                            </button>
+                            @if (auth()->user()->hasPermission('users', 'update'))
+                                <button wire:click="edit({{ $user->id }})" class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium">
+                                    Edit
+                                </button>
+                            @endif
+                            @if (auth()->user()->hasPermission('users', 'delete'))
+                                <button wire:click="confirmDeactivate({{ $user->id }})" class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 font-medium">
+                                    {{ $user->status === 'active' ? 'Deactivate' : 'Reactivate' }}
+                                </button>
+                            @endif
                         </td>
                     </tr>
                 @empty

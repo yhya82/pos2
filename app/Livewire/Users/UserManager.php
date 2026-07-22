@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Users;
 
+use App\Livewire\Concerns\AuthorizesModuleActions;
 use App\Models\AuditLog;
 use App\Models\Role;
 use App\Models\SecuritySetting;
@@ -12,7 +13,7 @@ use Livewire\WithPagination;
 
 class UserManager extends Component
 {
-    use WithPagination;
+    use WithPagination, AuthorizesModuleActions;
 
     public string $search = '';
 
@@ -71,6 +72,8 @@ class UserManager extends Component
 
     public function create(): void
     {
+        $this->authorizeAction('users', 'create');
+
         $this->reset(['editingUserId', 'name', 'username', 'email', 'phone', 'roleId', 'password']);
         $this->status = 'active';
         $this->resetValidation();
@@ -80,6 +83,8 @@ class UserManager extends Component
 
     public function edit(int $userId): void
     {
+        $this->authorizeAction('users', 'update');
+
         $user = User::findOrFail($userId);
 
         $this->editingUserId = $user->id;
@@ -97,6 +102,8 @@ class UserManager extends Component
 
     public function save(): void
     {
+        $this->authorizeAction('users', $this->editingUserId ? 'update' : 'create');
+
         $validated = $this->validate();
 
         $attributes = [
@@ -138,6 +145,8 @@ class UserManager extends Component
 
     public function confirmDeactivate(int $userId): void
     {
+        $this->authorizeAction('users', 'delete');
+
         if ($userId === auth()->id()) {
             $this->dispatch('flash-message', message: "You can't deactivate your own account.", variant: 'error');
 
@@ -150,6 +159,8 @@ class UserManager extends Component
 
     public function toggleStatus(): void
     {
+        $this->authorizeAction('users', 'delete');
+
         $user = User::findOrFail($this->userIdPendingDeactivation);
         $previous = $user->only(['status']);
 

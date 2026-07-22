@@ -81,4 +81,8 @@ Route::view('notifications', 'notifications.index')
     ->middleware(['auth', 'module:notifications'])
     ->name('notifications.index');
 
+Route::view('reports', 'reports.index')
+    ->middleware(['auth', 'permission:reports,view'])
+    ->name('reports.index');
+
 require __DIR__.'/auth.php';

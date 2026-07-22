@@ -29,27 +29,27 @@ class Sidebar extends Component
     }
 
     /**
-     * @return array<int, array{label: string, route: string, permission?: array{string, string}, module?: string}>
+     * @return array<int, array{label: string, route: string, icon: string, permission?: array{string, string}, module?: string}>
      */
     private function navItems(): array
     {
         return [
-            ['label' => 'Dashboard', 'route' => 'dashboard'],
-            ['label' => 'POS', 'route' => 'pos.index', 'permission' => ['sales', 'create']],
-            ['label' => 'Products', 'route' => 'products.index', 'permission' => ['products', 'view']],
-            ['label' => 'Categories', 'route' => 'categories.index', 'permission' => ['categories', 'view']],
-            ['label' => 'Suppliers', 'route' => 'suppliers.index', 'permission' => ['suppliers', 'view']],
-            ['label' => 'Inventory', 'route' => 'inventory.index', 'permission' => ['inventory', 'view']],
-            ['label' => 'Customers', 'route' => 'customers.index', 'permission' => ['customers', 'view']],
-            ['label' => 'Sales', 'route' => 'sales.index', 'permission' => ['sales', 'view']],
-            ['label' => 'Purchase Management', 'route' => 'purchase-orders.index', 'permission' => ['purchase_orders', 'view'], 'module' => 'purchase_management'],
-            ['label' => 'Return Management', 'route' => 'returns.index', 'permission' => ['returns', 'view'], 'module' => 'return_management'],
-            ['label' => 'Reports', 'route' => 'reports.index', 'permission' => ['reports', 'view']],
-            ['label' => 'Users', 'route' => 'users.index', 'permission' => ['users', 'view']],
-            ['label' => 'Roles & Permissions', 'route' => 'roles.index', 'permission' => ['roles', 'view']],
-            ['label' => 'Audit Logs', 'route' => 'audit-logs.index', 'permission' => ['audit_logs', 'view']],
-            ['label' => 'Notifications', 'route' => 'notifications.index', 'module' => 'notifications'],
-            ['label' => 'Settings', 'route' => 'settings.index', 'permission' => ['settings', 'view']],
+            ['label' => 'Dashboard', 'route' => 'dashboard', 'icon' => 'home'],
+            ['label' => 'POS', 'route' => 'pos.index', 'icon' => 'shopping-cart', 'permission' => ['sales', 'create']],
+            ['label' => 'Products', 'route' => 'products.index', 'icon' => 'cube', 'permission' => ['products', 'view']],
+            ['label' => 'Categories', 'route' => 'categories.index', 'icon' => 'tag', 'permission' => ['categories', 'view']],
+            ['label' => 'Suppliers', 'route' => 'suppliers.index', 'icon' => 'truck', 'permission' => ['suppliers', 'view']],
+            ['label' => 'Inventory', 'route' => 'inventory.index', 'icon' => 'archive-box', 'permission' => ['inventory', 'view']],
+            ['label' => 'Customers', 'route' => 'customers.index', 'icon' => 'users', 'permission' => ['customers', 'view']],
+            ['label' => 'Sales', 'route' => 'sales.index', 'icon' => 'banknotes', 'permission' => ['sales', 'view']],
+            ['label' => 'Purchase Management', 'route' => 'purchase-orders.index', 'icon' => 'clipboard-check', 'permission' => ['purchase_orders', 'view'], 'module' => 'purchase_management'],
+            ['label' => 'Return Management', 'route' => 'returns.index', 'icon' => 'arrow-uturn-left', 'permission' => ['returns', 'view'], 'module' => 'return_management'],
+            ['label' => 'Reports', 'route' => 'reports.index', 'icon' => 'chart-bar', 'permission' => ['reports', 'view']],
+            ['label' => 'Users', 'route' => 'users.index', 'icon' => 'user-circle', 'permission' => ['users', 'view']],
+            ['label' => 'Roles & Permissions', 'route' => 'roles.index', 'icon' => 'shield-check', 'permission' => ['roles', 'view']],
+            ['label' => 'Audit Logs', 'route' => 'audit-logs.index', 'icon' => 'document-text', 'permission' => ['audit_logs', 'view']],
+            ['label' => 'Notifications', 'route' => 'notifications.index', 'icon' => 'bell', 'module' => 'notifications'],
+            ['label' => 'Settings', 'route' => 'settings.index', 'icon' => 'cog', 'permission' => ['settings', 'view']],
         ];
     }
 

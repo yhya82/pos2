@@ -17,15 +17,17 @@
                     href="{{ route($item['route']) }}"
                     wire:navigate
                     @class([
-                        'block rounded-md px-3 py-2 text-sm font-medium transition',
+                        'flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition',
                         'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300' => request()->routeIs($item['route']),
                         'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white' => ! request()->routeIs($item['route']),
                     ])
                 >
+                    <x-icon :name="$item['icon']" class="h-5 w-5 shrink-0" />
                     {{ $item['label'] }}
                 </a>
             @else
-                <span class="block rounded-md px-3 py-2 text-sm font-medium text-gray-400 dark:text-gray-600 cursor-default">
+                <span class="flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium text-gray-400 dark:text-gray-600 cursor-default">
+                    <x-icon :name="$item['icon']" class="h-5 w-5 shrink-0" />
                     {{ $item['label'] }}
                 </span>
             @endif

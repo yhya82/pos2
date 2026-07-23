@@ -39,14 +39,18 @@ class DashboardOverview extends Component
     public function render()
     {
         $user = auth()->user();
-        $canViewSales = $user->hasPermission('sales', 'view');
         $canViewInventory = $user->hasPermission('inventory', 'view');
         $canViewCustomers = $user->hasPermission('customers', 'view') && ModuleSetting::enabled('customer_credit');
+
+        // Store-wide revenue, the trend chart, and Top Products are a
+        // manager-level view of the business — a Cashier can still process
+        // sales (sales,create) and see their own history, but not this.
+        $canViewRevenue = $user->hasPermission('sales', 'view') && ! $user->isCashier();
 
         [$from, $to] = $this->periodRange();
 
         return view('livewire.dashboard.dashboard-overview', [
-            'canViewSales' => $canViewSales,
+            'canViewRevenue' => $canViewRevenue,
             'canViewInventory' => $canViewInventory,
             'canViewCustomers' => $canViewCustomers,
             'period' => $this->period,
@@ -56,13 +60,13 @@ class DashboardOverview extends Component
                 'year' => "This Year's Revenue",
                 default => "Today's Revenue",
             },
-            'periodSales' => $canViewSales ? $this->periodSales($from, $to) : null,
+            'periodSales' => $canViewRevenue ? $this->periodSales($from, $to) : null,
             'lowStockCount' => $canViewInventory ? CurrentStock::where('is_low_stock', 1)->where('qty_on_hand', '>', 0)->count() : null,
             'expiringSoonCount' => $canViewInventory ? $this->expiringSoonCount() : null,
             'inventoryValue' => $canViewInventory ? (float) DB::table('v_inventory_valuation')->sum('value_at_selling_price') : null,
             'outstandingCredit' => $canViewCustomers ? (float) DB::table('v_credit_outstanding_balances')->sum('outstanding_balance') : null,
-            'salesTrend' => $canViewSales ? $this->salesTrend($from, $to) : [],
-            'topProducts' => $canViewSales ? $this->topProducts($from, $to) : collect(),
+            'salesTrend' => $canViewRevenue ? $this->salesTrend($from, $to) : [],
+            'topProducts' => $canViewRevenue ? $this->topProducts($from, $to) : collect(),
         ]);
     }
 

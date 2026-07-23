@@ -71,6 +71,17 @@ class User extends Authenticatable
     }
 
     /**
+     * Store-wide revenue figures and other cashiers' sales are restricted
+     * by role, not by the module/action permission grid — there's no
+     * "own records only" concept in the permission schema, so this is a
+     * direct role-name check rather than a permission lookup.
+     */
+    public function isCashier(): bool
+    {
+        return $this->role?->name === 'Cashier';
+    }
+
+    /**
      * True if this user's role has been granted the given module/action
      * permission. Backs the permission-aware sidebar; the full role and
      * permission management screens are built out in the next phase.

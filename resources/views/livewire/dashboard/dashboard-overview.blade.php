@@ -1,5 +1,5 @@
 <div class="space-y-6">
-    @if ($canViewSales)
+    @if ($canViewRevenue)
         <div class="flex items-center justify-end gap-2">
             <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Sales period:</span>
             <div class="inline-flex rounded-md shadow-sm" role="group">
@@ -19,7 +19,7 @@
     @endif
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        @if ($canViewSales)
+        @if ($canViewRevenue)
             <x-dashboard-stat-card
                 icon="banknotes"
                 icon-class="bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400"
@@ -90,7 +90,7 @@
         @endif
     </div>
 
-    @if ($canViewSales)
+    @if ($canViewRevenue)
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div class="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow-sm ring-1 ring-gray-900/5 dark:ring-white/10 p-5">
                 <div class="flex items-center gap-2 mb-5">
@@ -138,7 +138,7 @@
         </div>
     @endif
 
-    @unless ($canViewSales || $canViewInventory || $canViewCustomers)
+    @unless ($canViewRevenue || $canViewInventory || $canViewCustomers)
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm ring-1 ring-gray-900/5 dark:ring-white/10 p-6 text-center text-sm text-gray-500 dark:text-gray-400">
             You're logged in — your role doesn't have visibility into any dashboard data yet.
         </div>

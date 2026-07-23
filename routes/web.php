@@ -93,6 +93,10 @@ Route::view('reports', 'reports.index')
     ->middleware(['auth', 'permission:reports,view'])
     ->name('reports.index');
 
+Route::view('audit-logs', 'audit-logs.index')
+    ->middleware(['auth', 'permission:audit_logs,view'])
+    ->name('audit-logs.index');
+
 Route::view('settings', 'settings.index')
     ->middleware(['auth', 'permission:settings,view'])
     ->name('settings.index');

@@ -15,6 +15,7 @@ class ReceiptController extends Controller
     public function show(Sale $sale): View
     {
         abort_unless(auth()->user()->hasPermission('sales', 'view'), 403);
+        abort_if(auth()->user()->isCashier() && $sale->cashier_id !== auth()->id(), 403);
 
         $receipt = $sale->receipt()->firstOrFail();
 

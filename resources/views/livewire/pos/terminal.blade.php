@@ -229,6 +229,16 @@
             </div>
         </div>
     </div>
+
+    {{--
+        Auto-print target: an iframe, not a new tab/window. Off-screen
+        rather than display:none — a fully non-rendered iframe is
+        unreliable for print() in some browsers. The receipt page itself
+        calls window.print() on load (see ?autoprint=1 in receipt.blade.php)
+        and, called from inside an iframe, that prints only the iframe's
+        content, not the POS page behind it.
+    --}}
+    <iframe x-ref="printFrame" style="position: fixed; top: -9999px; left: -9999px; width: 1px; height: 1px; border: 0;" aria-hidden="true"></iframe>
 </div>
 
 <script>
@@ -383,12 +393,6 @@
 
                 this.processing = true;
 
-                // Opened synchronously (still inside the click's user-activation
-                // window) and pointed at the receipt only once the sale succeeds —
-                // opening it after the awaited checkout call below would happen
-                // outside that window and get silently blocked as a popup.
-                const printWindow = this.autoPrintReceipt ? window.open('', '_blank') : null;
-
                 const result = await this.$wire.checkout(
                     this.cart.map(l => ({ product_id: l.product_id, quantity: l.quantity, unit_price: l.unit_price })),
                     this.customerId,
@@ -402,7 +406,6 @@
                 this.processing = false;
 
                 if (!result.success) {
-                    if (printWindow) printWindow.close();
                     this.errorMessage = result.message;
                     return;
                 }
@@ -410,8 +413,8 @@
                 this.lastSaleId = result.saleId;
                 this.lastReceiptNumber = result.receiptNumber;
 
-                if (printWindow) {
-                    printWindow.location = '/sales/' + result.saleId + '/receipt?autoprint=1';
+                if (this.autoPrintReceipt) {
+                    this.$refs.printFrame.src = '/sales/' + result.saleId + '/receipt?autoprint=1';
                 }
 
                 this.cart.forEach(line => {

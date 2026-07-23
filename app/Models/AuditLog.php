@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Append-only (DB triggers block UPDATE/DELETE on this table). Settings
@@ -33,6 +34,11 @@ class AuditLog extends Model
             'previous_value' => 'array',
             'new_value' => 'array',
         ];
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 
     public static function record(string $action, string $module, string $recordType, int $recordId, ?array $previous = null, ?array $new = null): void

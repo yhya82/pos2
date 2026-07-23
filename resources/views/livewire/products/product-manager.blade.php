@@ -15,6 +15,7 @@
         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead class="bg-gray-50 dark:bg-gray-900/40">
                 <tr>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"></th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Product</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Category</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Supplier</th>
@@ -31,7 +32,18 @@
             <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                 @forelse ($products as $product)
                     <tr wire:key="product-{{ $product->id }}">
-                        <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">{{ $product->name }}</td>
+                        <td class="pl-4 py-2 whitespace-nowrap">
+                            @if ($product->imageUrl())
+                                <img src="{{ $product->imageUrl() }}" alt="" class="h-9 w-9 rounded-md object-cover ring-1 ring-gray-200 dark:ring-gray-700">
+                            @else
+                                <div class="h-9 w-9 rounded-md bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                                    <x-icon name="cube" class="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                                </div>
+                            @endif
+                        </td>
+                        <td class="px-4 py-3 text-sm font-medium whitespace-nowrap">
+                            <a href="{{ route('products.show', $product) }}" wire:navigate class="text-gray-900 dark:text-gray-100 hover:text-indigo-600 dark:hover:text-indigo-400">{{ $product->name }}</a>
+                        </td>
                         <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ $product->category?->name }}</td>
                         <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ $product->supplier?->name }}</td>
                         <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 font-mono whitespace-nowrap">{{ $product->barcode }}</td>
@@ -64,7 +76,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="11" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                        <td colspan="12" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
                             No products found.
                         </td>
                     </tr>
@@ -79,6 +91,34 @@
 
     <x-slide-over name="product-form" :title="$editingProductId ? 'Edit Product' : 'Create Product'">
         <form wire:submit="save" id="product-form" class="space-y-6">
+            <div x-data="{ preview: null }" wire:key="photo-field-{{ $editingProductId ?? 'new' }}">
+                <x-input-label value="Photo" />
+                <div class="mt-1 flex items-center gap-4">
+                    <div class="h-16 w-16 rounded-md bg-gray-100 dark:bg-gray-700 flex items-center justify-center overflow-hidden shrink-0">
+                        <img x-show="preview" :src="preview" class="h-full w-full object-cover" x-cloak>
+                        @if ($existingImagePath)
+                            <img x-show="!preview" src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($existingImagePath) }}" class="h-full w-full object-cover">
+                        @else
+                            <x-icon x-show="!preview" name="cube" class="h-6 w-6 text-gray-400 dark:text-gray-500" />
+                        @endif
+                    </div>
+                    <div class="flex-1">
+                        <input
+                            type="file"
+                            wire:model="photo"
+                            accept="image/*"
+                            x-on:change="preview = $event.target.files.length ? URL.createObjectURL($event.target.files[0]) : null"
+                            class="block w-full text-sm text-gray-600 dark:text-gray-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 dark:file:bg-indigo-900/40 dark:file:text-indigo-300 hover:file:bg-indigo-100"
+                        >
+                        <div wire:loading wire:target="photo" class="text-xs text-gray-400 mt-1">Uploading...</div>
+                        @if ($existingImagePath)
+                            <button type="button" wire:click="removePhoto" x-on:click="preview = null" class="text-xs text-red-600 hover:text-red-800 dark:text-red-400 mt-1">Remove photo</button>
+                        @endif
+                        <x-input-error :messages="$errors->get('photo')" class="mt-1" />
+                    </div>
+                </div>
+            </div>
+
             <div>
                 <x-input-label for="product_name" value="Name" />
                 <x-text-input wire:model="name" id="product_name" class="block mt-1 w-full" />

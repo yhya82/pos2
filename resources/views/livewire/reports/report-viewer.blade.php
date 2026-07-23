@@ -31,10 +31,26 @@
                     <h3 class="font-semibold text-gray-800 dark:text-gray-100">{{ $currentReport['label'] }}</h3>
 
                     @if (isset($currentReport['dateColumn']))
-                        <div class="flex items-center gap-2">
-                            <input type="date" wire:model.live="dateFrom" class="text-sm rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100">
-                            <span class="text-gray-400 text-sm">to</span>
-                            <input type="date" wire:model.live="dateTo" class="text-sm rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100">
+                        <div class="flex flex-wrap items-center gap-3">
+                            <div class="inline-flex rounded-md shadow-sm" role="group">
+                                @foreach (['day' => 'Day', 'week' => 'Week', 'month' => 'Month', 'year' => 'Year'] as $value => $label)
+                                    <button
+                                        type="button"
+                                        wire:click="setPeriod('{{ $value }}')"
+                                        @class([
+                                            'px-3 py-1.5 text-xs font-medium border first:rounded-l-md last:rounded-r-md -ml-px first:ml-0',
+                                            'bg-indigo-600 text-white border-indigo-600 z-10' => $period === $value,
+                                            'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-800' => $period !== $value,
+                                        ])
+                                    >{{ $label }}</button>
+                                @endforeach
+                            </div>
+
+                            <div class="flex items-center gap-2">
+                                <input type="date" wire:model.live="dateFrom" class="text-sm rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100">
+                                <span class="text-gray-400 text-sm">to</span>
+                                <input type="date" wire:model.live="dateTo" class="text-sm rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100">
+                            </div>
                         </div>
                     @endif
                 </div>

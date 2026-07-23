@@ -30,6 +30,8 @@ class ProductManager extends Component
 
     public ?string $existingImagePath = null;
 
+    public ?string $originalImagePath = null;
+
     public ?int $categoryId = null;
 
     public ?int $supplierId = null;
@@ -119,7 +121,7 @@ class ProductManager extends Component
     {
         $this->authorizeAction('products', 'create');
 
-        $this->reset(['editingProductId', 'name', 'description', 'photo', 'existingImagePath', 'categoryId', 'supplierId', 'barcode', 'purchaseUnitId', 'sellingUnitId']);
+        $this->reset(['editingProductId', 'name', 'description', 'photo', 'existingImagePath', 'originalImagePath', 'categoryId', 'supplierId', 'barcode', 'purchaseUnitId', 'sellingUnitId']);
         $this->conversionQty = '1.000';
         $this->costPrice = '0.00';
         $this->sellingPrice = '';
@@ -141,6 +143,7 @@ class ProductManager extends Component
         $this->description = (string) $product->description;
         $this->photo = null;
         $this->existingImagePath = $product->image_path;
+        $this->originalImagePath = $product->image_path;
         $this->categoryId = $product->category_id;
         $this->supplierId = $product->supplier_id;
         $this->barcode = (string) $product->barcode;
@@ -156,6 +159,12 @@ class ProductManager extends Component
         $this->dispatch('open-modal', 'product-form');
     }
 
+    public function removePhoto(): void
+    {
+        $this->photo = null;
+        $this->existingImagePath = null;
+    }
+
     public function save(): void
     {
         $this->authorizeAction('products', $this->editingProductId ? 'update' : 'create');
@@ -164,10 +173,12 @@ class ProductManager extends Component
 
         $imagePath = $this->existingImagePath;
         if ($this->photo) {
-            if ($this->existingImagePath) {
-                Storage::disk('public')->delete($this->existingImagePath);
+            if ($this->originalImagePath) {
+                Storage::disk('public')->delete($this->originalImagePath);
             }
             $imagePath = $this->photo->store('products', 'public');
+        } elseif ($this->originalImagePath && ! $this->existingImagePath) {
+            Storage::disk('public')->delete($this->originalImagePath);
         }
 
         $attributes = [

@@ -24,6 +24,8 @@ class ReportViewer extends Component
 
     public string $dateTo = '';
 
+    public string $period = '';
+
     public string $sortBy = 'total_revenue';
 
     public string $sortDirection = 'desc';
@@ -42,6 +44,44 @@ class ReportViewer extends Component
 
         $this->selectedReport = $key;
         $this->resetPage();
+    }
+
+    /**
+     * Quick period presets (SRS Sec. 20.14) sitting alongside the free-form
+     * date range — 'day' is today only, the rest are the current calendar
+     * week/month/year rather than a trailing N-day window, since that's
+     * what "filter by week/month/year" means for a sales report.
+     */
+    public function setPeriod(string $period): void
+    {
+        $now = now();
+
+        [$from, $to] = match ($period) {
+            'day' => [$now->copy(), $now->copy()],
+            'week' => [$now->copy()->startOfWeek(), $now->copy()->endOfWeek()],
+            'month' => [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()],
+            'year' => [$now->copy()->startOfYear(), $now->copy()->endOfYear()],
+            default => [null, null],
+        };
+
+        if (! $from) {
+            return;
+        }
+
+        $this->period = $period;
+        $this->dateFrom = $from->toDateString();
+        $this->dateTo = $to->toDateString();
+        $this->resetPage();
+    }
+
+    public function updatedDateFrom(): void
+    {
+        $this->period = '';
+    }
+
+    public function updatedDateTo(): void
+    {
+        $this->period = '';
     }
 
     public function sort(string $column): void

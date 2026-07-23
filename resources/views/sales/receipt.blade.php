@@ -31,7 +31,7 @@
         }
     </style>
 </head>
-<body>
+<body @if (request()->boolean('autoprint')) onload="window.print()" @endif>
     <div class="print-bar">
         <button onclick="window.print()">Print</button>
     </div>

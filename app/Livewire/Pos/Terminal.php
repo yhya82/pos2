@@ -6,6 +6,7 @@ use App\Livewire\Concerns\AuthorizesModuleActions;
 use App\Models\Category;
 use App\Models\Customer;
 use App\Models\GeneralSetting;
+use App\Models\HardwareSetting;
 use App\Models\ModuleSetting;
 use App\Models\PaymentMethod;
 use App\Models\Product;
@@ -35,9 +36,10 @@ class Terminal extends Component
 
         return view('livewire.pos.terminal', [
             'products' => Product::with(['category', 'sellingUnit'])
+                ->withSum(['batches as stock_quantity' => fn ($q) => $q->where('status', 'active')], 'qty_remaining')
                 ->where('status', 'active')
                 ->orderBy('name')
-                ->get(['id', 'name', 'barcode', 'category_id', 'selling_price', 'selling_unit_id']),
+                ->get(['id', 'name', 'barcode', 'image_path', 'category_id', 'selling_price', 'selling_unit_id']),
             'categories' => Category::where('status', 'active')->orderBy('name')->get(['id', 'name']),
             'customers' => Customer::where('status', 'active')->orderBy('name')->get(['id', 'name', 'phone', 'credit_enabled', 'credit_limit', 'outstanding_balance']),
             'paymentMethods' => $paymentMethods,
@@ -46,6 +48,7 @@ class Terminal extends Component
             'taxEnabled' => $generalSettings->tax_enabled,
             'taxRate' => (float) $generalSettings->tax_rate,
             'currencyCode' => $generalSettings->currency_code,
+            'autoPrintReceipt' => (bool) HardwareSetting::current()?->auto_print_receipt,
         ]);
     }
 

@@ -17,7 +17,11 @@ class EnsureModuleEnabled
 {
     public function handle(Request $request, Closure $next, string $module): Response
     {
-        abort_unless(ModuleSetting::enabled($module), 404);
+        if (! ModuleSetting::enabled($module)) {
+            return response()->view('errors.module-disabled', [
+                'moduleLabel' => str($module)->headline(),
+            ], 403);
+        }
 
         return $next($request);
     }

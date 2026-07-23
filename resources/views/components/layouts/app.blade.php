@@ -1,5 +1,16 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+{{--
+    The dark class is baked in here server-side (not left purely to the
+    inline script below) because wire:navigate fetches a whole fresh
+    document per page and reconciles <html>'s attributes against whatever
+    that fetch actually contains — a class only ever added by client JS
+    after the fact isn't in that markup, so it was getting dropped on every
+    SPA-style navigation even though it survived a plain reload. Baking it
+    into the attribute means every fetched page is already correct from the
+    first byte; the script below still handles 'system' (OS-following,
+    unresolvable server-side) and the instant same-page toggle.
+--}}
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" @class(['dark' => auth()->check() && auth()->user()->theme === 'dark'])>
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -14,7 +25,14 @@
 
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body class="font-sans antialiased bg-gray-100 dark:bg-gray-900">
+    <body
+        class="font-sans antialiased bg-gray-100 dark:bg-gray-900"
+        x-data
+        x-on:theme-changed.window="document.documentElement.classList.toggle('dark',
+            $event.detail.theme === 'dark' ||
+            ($event.detail.theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+        )"
+    >
         <div class="min-h-screen">
             <x-sidebar />
 
@@ -31,6 +49,8 @@
                     </div>
 
                     <div class="flex items-center gap-4 shrink-0">
+                        <livewire:layout.theme-toggle />
+
                         @if (\App\Models\ModuleSetting::enabled('notifications'))
                             <livewire:notifications.notification-bell />
                         @endif

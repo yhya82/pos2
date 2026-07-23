@@ -3,6 +3,10 @@
 use App\Http\Controllers\ReceiptController;
 use App\Http\Controllers\ReturnReceiptController;
 use App\Models\Customer;
+use App\Models\GeneralSetting;
+use App\Models\HardwareSetting;
+use App\Models\Product;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'welcome');
@@ -40,6 +44,10 @@ Route::view('suppliers', 'suppliers.index')
 Route::view('products', 'products.index')
     ->middleware(['auth', 'permission:products,view'])
     ->name('products.index');
+
+Route::get('products/{product}', fn (Product $product) => view('products.show', ['product' => $product]))
+    ->middleware(['auth', 'permission:products,view'])
+    ->name('products.show');
 
 Route::view('purchase-orders', 'purchase-orders.index')
     ->middleware(['auth', 'permission:purchase_orders,view', 'module:purchase_management'])
@@ -88,5 +96,16 @@ Route::view('reports', 'reports.index')
 Route::view('settings', 'settings.index')
     ->middleware(['auth', 'permission:settings,view'])
     ->name('settings.index');
+
+Route::get('settings/print-test', function (Request $request) {
+    $hardware = HardwareSetting::current();
+    $requested = $request->query('paper_size');
+
+    return view('settings.print-test', [
+        'general' => GeneralSetting::current(),
+        'paperSize' => in_array($requested, ['58mm', '80mm', 'A4'], true) ? $requested : ($hardware?->paper_size ?? '80mm'),
+        'printerName' => $hardware?->default_printer_name,
+    ]);
+})->middleware(['auth', 'permission:settings,view'])->name('settings.print-test');
 
 require __DIR__.'/auth.php';

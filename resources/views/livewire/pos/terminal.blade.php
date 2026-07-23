@@ -3,9 +3,11 @@
         'id' => $p->id,
         'name' => $p->name,
         'barcode' => $p->barcode,
+        'image_url' => $p->imageUrl(),
         'category_id' => $p->category_id,
         'selling_price' => (float) $p->selling_price,
         'selling_unit' => $p->sellingUnit->name,
+        'stock_quantity' => (float) ($p->stock_quantity ?? 0),
     ])->values();
 
     $customersJson = $customers->map(fn ($c) => [
@@ -35,6 +37,7 @@
         taxEnabled: {{ $taxEnabled ? 'true' : 'false' }},
         taxRate: {{ $taxRate }},
         currencyCode: @js($currencyCode),
+        autoPrintReceipt: {{ $autoPrintReceipt ? 'true' : 'false' }},
     })"
     class="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start"
 >
@@ -77,15 +80,24 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             <template x-for="product in filteredProducts()" :key="product.id">
                 <button
                     type="button"
                     @click="addToCart(product)"
-                    class="text-left bg-white dark:bg-gray-800 shadow sm:rounded-lg p-3 hover:ring-2 hover:ring-indigo-500 transition"
+                    class="text-left bg-white dark:bg-gray-800 shadow sm:rounded-lg overflow-hidden hover:ring-2 hover:ring-indigo-500 transition"
                 >
-                    <div class="text-sm font-medium text-gray-900 dark:text-gray-100" x-text="product.name"></div>
-                    <div class="text-xs text-gray-500 dark:text-gray-400 mt-1" x-text="formatMoney(product.selling_price) + ' / ' + product.selling_unit"></div>
+                    <div class="h-20 w-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
+                        <img x-show="product.image_url" :src="product.image_url" class="h-full w-full object-cover" x-cloak>
+                        <svg x-show="!product.image_url" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-8 w-8 text-gray-400 dark:text-gray-500">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" />
+                        </svg>
+                    </div>
+                    <div class="p-3">
+                        <div class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate" x-text="product.name"></div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-1" x-text="formatMoney(product.selling_price) + ' / ' + product.selling_unit"></div>
+                        <div class="text-xs mt-1" :class="product.stock_quantity <= 0 ? 'text-red-500 dark:text-red-400' : 'text-gray-400 dark:text-gray-500'" x-text="'Stock: ' + trimQty(product.stock_quantity)"></div>
+                    </div>
                 </button>
             </template>
             <template x-if="filteredProducts().length === 0">
@@ -118,7 +130,7 @@
         <div class="space-y-2 border-t border-gray-200 dark:border-gray-700 pt-3">
             <div>
                 <label class="text-xs text-gray-500 dark:text-gray-400">Customer (required for credit)</label>
-                <select x-model.number="customerId" class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100">
+                <select x-model.number="customerId" @change="onCustomerChange()" class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100">
                     <option :value="null">Walk-in customer</option>
                     <template x-for="customer in customers" :key="customer.id">
                         <option :value="customer.id" x-text="customer.name + (customer.credit_enabled ? ' (credit)' : '')"></option>
@@ -192,7 +204,7 @@
             type="button"
             @click="completeSale()"
             :disabled="processing || cart.length === 0"
-            class="w-full inline-flex justify-center items-center px-4 py-2 bg-gray-800 dark:bg-gray-200 border border-transparent rounded-md font-semibold text-xs text-white dark:text-gray-800 uppercase tracking-widest hover:bg-gray-700 dark:hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+            class="w-full inline-flex justify-center items-center px-4 py-2 bg-green-500 dark:bg-green-500 border border-transparent rounded-md font-semibold text-xs text-white dark:text-gray-300 uppercase tracking-widest hover:bg-gray-700 dark:hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed"
         >
             <span x-show="!processing">Complete Sale</span>
             <span x-show="processing">Processing...</span>
@@ -230,6 +242,7 @@
             taxEnabled: config.taxEnabled,
             taxRate: config.taxRate,
             currencyCode: config.currencyCode,
+            autoPrintReceipt: config.autoPrintReceipt,
 
             search: '',
             barcodeInput: '',
@@ -325,6 +338,16 @@
                 return this.customers.find(c => c.id === this.customerId) ?? null;
             },
 
+            onCustomerChange() {
+                const customer = this.selectedCustomer();
+                if (!customer || !customer.credit_enabled) return;
+
+                const creditMethod = this.paymentMethods.find(m => m.code === 'credit');
+                if (creditMethod) {
+                    this.paymentMethodId = creditMethod.id;
+                }
+            },
+
             paymentMethodCode() {
                 return this.paymentMethods.find(m => m.id === this.paymentMethodId)?.code ?? '';
             },
@@ -341,7 +364,11 @@
             },
 
             formatMoney(amount) {
-                return Number(amount ?? 0).toFixed(2);
+                return this.currencyCode + ' ' + Number(amount ?? 0).toFixed(2);
+            },
+
+            trimQty(qty) {
+                return Number(qty ?? 0).toFixed(3).replace(/\.?0+$/, '') || '0';
             },
 
             async completeSale() {
@@ -356,6 +383,12 @@
 
                 this.processing = true;
 
+                // Opened synchronously (still inside the click's user-activation
+                // window) and pointed at the receipt only once the sale succeeds —
+                // opening it after the awaited checkout call below would happen
+                // outside that window and get silently blocked as a popup.
+                const printWindow = this.autoPrintReceipt ? window.open('', '_blank') : null;
+
                 const result = await this.$wire.checkout(
                     this.cart.map(l => ({ product_id: l.product_id, quantity: l.quantity, unit_price: l.unit_price })),
                     this.customerId,
@@ -369,12 +402,24 @@
                 this.processing = false;
 
                 if (!result.success) {
+                    if (printWindow) printWindow.close();
                     this.errorMessage = result.message;
                     return;
                 }
 
                 this.lastSaleId = result.saleId;
                 this.lastReceiptNumber = result.receiptNumber;
+
+                if (printWindow) {
+                    printWindow.location = '/sales/' + result.saleId + '/receipt?autoprint=1';
+                }
+
+                this.cart.forEach(line => {
+                    const product = this.products.find(p => p.id === line.product_id);
+                    if (product) {
+                        product.stock_quantity = Math.max(0, product.stock_quantity - line.quantity);
+                    }
+                });
 
                 this.cart = [];
                 this.customerId = null;

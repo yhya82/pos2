@@ -12,6 +12,7 @@ use App\Models\Product;
 use App\Models\Supplier;
 use App\Services\InventoryAdjustmentService;
 use Illuminate\Support\Collection;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 use RuntimeException;
@@ -20,6 +21,7 @@ class InventoryOverview extends Component
 {
     use WithPagination, AuthorizesModuleActions;
 
+    #[Url(as: 'tab')]
     public string $activeTab = 'stock';
 
     // --- Stock overview ---
@@ -29,6 +31,7 @@ class InventoryOverview extends Component
 
     public ?int $stockSupplierId = null;
 
+    #[Url(as: 'low_stock')]
     public bool $lowStockOnly = false;
 
     // --- Movement history ---

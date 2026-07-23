@@ -203,7 +203,7 @@ class SettingsManager extends Component
             'hardware.barcode_scanner_enabled' => ['boolean'],
             'hardware.auto_print_receipt' => ['boolean'],
             'hardware.default_printer_name' => ['nullable', 'string', 'max:150'],
-            'hardware.paper_size' => ['required', 'in:58mm,80mm'],
+            'hardware.paper_size' => ['required', 'in:58mm,80mm,A4'],
         ])['hardware'];
 
         HardwareSetting::current()->update($validated + ['updated_by' => auth()->id()]);

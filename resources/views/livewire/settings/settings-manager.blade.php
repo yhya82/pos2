@@ -13,14 +13,7 @@
     ];
 @endphp
 
-<div
-    class="grid grid-cols-1 lg:grid-cols-4 gap-4 items-start"
-    x-data
-    x-on:theme-changed.window="document.documentElement.classList.toggle('dark',
-        $event.detail.theme === 'dark' ||
-        ($event.detail.theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
-    )"
->
+<div class="grid grid-cols-1 lg:grid-cols-4 gap-4 items-start">
     <div class="lg:col-span-1 bg-white dark:bg-gray-800 shadow sm:rounded-lg p-3 space-y-1">
         @foreach ($sections as $key => $section)
             <button
@@ -221,12 +214,21 @@
                 </div>
                 <div>
                     <x-input-label value="Paper Size" />
-                    <select wire:model="hardware.paper_size" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        <option value="58mm">58mm</option>
-                        <option value="80mm">80mm</option>
+                    <select wire:model.live="hardware.paper_size" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <option value="58mm">58mm (thermal)</option>
+                        <option value="80mm">80mm (thermal)</option>
+                        <option value="A4">A4 (regular printer)</option>
                     </select>
                 </div>
-                <div class="flex justify-end">
+                <div class="flex items-center justify-between">
+                    <a
+                        href="{{ route('settings.print-test', ['paper_size' => $hardware['paper_size']]) }}"
+                        target="_blank"
+                        class="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
+                    >
+                        <x-icon name="clipboard-check" class="h-4 w-4" />
+                        Test Print
+                    </a>
                     <x-primary-button type="submit">Save</x-primary-button>
                 </div>
             </form>

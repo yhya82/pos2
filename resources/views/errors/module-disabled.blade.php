@@ -3,7 +3,7 @@
         {{ __('Module Disabled') }}
     </x-slot>
 
-    <div class="flex flex-col items-center justify-center text-center py-20 bg-white dark:bg-gray-800 shadow sm:rounded-lg">
+    <div class="flex flex-col items-center justify-center text-center py-20 bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10">
         <div class="h-12 w-12 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center mb-4">
             <x-icon name="cube" class="h-6 w-6 text-gray-400 dark:text-gray-500" />
         </div>

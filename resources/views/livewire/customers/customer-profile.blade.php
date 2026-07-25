@@ -1,5 +1,5 @@
 <div>
-    <div class="bg-white dark:bg-gray-800 shadow sm:rounded-lg p-4 mb-4">
+    <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 p-4 mb-4">
         <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
                 <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ $customer->name }}</h2>
@@ -35,7 +35,7 @@
     </div>
 
     @if ($activeTab === 'purchases')
-        <div class="bg-white dark:bg-gray-800 shadow sm:rounded-lg overflow-x-auto">
+        <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead class="bg-gray-50 dark:bg-gray-900/40">
                     <tr>
@@ -75,7 +75,7 @@
 
     @if ($activeTab === 'credit')
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div class="lg:col-span-2 bg-white dark:bg-gray-800 shadow sm:rounded-lg overflow-x-auto">
+            <div class="lg:col-span-2 bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead class="bg-gray-50 dark:bg-gray-900/40">
                         <tr>
@@ -113,7 +113,7 @@
             </div>
 
             @if (auth()->user()->hasPermission('customers', 'update'))
-                <div class="bg-white dark:bg-gray-800 shadow sm:rounded-lg p-4 space-y-3 self-start">
+                <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 p-4 space-y-3 self-start">
                     <h3 class="font-semibold text-gray-800 dark:text-gray-100">Record Payment</h3>
                     <form wire:submit="recordPayment" class="space-y-3">
                         <div>

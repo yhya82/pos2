@@ -24,7 +24,7 @@ class ReportViewer extends Component
 
     public string $dateTo = '';
 
-    public string $period = '';
+    public string $period = 'custom';
 
     public string $sortBy = 'total_revenue';
 
@@ -54,6 +54,22 @@ class ReportViewer extends Component
      */
     public function setPeriod(string $period): void
     {
+        if ($period === 'custom') {
+            $this->period = 'custom';
+            $this->resetPage();
+
+            return;
+        }
+
+        if ($period === 'all') {
+            $this->period = 'all';
+            $this->dateFrom = '';
+            $this->dateTo = '';
+            $this->resetPage();
+
+            return;
+        }
+
         $now = now();
 
         [$from, $to] = match ($period) {
@@ -76,12 +92,12 @@ class ReportViewer extends Component
 
     public function updatedDateFrom(): void
     {
-        $this->period = '';
+        $this->period = 'custom';
     }
 
     public function updatedDateTo(): void
     {
-        $this->period = '';
+        $this->period = 'custom';
     }
 
     public function sort(string $column): void

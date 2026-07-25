@@ -39,7 +39,7 @@ class Terminal extends Component
                 ->withSum(['batches as stock_quantity' => fn ($q) => $q->where('status', 'active')], 'qty_remaining')
                 ->where('status', 'active')
                 ->orderBy('name')
-                ->get(['id', 'name', 'barcode', 'image_path', 'category_id', 'selling_price', 'selling_unit_id']),
+                ->get(['id', 'name', 'barcode', 'image_path', 'category_id', 'selling_price', 'selling_unit_id', 'promo_discount_type', 'promo_discount_value', 'promo_starts_at', 'promo_ends_at']),
             'categories' => Category::where('status', 'active')->orderBy('name')->get(['id', 'name']),
             'customers' => Customer::where('status', 'active')->orderBy('name')->get(['id', 'name', 'phone', 'credit_enabled', 'credit_limit', 'outstanding_balance']),
             'paymentMethods' => $paymentMethods,

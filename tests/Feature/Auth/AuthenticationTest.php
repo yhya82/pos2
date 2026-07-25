@@ -2,14 +2,16 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Livewire\Layout\LogoutButton;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
 use Livewire\Volt\Volt;
+use Tests\Concerns\RefreshesDatabaseWithViews;
 use Tests\TestCase;
 
 class AuthenticationTest extends TestCase
 {
-    use RefreshDatabase;
+    use RefreshesDatabaseWithViews;
 
     public function test_login_screen_can_be_rendered(): void
     {
@@ -54,17 +56,37 @@ class AuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
-    public function test_navigation_menu_can_be_rendered(): void
+    public function test_deactivated_users_cannot_authenticate(): void
+    {
+        $user = User::factory()->inactive()->create();
+
+        $component = Volt::test('pages.auth.login')
+            ->set('form.email', $user->email)
+            ->set('form.password', 'password');
+
+        $component->call('login');
+
+        $component
+            ->assertHasErrors()
+            ->assertNoRedirect();
+
+        $this->assertGuest();
+    }
+
+    public function test_dashboard_renders_the_app_shell_for_an_authenticated_user(): void
     {
         $user = User::factory()->create();
 
-        $this->actingAs($user);
+        $this->actingAsUser($user);
 
         $response = $this->get('/dashboard');
 
+        // The sidebar/header/logout button — this project's own app shell
+        // (a Blade component, not Volt's stock `layout.navigation`).
         $response
             ->assertOk()
-            ->assertSeeVolt('layout.navigation');
+            ->assertSeeLivewire(LogoutButton::class)
+            ->assertSee('Dashboard');
     }
 
     public function test_users_can_logout(): void
@@ -73,12 +95,8 @@ class AuthenticationTest extends TestCase
 
         $this->actingAs($user);
 
-        $component = Volt::test('layout.navigation');
-
-        $component->call('logout');
-
-        $component
-            ->assertHasNoErrors()
+        Livewire::test(LogoutButton::class)
+            ->call('logout')
             ->assertRedirect('/');
 
         $this->assertGuest();

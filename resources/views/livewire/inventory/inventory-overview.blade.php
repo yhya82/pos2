@@ -1,7 +1,7 @@
 <div>
     <div class="border-b border-gray-200 dark:border-gray-700 mb-4">
         <nav class="-mb-px flex gap-6">
-            @foreach (['stock' => 'Stock Overview', 'movements' => 'Movement History', 'adjust' => 'Stock Adjustments', 'expiry' => 'Expiry Tracking'] as $tab => $label)
+            @foreach (['stock' => 'Stock Overview', 'movements' => 'Movement History', 'adjust' => 'Stock Adjustments', 'expiry' => 'Expiry Tracking', 'discounts' => 'Bulk Discounts'] as $tab => $label)
                 <button
                     wire:click="setTab('{{ $tab }}')"
                     @class([
@@ -40,7 +40,7 @@
             </label>
         </div>
 
-        <div class="bg-white dark:bg-gray-800 shadow sm:rounded-lg overflow-hidden">
+        <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 overflow-hidden">
             <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead class="bg-gray-50 dark:bg-gray-900/40">
                     <tr>
@@ -99,7 +99,7 @@
             <input type="date" wire:model.live="movementDateTo" class="rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
         </div>
 
-        <div class="bg-white dark:bg-gray-800 shadow sm:rounded-lg overflow-x-auto">
+        <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead class="bg-gray-50 dark:bg-gray-900/40">
                     <tr>
@@ -153,7 +153,7 @@
 
     {{-- ============================== STOCK ADJUSTMENTS ============================== --}}
     @if ($activeTab === 'adjust')
-        <div class="bg-white dark:bg-gray-800 shadow sm:rounded-lg p-6 max-w-xl">
+        <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 p-6 max-w-xl">
             @if (auth()->user()->hasPermission('inventory', 'update'))
                 <form wire:submit="submitAdjustment" class="space-y-4">
                     <div>
@@ -216,6 +216,115 @@
         </div>
     @endif
 
+    {{-- ============================== BULK DISCOUNTS ============================== --}}
+    @if ($activeTab === 'discounts')
+        <div class="flex flex-wrap items-center gap-3 mb-4">
+            <div class="w-full max-w-xs">
+                <x-text-input wire:model.live.debounce.300ms="discountSearch" type="search" placeholder="Search product..." class="w-full" />
+            </div>
+            <select wire:model.live="discountCategoryId" class="rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                <option value="">All categories</option>
+                @foreach ($categories as $category)
+                    <option value="{{ $category->id }}">{{ $category->name }}</option>
+                @endforeach
+            </select>
+            <select wire:model.live="discountSupplierId" class="rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                <option value="">All suppliers</option>
+                @foreach ($suppliers as $supplier)
+                    <option value="{{ $supplier->id }}">{{ $supplier->name }}</option>
+                @endforeach
+            </select>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+            <div class="lg:col-span-2 bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 overflow-hidden">
+                <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex flex-wrap items-center justify-between gap-2">
+                    <span class="text-sm text-gray-600 dark:text-gray-400">{{ count($selectedProductIds) }} selected</span>
+                    <div class="flex gap-2">
+                        <x-secondary-button type="button" wire:click="selectAllFiltered" class="!py-1 !px-2.5 !text-xs">Select All Matching Filter</x-secondary-button>
+                        <x-secondary-button type="button" wire:click="clearSelection" class="!py-1 !px-2.5 !text-xs">Clear Selection</x-secondary-button>
+                    </div>
+                </div>
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead class="bg-gray-50 dark:bg-gray-900/40">
+                        <tr>
+                            <th class="px-4 py-3 w-10"></th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Product</th>
+                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Selling Price</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Current Discount</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                        @forelse ($discountProducts as $product)
+                            <tr wire:key="discount-product-{{ $product->id }}">
+                                <td class="px-4 py-3">
+                                    <input type="checkbox" wire:model="selectedProductIds" value="{{ $product->id }}" class="rounded border-gray-300 dark:border-gray-700 dark:bg-gray-900 text-indigo-600 focus:ring-indigo-500">
+                                </td>
+                                <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{{ $product->name }}</td>
+                                <td class="px-4 py-3 text-sm text-right tabular-nums text-gray-600 dark:text-gray-400">{{ number_format($product->selling_price, 2) }}</td>
+                                <td class="px-4 py-3 text-sm">
+                                    @if ($product->hasActivePromo())
+                                        <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
+                                            {{ $product->promo_discount_type === 'percentage' ? rtrim(rtrim(number_format($product->promo_discount_value, 2), '0'), '.').'% off' : number_format($product->promo_discount_value, 2).' off' }}
+                                        </span>
+                                    @else
+                                        <span class="text-gray-400 dark:text-gray-500">None</span>
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="4" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No products found.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+                <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+                    {{ $discountProducts->links() }}
+                </div>
+            </div>
+
+            <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 p-6">
+                <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-3">Apply Discount</h3>
+                <form wire:submit="applyBulkDiscount" class="space-y-4">
+                    <div>
+                        <x-input-label for="bulk_type" value="Discount Type" />
+                        <select wire:model="bulkDiscountType" id="bulk_type" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="fixed">Fixed Amount Off</option>
+                            <option value="percentage">Percentage Off</option>
+                        </select>
+                        <x-input-error :messages="$errors->get('bulkDiscountType')" class="mt-2" />
+                    </div>
+
+                    <div>
+                        <x-input-label for="bulk_value" :value="$bulkDiscountType === 'percentage' ? 'Percentage (%)' : 'Amount Off'" />
+                        <x-text-input wire:model="bulkDiscountValue" id="bulk_value" class="block mt-1 w-full" />
+                        <x-input-error :messages="$errors->get('bulkDiscountValue')" class="mt-2" />
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <x-input-label for="bulk_starts" value="Starts (optional)" />
+                            <input type="date" wire:model="bulkStartsAt" id="bulk_starts" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <x-input-error :messages="$errors->get('bulkStartsAt')" class="mt-2" />
+                        </div>
+                        <div>
+                            <x-input-label for="bulk_ends" value="Ends (optional)" />
+                            <input type="date" wire:model="bulkEndsAt" id="bulk_ends" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <x-input-error :messages="$errors->get('bulkEndsAt')" class="mt-2" />
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Leave both dates blank for an always-on standing discount.</p>
+
+                    <div class="flex flex-col gap-2">
+                        <x-primary-button type="submit">Apply to {{ count($selectedProductIds) }} Product(s)</x-primary-button>
+                        <x-secondary-button type="button" wire:click="clearBulkDiscount">Clear Discount from {{ count($selectedProductIds) }} Product(s)</x-secondary-button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
+
     {{-- ============================== EXPIRY TRACKING ============================== --}}
     @if ($activeTab === 'expiry')
         <div class="flex flex-wrap items-center gap-3 mb-4">
@@ -230,7 +339,7 @@
             </select>
         </div>
 
-        <div class="bg-white dark:bg-gray-800 shadow sm:rounded-lg overflow-hidden">
+        <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 overflow-hidden">
             <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead class="bg-gray-50 dark:bg-gray-900/40">
                     <tr>

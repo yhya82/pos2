@@ -3,6 +3,7 @@
 namespace App\Livewire\Inventory;
 
 use App\Livewire\Concerns\AuthorizesModuleActions;
+use App\Models\AuditLog;
 use App\Models\Batch;
 use App\Models\Category;
 use App\Models\CurrentStock;
@@ -12,6 +13,7 @@ use App\Models\Product;
 use App\Models\Supplier;
 use App\Services\InventoryAdjustmentService;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -59,6 +61,23 @@ class InventoryOverview extends Component
 
     public string $expiryWithinDays = '';
 
+    // --- Bulk discounts ---
+    public string $discountSearch = '';
+
+    public ?int $discountCategoryId = null;
+
+    public ?int $discountSupplierId = null;
+
+    public array $selectedProductIds = [];
+
+    public string $bulkDiscountType = 'percentage';
+
+    public string $bulkDiscountValue = '';
+
+    public string $bulkStartsAt = '';
+
+    public string $bulkEndsAt = '';
+
     public function setTab(string $tab): void
     {
         $this->activeTab = $tab;
@@ -70,6 +89,7 @@ class InventoryOverview extends Component
             'stock' => $this->activeTab === 'stock' ? $this->stockQuery() : null,
             'movements' => $this->activeTab === 'movements' ? $this->movementsQuery() : null,
             'expiring' => $this->activeTab === 'expiry' ? $this->expiryQuery() : null,
+            'discountProducts' => $this->activeTab === 'discounts' ? $this->discountProductsQuery() : null,
             'categories' => Category::where('status', 'active')->orderBy('name')->get(),
             'suppliers' => Supplier::where('status', 'active')->orderBy('name')->get(),
             'products' => Product::where('status', 'active')->orderBy('name')->get(),
@@ -109,6 +129,130 @@ class InventoryOverview extends Component
             ->when($this->expiryWithinDays, fn ($q) => $q->where('days_to_expiry', '<=', (int) $this->expiryWithinDays))
             ->orderBy('days_to_expiry')
             ->paginate(15, pageName: 'expiryPage');
+    }
+
+    private function filteredDiscountProducts()
+    {
+        return Product::query()
+            ->when($this->discountSearch, fn ($q) => $q->where('name', 'like', "%{$this->discountSearch}%"))
+            ->when($this->discountCategoryId, fn ($q) => $q->where('category_id', $this->discountCategoryId))
+            ->when($this->discountSupplierId, fn ($q) => $q->where('supplier_id', $this->discountSupplierId))
+            ->orderBy('name');
+    }
+
+    private function discountProductsQuery()
+    {
+        return $this->filteredDiscountProducts()->paginate(10, pageName: 'discountsPage');
+    }
+
+    public function updatingDiscountSearch(): void
+    {
+        $this->resetPage('discountsPage');
+    }
+
+    public function updatingDiscountCategoryId(): void
+    {
+        $this->resetPage('discountsPage');
+    }
+
+    public function updatingDiscountSupplierId(): void
+    {
+        $this->resetPage('discountsPage');
+    }
+
+    public function selectAllFiltered(): void
+    {
+        $this->selectedProductIds = $this->filteredDiscountProducts()->pluck('id')->all();
+    }
+
+    public function clearSelection(): void
+    {
+        $this->selectedProductIds = [];
+    }
+
+    public function applyBulkDiscount(): void
+    {
+        $this->authorizeAction('products', 'update');
+
+        if (empty($this->selectedProductIds)) {
+            $this->dispatch('flash-message', message: 'Select at least one product first.', variant: 'error');
+
+            return;
+        }
+
+        $validated = $this->validate([
+            'bulkDiscountType' => ['required', 'in:fixed,percentage'],
+            'bulkDiscountValue' => ['required', 'numeric', 'gt:0'],
+            'bulkStartsAt' => ['nullable', 'date'],
+            'bulkEndsAt' => ['nullable', 'date', 'after_or_equal:bulkStartsAt'],
+        ]);
+
+        if ($validated['bulkDiscountType'] === 'percentage' && (float) $validated['bulkDiscountValue'] > 100) {
+            $this->addError('bulkDiscountValue', 'A percentage discount cannot exceed 100%.');
+
+            return;
+        }
+
+        $count = 0;
+
+        DB::transaction(function () use ($validated, &$count) {
+            $products = Product::whereIn('id', $this->selectedProductIds)->get();
+
+            foreach ($products as $product) {
+                $previous = $product->only(['promo_discount_type', 'promo_discount_value', 'promo_starts_at', 'promo_ends_at']);
+
+                $product->update([
+                    'promo_discount_type' => $validated['bulkDiscountType'],
+                    'promo_discount_value' => $validated['bulkDiscountValue'],
+                    'promo_starts_at' => $validated['bulkStartsAt'] ?: null,
+                    'promo_ends_at' => $validated['bulkEndsAt'] ?: null,
+                ]);
+
+                AuditLog::record('update', 'products', 'Product', $product->id, $previous, $product->only([
+                    'promo_discount_type', 'promo_discount_value', 'promo_starts_at', 'promo_ends_at',
+                ]));
+
+                $count++;
+            }
+        });
+
+        $this->dispatch('flash-message', message: "Discount applied to {$count} product(s).", variant: 'success');
+    }
+
+    public function clearBulkDiscount(): void
+    {
+        $this->authorizeAction('products', 'update');
+
+        if (empty($this->selectedProductIds)) {
+            $this->dispatch('flash-message', message: 'Select at least one product first.', variant: 'error');
+
+            return;
+        }
+
+        $count = 0;
+
+        DB::transaction(function () use (&$count) {
+            $products = Product::whereIn('id', $this->selectedProductIds)->get();
+
+            foreach ($products as $product) {
+                $previous = $product->only(['promo_discount_type', 'promo_discount_value', 'promo_starts_at', 'promo_ends_at']);
+
+                $product->update([
+                    'promo_discount_type' => 'none',
+                    'promo_discount_value' => 0,
+                    'promo_starts_at' => null,
+                    'promo_ends_at' => null,
+                ]);
+
+                AuditLog::record('update', 'products', 'Product', $product->id, $previous, $product->only([
+                    'promo_discount_type', 'promo_discount_value', 'promo_starts_at', 'promo_ends_at',
+                ]));
+
+                $count++;
+            }
+        });
+
+        $this->dispatch('flash-message', message: "Discount removed from {$count} product(s).", variant: 'success');
     }
 
     private function availableBatches(): Collection

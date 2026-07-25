@@ -244,5 +244,6 @@ class ProductManager extends Component
         $this->dispatch('close-modal', 'confirm-deactivate-product');
         $this->dispatch('flash-message', message: $product->status === 'active' ? 'Product reactivated.' : 'Product deactivated.', variant: 'success');
         $this->productIdPendingDeactivation = null;
+        
     }
 }

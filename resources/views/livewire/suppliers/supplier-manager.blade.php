@@ -11,7 +11,7 @@
         @endif
     </div>
 
-    <div class="bg-white dark:bg-gray-800 shadow sm:rounded-lg overflow-hidden">
+    <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 overflow-hidden">
         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead class="bg-gray-50 dark:bg-gray-900/40">
                 <tr>

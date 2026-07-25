@@ -33,6 +33,19 @@
             ($event.detail.theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
         )"
     >
+        @auth
+            {{-- Every authenticated tab joins the presence channel so the
+                 admin-only Online Users widget (App\Livewire\Dashboard\OnlineUsers)
+                 has an accurate live roster — membership itself is handled
+                 natively by Reverb, this just forwards it into Livewire. --}}
+            <script>
+                window.Echo.join('online-users')
+                    .here(users => Livewire.dispatch('online-users-synced', { users }))
+                    .joining(user => Livewire.dispatch('online-user-joined', { user }))
+                    .leaving(user => Livewire.dispatch('online-user-left', { user }));
+            </script>
+        @endauth
+
         <div class="min-h-screen">
             <x-sidebar />
 

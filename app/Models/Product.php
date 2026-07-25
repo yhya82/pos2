@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -9,6 +10,8 @@ use Illuminate\Support\Facades\Storage;
 
 class Product extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'name',
         'description',
@@ -23,6 +26,10 @@ class Product extends Model
         'selling_price',
         'min_stock_level',
         'status',
+        'promo_discount_type',
+        'promo_discount_value',
+        'promo_starts_at',
+        'promo_ends_at',
     ];
 
     protected function casts(): array
@@ -32,6 +39,9 @@ class Product extends Model
             'cost_price' => 'decimal:2',
             'selling_price' => 'decimal:2',
             'min_stock_level' => 'decimal:3',
+            'promo_discount_value' => 'decimal:2',
+            'promo_starts_at' => 'date',
+            'promo_ends_at' => 'date',
         ];
     }
 
@@ -58,6 +68,45 @@ class Product extends Model
     public function imageUrl(): ?string
     {
         return $this->image_path ? Storage::disk('public')->url($this->image_path) : null;
+    }
+
+    /**
+     * A standing promotional discount (Sec. 20.19 request) — always-on when
+     * neither bound is set, or scoped to a date window when they are.
+     */
+    public function hasActivePromo(): bool
+    {
+        if ($this->promo_discount_type === 'none') {
+            return false;
+        }
+
+        $today = now()->startOfDay();
+
+        if ($this->promo_starts_at && $today->lt($this->promo_starts_at)) {
+            return false;
+        }
+
+        if ($this->promo_ends_at && $today->gt($this->promo_ends_at)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    public function effectiveSellingPrice(): float
+    {
+        if (! $this->hasActivePromo()) {
+            return (float) $this->selling_price;
+        }
+
+        $price = (float) $this->selling_price;
+        $value = (float) $this->promo_discount_value;
+
+        $discounted = $this->promo_discount_type === 'percentage'
+            ? $price - round($price * $value / 100, 2)
+            : $price - $value;
+
+        return max(0.0, $discounted);
     }
 
     /**

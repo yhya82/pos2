@@ -13,7 +13,9 @@ use App\Models\PaymentMethod;
 use App\Models\SalesSetting;
 use App\Models\SecuritySetting;
 use App\Models\StoreSetting;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 /**
  * SRS Sec. 20.15: a tree-structured settings nav, one form per section.
@@ -24,9 +26,11 @@ use Livewire\Component;
  */
 class SettingsManager extends Component
 {
-    use AuthorizesModuleActions;
+    use AuthorizesModuleActions, WithFileUploads;
 
     public string $activeSection = 'general';
+
+    public $logo = null;
 
     /** @var array<string, mixed> */
     public array $general = [];
@@ -132,7 +136,6 @@ class SettingsManager extends Component
 
         $validated = $this->validate([
             'general.business_name' => ['required', 'string', 'max:150'],
-            'general.business_logo_url' => ['nullable', 'string', 'max:255'],
             'general.contact_phone' => ['nullable', 'string', 'max:30'],
             'general.contact_email' => ['nullable', 'email', 'max:150'],
             'general.address' => ['nullable', 'string', 'max:255'],
@@ -141,9 +144,42 @@ class SettingsManager extends Component
             'general.time_format' => ['required', 'string', 'max:20'],
             'general.tax_enabled' => ['boolean'],
             'general.tax_rate' => ['required', 'numeric', 'min:0', 'max:100'],
+            'logo' => ['nullable', 'image', 'max:2048'],
         ])['general'];
 
-        GeneralSetting::current()->update($validated + ['updated_by' => auth()->id()]);
+        $general = GeneralSetting::current();
+        $logoPath = $general->business_logo_url;
+
+        if ($this->logo) {
+            if ($logoPath) {
+                Storage::disk('public')->delete($logoPath);
+            }
+            $logoPath = $this->logo->store('logos', 'public');
+        }
+
+        $general->update($validated + ['business_logo_url' => $logoPath, 'updated_by' => auth()->id()]);
+
+        $this->logo = null;
+        $this->general['business_logo_url'] = (string) $logoPath;
+
+        $this->flashSaved();
+    }
+
+    public function removeLogo(): void
+    {
+        $this->authorizeAction('settings', 'update');
+
+        $general = GeneralSetting::current();
+
+        if ($general->business_logo_url) {
+            Storage::disk('public')->delete($general->business_logo_url);
+        }
+
+        $general->update(['business_logo_url' => null, 'updated_by' => auth()->id()]);
+
+        $this->logo = null;
+        $this->general['business_logo_url'] = '';
+
         $this->flashSaved();
     }
 
@@ -275,6 +311,7 @@ class SettingsManager extends Component
         return view('livewire.settings.settings-manager', [
             'paymentMethods' => PaymentMethod::orderBy('name')->get(),
             'recentBackups' => BackupRecord::with('creator')->latest()->limit(10)->get(),
+            'generalSettings' => GeneralSetting::current(),
         ]);
     }
 }

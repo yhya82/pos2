@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Singleton settings row (id is always 1, enforced by the schema's own
@@ -30,5 +31,10 @@ class GeneralSetting extends Model
     public static function current(): ?self
     {
         return static::find(1);
+    }
+
+    public function logoUrl(): ?string
+    {
+        return $this->business_logo_url ? Storage::disk('public')->url($this->business_logo_url) : null;
     }
 }

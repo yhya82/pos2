@@ -6,6 +6,8 @@
         'image_url' => $p->imageUrl(),
         'category_id' => $p->category_id,
         'selling_price' => (float) $p->selling_price,
+        'effective_price' => $p->effectiveSellingPrice(),
+        'has_promo' => $p->hasActivePromo(),
         'selling_unit' => $p->sellingUnit->name,
         'stock_quantity' => (float) ($p->stock_quantity ?? 0),
     ])->values();
@@ -43,7 +45,7 @@
 >
     {{-- ============================== LEFT: PRODUCT SEARCH ============================== --}}
     <div class="lg:col-span-2 space-y-4">
-        <div class="bg-white dark:bg-gray-800 shadow sm:rounded-lg p-4 space-y-3">
+        <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 p-4 space-y-3">
             <div class="flex gap-3">
                 <input
                     type="text"
@@ -80,12 +82,12 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             <template x-for="product in filteredProducts()" :key="product.id">
                 <button
                     type="button"
                     @click="addToCart(product)"
-                    class="text-left bg-white dark:bg-gray-800 shadow sm:rounded-lg overflow-hidden hover:ring-2 hover:ring-indigo-500 transition"
+                    class="text-left bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 overflow-hidden hover:ring-2 hover:ring-indigo-500 transition"
                 >
                     <div class="h-20 w-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
                         <img x-show="product.image_url" :src="product.image_url" class="h-full w-full object-cover" x-cloak>
@@ -95,7 +97,15 @@
                     </div>
                     <div class="p-3">
                         <div class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate" x-text="product.name"></div>
-                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-1" x-text="formatMoney(product.selling_price) + ' / ' + product.selling_unit"></div>
+                        <template x-if="product.has_promo">
+                            <div class="text-xs mt-1 flex items-center gap-1.5">
+                                <span class="text-gray-400 dark:text-gray-500 line-through" x-text="formatMoney(product.selling_price)"></span>
+                                <span class="text-emerald-600 dark:text-emerald-400 font-medium" x-text="formatMoney(product.effective_price) + ' / ' + product.selling_unit"></span>
+                            </div>
+                        </template>
+                        <template x-if="!product.has_promo">
+                            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1" x-text="formatMoney(product.selling_price) + ' / ' + product.selling_unit"></div>
+                        </template>
                         <div class="text-xs mt-1" :class="product.stock_quantity <= 0 ? 'text-red-500 dark:text-red-400' : 'text-gray-400 dark:text-gray-500'" x-text="'Stock: ' + trimQty(product.stock_quantity)"></div>
                     </div>
                 </button>
@@ -107,7 +117,7 @@
     </div>
 
     {{-- ============================== RIGHT: CART + PAYMENT ============================== --}}
-    <div class="bg-white dark:bg-gray-800 shadow sm:rounded-lg p-4 space-y-4 lg:sticky lg:top-4">
+    <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 p-4 space-y-4 lg:sticky lg:top-4">
         <h3 class="font-semibold text-gray-800 dark:text-gray-100">Cart</h3>
 
         <div class="space-y-2 max-h-80 overflow-y-auto">
@@ -290,7 +300,7 @@
                     this.cart.push({
                         product_id: product.id,
                         name: product.name,
-                        unit_price: product.selling_price,
+                        unit_price: product.effective_price,
                         quantity: 1,
                     });
                 }

@@ -14,7 +14,7 @@
 @endphp
 
 <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 items-start">
-    <div class="lg:col-span-1 bg-white dark:bg-gray-800 shadow sm:rounded-lg p-3 space-y-1">
+    <div class="lg:col-span-1 bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 p-3 space-y-1">
         @foreach ($sections as $key => $section)
             <button
                 wire:click="setSection('{{ $key }}')"
@@ -30,12 +30,35 @@
         @endforeach
     </div>
 
-    <div class="lg:col-span-3 bg-white dark:bg-gray-800 shadow sm:rounded-lg p-6">
+    <div class="lg:col-span-3 bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 p-6">
 
         {{-- ============================== GENERAL ============================== --}}
         @if ($activeSection === 'general')
             <form wire:submit="saveGeneral" class="space-y-4 max-w-lg">
                 <h3 class="font-semibold text-gray-800 dark:text-gray-100">General Settings</h3>
+
+                <div>
+                    <x-input-label value="Store Logo" />
+                    <div class="flex items-center gap-4 mt-1">
+                        <div class="h-16 w-16 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center overflow-hidden shrink-0">
+                            @if ($logo)
+                                <img src="{{ $logo->temporaryUrl() }}" class="h-full w-full object-cover">
+                            @elseif ($general['business_logo_url'])
+                                <img src="{{ $generalSettings->logoUrl() }}" class="h-full w-full object-cover">
+                            @else
+                                <x-icon name="cube" class="h-8 w-8 text-gray-400 dark:text-gray-500" />
+                            @endif
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <input type="file" wire:model="logo" accept="image/*" class="text-sm text-gray-600 dark:text-gray-400">
+                            @if ($general['business_logo_url'] && ! $logo)
+                                <button type="button" wire:click="removeLogo" class="text-xs text-red-600 dark:text-red-400 hover:underline self-start">Remove logo</button>
+                            @endif
+                            <x-input-error :messages="$errors->get('logo')" class="mt-1" />
+                        </div>
+                    </div>
+                </div>
+
                 <div>
                     <x-input-label value="Business Name" />
                     <x-text-input wire:model="general.business_name" class="block mt-1 w-full" />

@@ -6,6 +6,7 @@ use App\Models\BatchExpiry;
 use App\Models\CurrentStock;
 use App\Models\InventorySetting;
 use App\Models\ModuleSetting;
+use App\Models\PurchaseOrder;
 use App\Models\Sale;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -22,18 +23,45 @@ class DashboardOverview extends Component
 {
     /**
      * Drives the revenue card, the trend chart, and Top Products together —
-     * same day/week/month/year presets as the Reports page (SRS Sec. 20.14),
-     * so "filter the sales" means one control that scopes all three.
+     * same day/week/month/year/custom presets as the Reports page (SRS
+     * Sec. 20.14), so "filter the sales" means one control that scopes all
+     * three.
      */
     public string $period = 'day';
 
+    public string $dateFrom = '';
+
+    public string $dateTo = '';
+
+    public function mount(): void
+    {
+        $this->dateFrom = now()->toDateString();
+        $this->dateTo = now()->toDateString();
+    }
+
     public function setPeriod(string $period): void
     {
-        if (! in_array($period, ['day', 'week', 'month', 'year'], true)) {
+        if (! in_array($period, ['day', 'week', 'month', 'year', 'all', 'custom'], true)) {
             return;
         }
 
         $this->period = $period;
+
+        if ($period !== 'custom') {
+            [$from, $to] = $this->periodRange();
+            $this->dateFrom = $from->toDateString();
+            $this->dateTo = $to->toDateString();
+        }
+    }
+
+    public function updatedDateFrom(): void
+    {
+        $this->period = 'custom';
+    }
+
+    public function updatedDateTo(): void
+    {
+        $this->period = 'custom';
     }
 
     public function render()
@@ -47,26 +75,45 @@ class DashboardOverview extends Component
         // sales (sales,create) and see their own history, but not this.
         $canViewRevenue = $user->hasPermission('sales', 'view') && ! $user->isCashier();
 
+        // Same reasoning as revenue — the total money value of stock on
+        // hand is a financial figure, not an operational one. Low Stock and
+        // Batches Expiring Soon stay visible to a Cashier; this doesn't.
+        $canViewInventoryValue = $canViewInventory && ! $user->isCashier();
+
+        $canViewReturns = ModuleSetting::enabled('return_management') && $user->hasPermission('returns', 'view');
+        $canViewPurchaseOrders = $user->hasPermission('purchase_orders', 'view');
+
         [$from, $to] = $this->periodRange();
 
         return view('livewire.dashboard.dashboard-overview', [
             'canViewRevenue' => $canViewRevenue,
             'canViewInventory' => $canViewInventory,
+            'canViewInventoryValue' => $canViewInventoryValue,
             'canViewCustomers' => $canViewCustomers,
+            'canViewReturns' => $canViewReturns,
+            'canViewPurchaseOrders' => $canViewPurchaseOrders,
             'period' => $this->period,
             'periodLabel' => match ($this->period) {
                 'week' => "This Week's Revenue",
                 'month' => "This Month's Revenue",
                 'year' => "This Year's Revenue",
+                'all' => 'All-Time Revenue',
+                'custom' => 'Revenue (Selected Range)',
                 default => "Today's Revenue",
             },
             'periodSales' => $canViewRevenue ? $this->periodSales($from, $to) : null,
             'lowStockCount' => $canViewInventory ? CurrentStock::where('is_low_stock', 1)->where('qty_on_hand', '>', 0)->count() : null,
             'expiringSoonCount' => $canViewInventory ? $this->expiringSoonCount() : null,
-            'inventoryValue' => $canViewInventory ? (float) DB::table('v_inventory_valuation')->sum('value_at_selling_price') : null,
+            'outOfStockCount' => $canViewInventory ? (int) DB::table('v_out_of_stock')->count() : null,
+            'inventoryValue' => $canViewInventoryValue ? (float) DB::table('v_inventory_valuation')->sum('value_at_selling_price') : null,
+            'estimatedGrossProfit' => $canViewInventoryValue ? (float) DB::table('v_inventory_valuation')->sum('estimated_gross_profit') : null,
             'outstandingCredit' => $canViewCustomers ? (float) DB::table('v_credit_outstanding_balances')->sum('outstanding_balance') : null,
+            'pendingPurchaseOrders' => $canViewPurchaseOrders ? PurchaseOrder::whereIn('status', ['draft', 'ordered', 'partially_received'])->count() : null,
+            'refundsTotal' => $canViewReturns ? (float) DB::table('v_refund_report')->whereBetween('created_at', [$from, $to])->sum('refund_amount') : null,
             'salesTrend' => $canViewRevenue ? $this->salesTrend($from, $to) : [],
             'topProducts' => $canViewRevenue ? $this->topProducts($from, $to) : collect(),
+            'paymentMethodBreakdown' => $canViewRevenue ? $this->paymentMethodBreakdown($from, $to) : collect(),
+            'cashierLeaderboard' => $canViewRevenue ? $this->cashierLeaderboard($from, $to) : collect(),
         ]);
     }
 
@@ -81,6 +128,14 @@ class DashboardOverview extends Component
             'week' => [$now->copy()->startOfWeek(), $now->copy()->endOfWeek()],
             'month' => [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()],
             'year' => [$now->copy()->startOfYear(), $now->copy()->endOfYear()],
+            'all' => [
+                ($earliest = Sale::min('sale_date')) ? Carbon::parse($earliest)->startOfDay() : $now->copy()->startOfDay(),
+                $now->copy()->endOfDay(),
+            ],
+            'custom' => [
+                Carbon::parse($this->dateFrom ?: now()->toDateString())->startOfDay(),
+                Carbon::parse($this->dateTo ?: now()->toDateString())->endOfDay(),
+            ],
             default => [$now->copy()->startOfDay(), $now->copy()->endOfDay()],
         };
     }
@@ -108,6 +163,7 @@ class DashboardOverview extends Component
         return match ($this->period) {
             'day' => $this->hourlyTrend($from),
             'year' => $this->monthlyTrend($from),
+            'all' => $this->allTimeMonthlyTrend($from, $to),
             default => $this->dailyTrend($from, $to),
         };
     }
@@ -149,7 +205,7 @@ class DashboardOverview extends Component
 
             $days[] = [
                 'day' => $key,
-                'label' => $this->period === 'month' ? $cursor->format('j') : $cursor->format('D'),
+                'label' => in_array($this->period, ['month', 'custom'], true) ? $cursor->format('j') : $cursor->format('D'),
                 'revenue' => (float) ($rows[$key]->total_revenue ?? 0),
             ];
 
@@ -181,6 +237,39 @@ class DashboardOverview extends Component
         return $months;
     }
 
+    /**
+     * Monthly buckets spanning the full history, unlike monthlyTrend()
+     * (locked to one calendar year) — a day-by-day bar chart across
+     * potentially years of data would be both unreadable and slow to
+     * generate, so "All" always renders as one bar per calendar month.
+     */
+    private function allTimeMonthlyTrend(Carbon $from, Carbon $to): array
+    {
+        $rows = DB::table('v_daily_sales_summary')
+            ->whereBetween('sale_day', [$from->toDateString(), $to->toDateString()])
+            ->get()
+            ->groupBy(fn ($row) => Carbon::parse($row->sale_day)->format('Y-m'));
+
+        $months = [];
+        $cursor = $from->copy()->startOfMonth();
+        $end = $to->copy()->startOfMonth();
+
+        while ($cursor->lte($end)) {
+            $key = $cursor->format('Y-m');
+            $revenue = ($rows[$key] ?? collect())->sum('total_revenue');
+
+            $months[] = [
+                'day' => $key,
+                'label' => $cursor->format('M Y'),
+                'revenue' => (float) $revenue,
+            ];
+
+            $cursor->addMonth();
+        }
+
+        return $months;
+    }
+
     private function topProducts(Carbon $from, Carbon $to): Collection
     {
         return DB::table('sale_line_items as sli')
@@ -190,6 +279,27 @@ class DashboardOverview extends Component
             ->whereBetween('s.sale_date', [$from, $to])
             ->selectRaw('sli.product_id, p.name as product_name, SUM(sli.subtotal) as total_revenue')
             ->groupBy('sli.product_id', 'p.name')
+            ->orderByDesc('total_revenue')
+            ->limit(5)
+            ->get();
+    }
+
+    private function paymentMethodBreakdown(Carbon $from, Carbon $to): Collection
+    {
+        return DB::table('v_sales_by_payment_method')
+            ->whereBetween('sale_day', [$from->toDateString(), $to->toDateString()])
+            ->selectRaw('payment_method_name, SUM(total_amount) as total')
+            ->groupBy('payment_method_name')
+            ->orderByDesc('total')
+            ->get();
+    }
+
+    private function cashierLeaderboard(Carbon $from, Carbon $to): Collection
+    {
+        return DB::table('v_sales_by_cashier')
+            ->whereBetween('sale_day', [$from->toDateString(), $to->toDateString()])
+            ->selectRaw('cashier_name, SUM(total_revenue) as total_revenue, SUM(transaction_count) as transaction_count')
+            ->groupBy('cashier_name')
             ->orderByDesc('total_revenue')
             ->limit(5)
             ->get();

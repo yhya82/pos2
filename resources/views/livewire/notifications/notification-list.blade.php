@@ -20,7 +20,7 @@
         @endif
     </div>
 
-    <div class="bg-white dark:bg-gray-800 shadow sm:rounded-lg divide-y divide-gray-100 dark:divide-gray-700">
+    <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 divide-y divide-gray-100 dark:divide-gray-700">
         @forelse ($notifications as $notification)
             <button
                 wire:click="markRead({{ $notification->id }})"

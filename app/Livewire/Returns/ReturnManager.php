@@ -6,6 +6,7 @@ use App\Livewire\Concerns\AuthorizesModuleActions;
 use App\Models\Sale;
 use App\Models\SalesReturn;
 use App\Services\ReturnService;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 use RuntimeException;
@@ -20,6 +21,14 @@ class ReturnManager extends Component
 
     public string $saleSearch = '';
 
+    /**
+     * Populated from ?receipt=... (Sales History's "Refund" action) so a
+     * cashier or admin processing a return doesn't have to retype a receipt
+     * number they're already looking at.
+     */
+    #[Url(as: 'receipt')]
+    public string $prefillReceipt = '';
+
     public ?int $foundSaleId = null;
 
     public string $saleSearchError = '';
@@ -28,6 +37,19 @@ class ReturnManager extends Component
     public array $returnLines = [];
 
     public string $overallReason = '';
+
+    public function mount(): void
+    {
+        if ($this->prefillReceipt === '') {
+            return;
+        }
+
+        $this->authorizeAction('returns', 'create');
+
+        $this->mode = 'process';
+        $this->saleSearch = $this->prefillReceipt;
+        $this->findSale();
+    }
 
     public function updatingSearch(): void
     {

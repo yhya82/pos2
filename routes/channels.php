@@ -13,3 +13,14 @@ Broadcast::channel('user.{id}', function ($user, $id) {
 Broadcast::channel('role.{roleId}', function ($user, $roleId) {
     return (int) $user->role_id === (int) $roleId;
 });
+
+/**
+ * Presence channel backing the "Currently Online" dashboard widget
+ * (App\Livewire\Dashboard\OnlineUsers) — any authenticated user is
+ * authorized to join, since every logged-in browser tab needs to register
+ * its presence for the roster to be accurate. Only the *display* of the
+ * roster is admin-gated, in the Livewire component itself.
+ */
+Broadcast::channel('online-users', function ($user) {
+    return ['id' => $user->id, 'name' => $user->name, 'role' => $user->role?->name];
+});

@@ -12,7 +12,7 @@
             @endif
         </div>
 
-        <div class="bg-white dark:bg-gray-800 shadow sm:rounded-lg overflow-x-auto">
+        <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead class="bg-gray-50 dark:bg-gray-900/40">
                     <tr>
@@ -59,7 +59,7 @@
 
     @if ($mode === 'process')
         <div class="max-w-2xl space-y-4">
-            <div class="bg-white dark:bg-gray-800 shadow sm:rounded-lg p-4">
+            <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 p-4">
                 <div class="flex gap-3">
                     <x-text-input wire:model="saleSearch" wire:keydown.enter="findSale" placeholder="Enter the original sale's receipt number..." class="flex-1" />
                     <x-primary-button wire:click="findSale">Find Sale</x-primary-button>
@@ -70,7 +70,7 @@
             </div>
 
             @if ($foundSale)
-                <div class="bg-white dark:bg-gray-800 shadow sm:rounded-lg p-4">
+                <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 p-4">
                     <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
                         {{ $foundSale->receipt_number }} — {{ $foundSale->sale_date->format('Y-m-d H:i') }}
                         @if ($foundSale->customer) · {{ $foundSale->customer->name }} @endif

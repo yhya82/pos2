@@ -14,7 +14,7 @@
         <input type="date" wire:model.live="dateTo" class="rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
     </div>
 
-    <div class="bg-white dark:bg-gray-800 shadow sm:rounded-lg overflow-x-auto">
+    <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead class="bg-gray-50 dark:bg-gray-900/40">
                 <tr>
@@ -49,6 +49,9 @@
                         </td>
                         <td class="px-4 py-3 text-sm text-right whitespace-nowrap space-x-3">
                             <a href="{{ route('sales.receipt', $sale) }}" target="_blank" class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium">Receipt</a>
+                            @if ($sale->status === 'completed' && auth()->user()->hasPermission('returns', 'create') && \App\Models\ModuleSetting::enabled('return_management'))
+                                <a href="{{ route('returns.index', ['receipt' => $sale->receipt_number]) }}" wire:navigate class="text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300 font-medium">Refund</a>
+                            @endif
                             @if ($sale->status === 'completed' && auth()->user()->hasPermission('sales', 'update'))
                                 <button wire:click="confirmVoid({{ $sale->id }})" class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 font-medium">Void</button>
                             @endif

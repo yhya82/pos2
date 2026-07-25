@@ -182,7 +182,7 @@ class SaleService
      * every line before anything is written — a shortfall on line 3
      * shouldn't leave lines 1–2 already committed.
      *
-     * @return array{0: array<int, array{product: Product, quantity: float, unit_price: float, subtotal: float, allocations: array<int, array{batch: Batch, qty: float}>}>, 1: float}
+     * @return array{0: array<int, array{product: Product, quantity: float, unit_price: float, subtotal: float, allocations: array<int, array{batch: Batch, qty: float}>, line_discount_type: string, line_discount_amount: float}>, 1: float}
      */
     private function buildLines(array $cartLines, SalesSetting $salesSettings): array
     {
@@ -200,6 +200,14 @@ class SaleService
             $unitPrice = isset($line['unit_price']) ? (float) $line['unit_price'] : (float) $product->selling_price;
             $lineSubtotal = round($quantity * $unitPrice, 2);
             $subtotal += $lineSubtotal;
+
+            // Promotional-discount bookkeeping only — the charged unit_price
+            // above is unchanged, this just records the delta against the
+            // product's list price for reporting (Product Profile's
+            // "Discount History" tab reads these same line_discount_* columns).
+            $lineDiscountAmount = $product->hasActivePromo()
+                ? round(max(0.0, (float) $product->selling_price - $unitPrice) * $quantity, 2)
+                : 0.0;
 
             $batches = Batch::where('product_id', $product->id)
                 ->where('status', 'active')
@@ -243,6 +251,8 @@ class SaleService
                 'unit_price' => $unitPrice,
                 'subtotal' => $lineSubtotal,
                 'allocations' => $allocations,
+                'line_discount_type' => $lineDiscountAmount > 0 ? $product->promo_discount_type : 'none',
+                'line_discount_amount' => $lineDiscountAmount,
             ];
         }
 
@@ -258,6 +268,10 @@ class SaleService
                 'quantity' => $line['quantity'],
                 'unit_price' => $line['unit_price'],
                 'subtotal' => $line['subtotal'],
+                'line_discount_type' => $line['line_discount_type'],
+                'line_discount_amount' => $line['line_discount_amount'],
+                'line_discount_reason' => $line['line_discount_amount'] > 0 ? 'Promotional discount' : null,
+                'line_discount_applied_by' => $line['line_discount_amount'] > 0 ? $cashier->id : null,
             ]);
 
             foreach ($line['allocations'] as $allocation) {

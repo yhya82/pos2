@@ -48,6 +48,18 @@ class InventoryAdjustmentService
                 );
             }
 
+            // A batch can never hold more than it originally received
+            // (chk_batches_qty_remaining) — a correction can restore stock
+            // that was miscounted, but not conjure more than the batch's own
+            // history ever recorded. Genuinely-extra stock is a new
+            // delivery and belongs in a new batch via Add Stock, not
+            // inflated onto this one.
+            if ($newQty > (float) $batch->qty_received) {
+                throw new RuntimeException(
+                    "This would take the batch above what it originally received ({$batch->qty_received}) — use Add Stock to record additional stock as a new batch instead."
+                );
+            }
+
             $batch->qty_remaining = $newQty;
             $batch->save();
 

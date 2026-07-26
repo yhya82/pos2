@@ -46,19 +46,30 @@
             </script>
         @endauth
 
-        <div class="min-h-screen">
+        <div class="min-h-screen" x-data="{ sidebarOpen: false }">
             <x-sidebar />
 
             <div class="md:pl-64 flex flex-col min-h-screen">
                 <!-- Header: business context on the left, notifications and
                      the user menu on the right (SRS Sec. 20.4) -->
                 <header class="h-16 shrink-0 flex items-center justify-between gap-4 px-4 sm:px-6 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-                    <div class="min-w-0">
-                        @isset($header)
-                            <div class="font-semibold text-lg text-gray-800 dark:text-gray-100 truncate">
-                                {{ $header }}
-                            </div>
-                        @endisset
+                    <div class="flex items-center gap-3 min-w-0">
+                        <button
+                            type="button"
+                            x-on:click="sidebarOpen = true"
+                            class="md:hidden -ml-1 p-2 rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-6 w-6">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
+                            </svg>
+                        </button>
+                        <div class="min-w-0">
+                            @isset($header)
+                                <div class="font-semibold text-lg text-gray-800 dark:text-gray-100 truncate">
+                                    {{ $header }}
+                                </div>
+                            @endisset
+                        </div>
                     </div>
 
                     <div class="flex items-center gap-4 shrink-0">

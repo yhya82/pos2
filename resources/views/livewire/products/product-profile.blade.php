@@ -136,7 +136,7 @@
                 <form wire:submit="submitAdjustment" class="space-y-4">
                     <div>
                         <x-input-label for="adjust_batch" value="Batch" />
-                        <select wire:model="adjustBatchId" id="adjust_batch" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <select wire:model.live="adjustBatchId" id="adjust_batch" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             <option value="">Select a batch...</option>
                             @foreach ($availableBatches as $batch)
                                 <option value="{{ $batch->id }}">
@@ -153,13 +153,21 @@
 
                     <div>
                         <x-input-label for="adjust_type" value="Adjustment Type" />
-                        <select wire:model="adjustType" id="adjust_type" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <select wire:model.live="adjustType" id="adjust_type" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             <option value="correction_add">Correction — Add</option>
                             <option value="correction_remove">Correction — Remove</option>
                             <option value="damaged">Damaged</option>
                             <option value="expired">Expired</option>
                         </select>
                         <x-input-error :messages="$errors->get('adjustType')" class="mt-2" />
+                        @if ($adjustType === 'correction_add' && $adjustBatchId)
+                            @php $selectedBatch = $availableBatches->firstWhere('id', (int) $adjustBatchId); @endphp
+                            @if ($selectedBatch)
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    This batch received {{ rtrim(rtrim(number_format($selectedBatch->qty_received, 3), '0'), '.') }} in total — you can add up to {{ rtrim(rtrim(number_format($selectedBatch->qty_received - $selectedBatch->qty_remaining, 3), '0'), '.') ?: '0' }} more before it would exceed that.
+                                </p>
+                            @endif
+                        @endif
                     </div>
 
                     <div>

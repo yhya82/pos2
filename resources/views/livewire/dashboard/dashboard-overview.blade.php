@@ -26,7 +26,7 @@
         </div>
     @endif
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         @if ($canViewRevenue)
             <x-dashboard-stat-card
                 icon="banknotes"
@@ -192,9 +192,9 @@
                 </div>
 
                 @php $max = max(1, collect($salesTrend)->max('revenue')); @endphp
-                <div class="flex items-end {{ count($salesTrend) > 15 ? 'gap-1' : 'gap-3' }} h-40">
+                <div class="flex items-end {{ count($salesTrend) > 15 ? 'gap-1' : 'gap-3' }} h-40 overflow-x-auto">
                     @foreach ($salesTrend as $day)
-                        <div class="group/bar flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
+                        <div class="group/bar flex-1 min-w-0 flex flex-col items-center gap-1.5 h-full justify-end">
                             <span class="text-xs text-gray-500 dark:text-gray-400 tabular-nums opacity-0 group-hover/bar:opacity-100 transition-opacity">{{ $day['revenue'] > 0 ? number_format($day['revenue'], 0) : '' }}</span>
                             <div
                                 class="w-full rounded-t-md bg-gradient-to-t from-indigo-600 to-indigo-400 dark:from-indigo-700 dark:to-indigo-500 group-hover/bar:from-indigo-500 group-hover/bar:to-indigo-300 transition-all"

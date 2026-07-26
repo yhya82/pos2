@@ -9,6 +9,7 @@ use App\Models\InventoryMovement;
 use App\Models\Product;
 use App\Models\SaleLineItem;
 use App\Services\InventoryAdjustmentService;
+use App\Services\ManualStockService;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -22,6 +23,23 @@ class ProductProfile extends Component
     public int $productId;
 
     public string $activeTab = 'overview';
+
+    // --- Add stock (no purchase order) ---
+    public bool $showAddStockForm = false;
+
+    public string $addStockQty = '';
+
+    public string $addStockQtyUnit = 'purchase';
+
+    public string $addStockUnitCost = '';
+
+    public string $addStockReceivedDate = '';
+
+    public string $addStockExpiryDate = '';
+
+    public string $addStockBatchCode = '';
+
+    public string $addStockReason = '';
 
     // --- Stock adjustment ---
     public bool $showAdjustForm = false;
@@ -55,6 +73,54 @@ class ProductProfile extends Component
     public function setTab(string $tab): void
     {
         $this->activeTab = $tab;
+    }
+
+    public function openAddStockForm(): void
+    {
+        $this->authorizeAction('inventory', 'update');
+
+        $this->reset(['addStockQty', 'addStockQtyUnit', 'addStockUnitCost', 'addStockExpiryDate', 'addStockBatchCode', 'addStockReason']);
+        $this->addStockReceivedDate = now()->toDateString();
+        $this->showAddStockForm = true;
+    }
+
+    public function cancelAddStockForm(): void
+    {
+        $this->showAddStockForm = false;
+    }
+
+    public function submitAddStock(ManualStockService $service): void
+    {
+        $this->authorizeAction('inventory', 'update');
+
+        $validated = $this->validate([
+            'addStockQty' => ['required', 'numeric', 'gt:0'],
+            'addStockQtyUnit' => ['required', 'in:purchase,selling'],
+            'addStockUnitCost' => ['required', 'numeric', 'min:0'],
+            'addStockReceivedDate' => ['required', 'date'],
+            'addStockExpiryDate' => ['nullable', 'date', 'after_or_equal:addStockReceivedDate'],
+            'addStockBatchCode' => ['nullable', 'string', 'max:50'],
+            'addStockReason' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $product = Product::findOrFail($this->productId);
+
+        $service->receive(
+            $product,
+            (float) $validated['addStockQty'],
+            $validated['addStockQtyUnit'],
+            (float) $validated['addStockUnitCost'],
+            $validated['addStockReceivedDate'],
+            $validated['addStockExpiryDate'] ?: null,
+            $validated['addStockBatchCode'] ?: null,
+            $validated['addStockReason'] ?: null,
+            auth()->user(),
+        );
+
+        $this->showAddStockForm = false;
+        $this->reset(['addStockQty', 'addStockQtyUnit', 'addStockUnitCost', 'addStockExpiryDate', 'addStockBatchCode', 'addStockReason']);
+
+        $this->dispatch('flash-message', message: 'Stock added.', variant: 'success');
     }
 
     public function openAdjustForm(string $type): void
@@ -101,7 +167,7 @@ class ProductProfile extends Component
 
     public function openDiscountForm(): void
     {
-        $this->authorizeAction('products', 'update');
+        $this->authorizeAction('discounts', 'update');
 
         $product = Product::findOrFail($this->productId);
 
@@ -119,7 +185,7 @@ class ProductProfile extends Component
 
     public function saveDiscount(): void
     {
-        $this->authorizeAction('products', 'update');
+        $this->authorizeAction('discounts', 'update');
 
         $validated = $this->validate([
             'promoDiscountType' => ['required', 'in:none,fixed,percentage'],
@@ -156,7 +222,7 @@ class ProductProfile extends Component
 
     public function clearDiscount(): void
     {
-        $this->authorizeAction('products', 'update');
+        $this->authorizeAction('discounts', 'update');
 
         $product = Product::findOrFail($this->productId);
 

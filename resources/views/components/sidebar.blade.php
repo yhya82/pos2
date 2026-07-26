@@ -1,9 +1,13 @@
 <aside class="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 border-e border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
     <div class="flex items-center h-16 px-6 border-b border-gray-200 dark:border-gray-700 shrink-0">
-        <a href="{{ route('dashboard') }}" wire:navigate class="flex items-center gap-2">
-            <x-application-logo class="h-8 w-8 fill-current text-gray-800 dark:text-gray-200" />
-            <span class="font-semibold text-gray-800 dark:text-gray-100">
-                {{ \App\Models\GeneralSetting::current()->business_name ?? config('app.name') }}
+        <a href="{{ route('dashboard') }}" wire:navigate class="flex items-center gap-2 min-w-0">
+            @if ($generalSettings?->logoUrl())
+                <img src="{{ $generalSettings->logoUrl() }}" alt="" class="h-8 w-8 rounded-md object-cover shrink-0">
+            @else
+                <x-application-logo class="h-8 w-8 fill-current text-gray-800 dark:text-gray-200 shrink-0" />
+            @endif
+            <span class="font-semibold text-gray-800 dark:text-gray-100 truncate">
+                {{ $generalSettings->business_name ?? config('app.name') }}
             </span>
         </a>
     </div>

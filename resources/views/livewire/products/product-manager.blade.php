@@ -164,7 +164,7 @@
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <x-input-label for="product_purchase_unit" value="Purchase Unit" />
-                    <select wire:model="purchaseUnitId" id="product_purchase_unit" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <select wire:model.live="purchaseUnitId" id="product_purchase_unit" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                         <option value="">Select...</option>
                         @foreach ($units as $unit)
                             <option value="{{ $unit->id }}">{{ $unit->name }}</option>
@@ -175,7 +175,7 @@
 
                 <div>
                     <x-input-label for="product_selling_unit" value="Selling Unit" />
-                    <select wire:model="sellingUnitId" id="product_selling_unit" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <select wire:model.live="sellingUnitId" id="product_selling_unit" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                         <option value="">Select...</option>
                         @foreach ($units as $unit)
                             <option value="{{ $unit->id }}">{{ $unit->name }}</option>
@@ -187,7 +187,7 @@
 
             <div>
                 <x-input-label for="product_conversion_qty" value="Conversion Qty (1 purchase unit = ? selling units)" />
-                <x-text-input wire:model="conversionQty" id="product_conversion_qty" class="block mt-1 w-full" />
+                <x-text-input wire:model.live="conversionQty" id="product_conversion_qty" class="block mt-1 w-full" />
                 <x-input-error :messages="$errors->get('conversionQty')" class="mt-2" />
             </div>
 
@@ -206,8 +206,17 @@
             </div>
 
             <div>
-                <x-input-label for="product_min_stock" value="Minimum Stock Level" />
-                <x-text-input wire:model="minStockLevel" id="product_min_stock" class="block mt-1 w-full" />
+                @php
+                    $minStockHasDistinctUnits = $purchaseUnitId && $sellingUnitId && $purchaseUnitId !== $sellingUnitId;
+                    $minStockPurchaseEquivalent = $minStockHasDistinctUnits && is_numeric($minStockLevel) && (float) $conversionQty > 0
+                        ? rtrim(rtrim(number_format((float) $minStockLevel / (float) $conversionQty, 3), '0'), '.')
+                        : null;
+                @endphp
+                <x-input-label for="product_min_stock" :value="'Minimum Stock Level'.($sellingUnitId ? ' ('.$units->firstWhere('id', $sellingUnitId)?->name.')' : '')" />
+                <x-text-input wire:model.live="minStockLevel" id="product_min_stock" class="block mt-1 w-full" />
+                @if ($minStockPurchaseEquivalent !== null)
+                    <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">≈ {{ $minStockPurchaseEquivalent }} {{ $units->firstWhere('id', $purchaseUnitId)?->name }}</p>
+                @endif
                 <x-input-error :messages="$errors->get('minStockLevel')" class="mt-2" />
             </div>
 

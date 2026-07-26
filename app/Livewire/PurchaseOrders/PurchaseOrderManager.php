@@ -291,7 +291,7 @@ class PurchaseOrderManager extends Component
     {
         $this->authorizeAction('purchase_orders', 'update');
 
-        $po = PurchaseOrder::with(['lineItems.product'])->findOrFail($poId);
+        $po = PurchaseOrder::with(['lineItems.product', 'lineItems.purchaseUnit'])->findOrFail($poId);
 
         if (! in_array($po->status, ['ordered', 'partially_received'], true)) {
             $this->dispatch('flash-message', message: 'Only ordered or partially received purchase orders can be received.', variant: 'error');
@@ -305,6 +305,7 @@ class PurchaseOrderManager extends Component
             ->map(fn ($line) => [
                 'line_item_id' => $line->id,
                 'product_name' => $line->product->name,
+                'unit_name' => $line->purchaseUnit->name,
                 'remaining' => $line->remainingQty(),
                 'qty' => '',
                 'batch_code' => '',

@@ -48,6 +48,13 @@
                 :value-class="$lowStockCount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-900 dark:text-gray-100'"
             >
                 {{ $lowStockCount }}
+                @if ($lowStockNames->isNotEmpty())
+                    <x-slot name="details">
+                        @foreach ($lowStockNames as $name)
+                            <div class="truncate">{{ $name }}</div>
+                        @endforeach
+                    </x-slot>
+                @endif
                 <x-slot name="footer">
                     <a href="{{ route('inventory.index', ['tab' => 'stock', 'low_stock' => 1]) }}" wire:navigate class="inline-flex items-center gap-1 font-medium text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400">
                         View low-stock items <span aria-hidden="true">&rarr;</span>
@@ -78,6 +85,13 @@
                 :value-class="$outOfStockCount > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'"
             >
                 {{ $outOfStockCount }}
+                @if ($outOfStockNames->isNotEmpty())
+                    <x-slot name="details">
+                        @foreach ($outOfStockNames as $name)
+                            <div class="truncate">{{ $name }}</div>
+                        @endforeach
+                    </x-slot>
+                @endif
                 <x-slot name="footer">
                     <a href="{{ route('inventory.index', ['tab' => 'stock']) }}" wire:navigate class="inline-flex items-center gap-1 font-medium text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400">
                         View stock <span aria-hidden="true">&rarr;</span>
@@ -144,6 +158,13 @@
                 label="Outstanding Credit"
             >
                 {{ number_format($outstandingCredit, 2) }}
+                @if ($outstandingCreditNames->isNotEmpty())
+                    <x-slot name="details">
+                        @foreach ($outstandingCreditNames as $name)
+                            <div class="truncate">{{ $name }}</div>
+                        @endforeach
+                    </x-slot>
+                @endif
                 <x-slot name="footer">
                     <a href="{{ route('customers.index') }}" wire:navigate class="inline-flex items-center gap-1 font-medium text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400">
                         View customers <span aria-hidden="true">&rarr;</span>

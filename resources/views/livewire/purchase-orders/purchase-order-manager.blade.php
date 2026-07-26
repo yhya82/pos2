@@ -140,12 +140,13 @@
                             </div>
 
                             <div class="col-span-3">
-                                <select wire:model="lines.{{ $index }}.purchase_unit_id" class="block w-full text-sm rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                    <option value="">Unit...</option>
-                                    @foreach (\App\Models\Unit::where('is_active', true)->orderBy('name')->get() as $unit)
-                                        <option value="{{ $unit->id }}">{{ $unit->name }}</option>
-                                    @endforeach
-                                </select>
+                                {{-- Read-only: always the product's own purchase unit (auto-filled below when a
+                                     product is picked), since conversion_qty is only meaningful for that one
+                                     pairing — letting a line override it would silently break unit conversion
+                                     at receiving time. --}}
+                                <div class="flex items-center h-[38px] px-3 text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/40 rounded-md border border-gray-200 dark:border-gray-700">
+                                    {{ $products->firstWhere('id', $line['product_id'])?->purchaseUnit->name ?? '—' }}
+                                </div>
                                 <x-input-error :messages="$errors->get('lines.'.$index.'.purchase_unit_id')" class="mt-1" />
                             </div>
 
@@ -177,12 +178,12 @@
                 <div class="border border-gray-200 dark:border-gray-700 rounded-md p-3" wire:key="receiving-line-{{ $index }}">
                     <div class="flex items-center justify-between text-sm font-medium text-gray-800 dark:text-gray-100">
                         <span>{{ $line['product_name'] }}</span>
-                        <span class="text-gray-500 dark:text-gray-400 font-normal">{{ $line['remaining'] }} remaining</span>
+                        <span class="text-gray-500 dark:text-gray-400 font-normal">{{ $line['remaining'] }} {{ $line['unit_name'] }} remaining</span>
                     </div>
 
                     <div class="grid grid-cols-2 gap-2 mt-2">
                         <div>
-                            <x-input-label value="Qty received now" class="text-xs" />
+                            <x-input-label :value="'Qty received now ('.$line['unit_name'].')'" class="text-xs" />
                             <input type="text" wire:model="receivingLines.{{ $index }}.qty" class="block w-full text-sm mt-1 rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                         </div>
                         <div>

@@ -118,4 +118,31 @@ class Product extends Model
     {
         return $this->hasMany(Batch::class);
     }
+
+    /**
+     * Stock quantities (batches.qty_remaining, min_stock_level, POS sale
+     * lines) are always denominated in the selling unit — these three
+     * convert a raw figure entered in either unit into whichever side of
+     * that boundary the caller needs, using the product's own fixed
+     * purchase-unit -> selling-unit ratio. $unit is always 'purchase' or
+     * 'selling'.
+     */
+    public function toSellingQty(float $qty, string $unit): float
+    {
+        return $unit === 'purchase' ? $qty * (float) $this->conversion_qty : $qty;
+    }
+
+    public function toPurchaseQty(float $qty, string $unit): float
+    {
+        return $unit === 'selling' && (float) $this->conversion_qty > 0
+            ? $qty / (float) $this->conversion_qty
+            : $qty;
+    }
+
+    public function toSellingUnitCost(float $cost, string $unit): float
+    {
+        return $unit === 'purchase' && (float) $this->conversion_qty > 0
+            ? $cost / (float) $this->conversion_qty
+            : $cost;
+    }
 }

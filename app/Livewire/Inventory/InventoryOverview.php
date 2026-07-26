@@ -102,11 +102,12 @@ class InventoryOverview extends Component
     {
         return CurrentStock::query()
             ->join('products', 'products.id', '=', 'v_current_stock.product_id')
+            ->join('units', 'units.id', '=', 'products.selling_unit_id')
             ->when($this->stockSearch, fn ($q) => $q->where('v_current_stock.product_name', 'like', "%{$this->stockSearch}%"))
             ->when($this->stockCategoryId, fn ($q) => $q->where('products.category_id', $this->stockCategoryId))
             ->when($this->stockSupplierId, fn ($q) => $q->where('products.supplier_id', $this->stockSupplierId))
             ->when($this->lowStockOnly, fn ($q) => $q->where('v_current_stock.is_low_stock', 1))
-            ->select('v_current_stock.*')
+            ->select('v_current_stock.*', 'units.name as selling_unit_name')
             ->orderBy('v_current_stock.product_name')
             ->paginate(10, pageName: 'stockPage');
     }
@@ -172,7 +173,7 @@ class InventoryOverview extends Component
 
     public function applyBulkDiscount(): void
     {
-        $this->authorizeAction('products', 'update');
+        $this->authorizeAction('discounts', 'update');
 
         if (empty($this->selectedProductIds)) {
             $this->dispatch('flash-message', message: 'Select at least one product first.', variant: 'error');
@@ -221,7 +222,7 @@ class InventoryOverview extends Component
 
     public function clearBulkDiscount(): void
     {
-        $this->authorizeAction('products', 'update');
+        $this->authorizeAction('discounts', 'update');
 
         if (empty($this->selectedProductIds)) {
             $this->dispatch('flash-message', message: 'Select at least one product first.', variant: 'error');

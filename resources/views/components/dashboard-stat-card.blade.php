@@ -16,6 +16,9 @@
         <div class="min-w-0 flex-1">
             <div class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ $label }}</div>
             <div class="mt-1 text-xl font-bold tabular-nums {{ $valueClass }}">{{ $slot }}</div>
+            @isset($details)
+                <div class="mt-1 text-xs text-gray-500 dark:text-gray-400 space-y-0.5">{{ $details }}</div>
+            @endisset
             @isset($footer)
                 <div class="mt-1.5 text-xs text-gray-400 dark:text-gray-500">{{ $footer }}</div>
             @endisset

@@ -103,11 +103,20 @@ class DashboardOverview extends Component
             },
             'periodSales' => $canViewRevenue ? $this->periodSales($from, $to) : null,
             'lowStockCount' => $canViewInventory ? CurrentStock::where('is_low_stock', 1)->where('qty_on_hand', '>', 0)->count() : null,
+            'lowStockNames' => $canViewInventory
+                ? CurrentStock::where('is_low_stock', 1)->where('qty_on_hand', '>', 0)->orderBy('qty_on_hand')->limit(3)->pluck('product_name')
+                : collect(),
             'expiringSoonCount' => $canViewInventory ? $this->expiringSoonCount() : null,
             'outOfStockCount' => $canViewInventory ? (int) DB::table('v_out_of_stock')->count() : null,
+            'outOfStockNames' => $canViewInventory
+                ? DB::table('v_out_of_stock')->orderBy('product_name')->limit(3)->pluck('product_name')
+                : collect(),
             'inventoryValue' => $canViewInventoryValue ? (float) DB::table('v_inventory_valuation')->sum('value_at_selling_price') : null,
             'estimatedGrossProfit' => $canViewInventoryValue ? (float) DB::table('v_inventory_valuation')->sum('estimated_gross_profit') : null,
             'outstandingCredit' => $canViewCustomers ? (float) DB::table('v_credit_outstanding_balances')->sum('outstanding_balance') : null,
+            'outstandingCreditNames' => $canViewCustomers
+                ? DB::table('v_credit_outstanding_balances')->orderByDesc('outstanding_balance')->limit(3)->pluck('customer_name')
+                : collect(),
             'pendingPurchaseOrders' => $canViewPurchaseOrders ? PurchaseOrder::whereIn('status', ['draft', 'ordered', 'partially_received'])->count() : null,
             'refundsTotal' => $canViewReturns ? (float) DB::table('v_refund_report')->whereBetween('created_at', [$from, $to])->sum('refund_amount') : null,
             'salesTrend' => $canViewRevenue ? $this->salesTrend($from, $to) : [],

@@ -47,13 +47,23 @@ class PurchaseReceivingService
                     );
                 }
 
+                // qty_ordered/qty_received on the line item stay in the line's
+                // purchase unit throughout the PO's life (that's what
+                // remainingQty() compares against) — only the Batch actually
+                // written gets converted to the always-selling-unit terms
+                // everything downstream (POS, Adjust Stock, min_stock_level)
+                // expects.
+                $product = $lineItem->product;
+                $sellingQty = $product->toSellingQty($qty, 'purchase');
+                $sellingUnitCost = $product->toSellingUnitCost((float) $lineItem->cost_price, 'purchase');
+
                 $batch = Batch::create([
                     'product_id' => $lineItem->product_id,
                     'purchase_order_line_item_id' => $lineItem->id,
                     'batch_code' => $receipt['batch_code'] ?? null ?: null,
-                    'qty_received' => $qty,
-                    'qty_remaining' => $qty,
-                    'unit_cost' => $lineItem->cost_price,
+                    'qty_received' => $sellingQty,
+                    'qty_remaining' => $sellingQty,
+                    'unit_cost' => $sellingUnitCost,
                     'expiry_date' => $receipt['expiry_date'] ?? null ?: null,
                     'received_date' => $receipt['received_date'] ?? null ?: now()->toDateString(),
                     'status' => 'active',
@@ -65,9 +75,9 @@ class PurchaseReceivingService
                     'product_id' => $lineItem->product_id,
                     'batch_id' => $batch->id,
                     'movement_type' => 'stock_received',
-                    'quantity' => $qty,
+                    'quantity' => $sellingQty,
                     'previous_qty' => 0,
-                    'new_qty' => $qty,
+                    'new_qty' => $sellingQty,
                     'reference_table' => 'purchase_orders',
                     'reference_id' => $purchaseOrder->id,
                     'reason' => "Received against {$purchaseOrder->po_number}",

@@ -28,11 +28,12 @@
 
                 <div class="flex flex-wrap gap-2 mt-3">
                     @if (auth()->user()->hasPermission('inventory', 'update'))
+                        <x-secondary-button wire:click="openAddStockForm" class="!py-1 !px-2.5 !text-xs !bg-emerald-50 dark:!bg-emerald-900/40 !text-emerald-700 dark:!text-emerald-300 !border-emerald-200 dark:!border-emerald-800 hover:!bg-emerald-100 dark:hover:!bg-emerald-900/60">Add Stock</x-secondary-button>
                         <x-secondary-button wire:click="openAdjustForm('correction_add')" class="!py-1 !px-2.5 !text-xs !bg-blue-50 dark:!bg-blue-900/40 !text-blue-700 dark:!text-blue-300 !border-blue-200 dark:!border-blue-800 hover:!bg-blue-100 dark:hover:!bg-blue-900/60">Adjust Stock</x-secondary-button>
                         <x-secondary-button wire:click="openAdjustForm('damaged')" class="!py-1 !px-2.5 !text-xs !bg-amber-50 dark:!bg-amber-900/40 !text-amber-700 dark:!text-amber-300 !border-amber-200 dark:!border-amber-800 hover:!bg-amber-100 dark:hover:!bg-amber-900/60">Mark Damaged</x-secondary-button>
                         <x-secondary-button wire:click="openAdjustForm('correction_remove')" class="!py-1 !px-2.5 !text-xs !bg-red-50 dark:!bg-red-900/40 !text-red-700 dark:!text-red-300 !border-red-200 dark:!border-red-800 hover:!bg-red-100 dark:hover:!bg-red-900/60">Remove Stock</x-secondary-button>
                     @endif
-                    @if (auth()->user()->hasPermission('products', 'update'))
+                    @if (auth()->user()->hasPermission('discounts', 'update'))
                         <x-secondary-button wire:click="openDiscountForm" class="!py-1 !px-2.5 !text-xs !bg-pink-50 dark:!bg-pink-900/40 !text-pink-700 dark:!text-pink-300 !border-pink-200 dark:!border-pink-800 hover:!bg-pink-100 dark:hover:!bg-pink-900/60">{{ $product->hasActivePromo() ? 'Edit Discount' : 'Set Discount' }}</x-secondary-button>
                     @endif
                 </div>
@@ -60,6 +61,74 @@
                 </div>
             </div>
         </div>
+
+        @if ($showAddStockForm)
+            <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 max-w-xl">
+                <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-3">Add Stock</h3>
+                <p class="text-xs text-gray-500 dark:text-gray-400 -mt-2 mb-3">Creates a new batch directly — no purchase order needed. Use this for opening stock or deliveries you're not tracking through Purchase Orders.</p>
+                <form wire:submit="submitAddStock" class="space-y-4">
+                    @php
+                        $hasDistinctUnits = $product->purchase_unit_id !== $product->selling_unit_id;
+                        $addStockUnitLabel = $hasDistinctUnits
+                            ? ($addStockQtyUnit === 'purchase' ? $product->purchaseUnit->name : $product->sellingUnit->name)
+                            : $product->sellingUnit->name;
+                    @endphp
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <x-input-label for="add_stock_qty" value="Quantity Received" />
+                            <div class="mt-1 flex gap-2">
+                                <x-text-input wire:model="addStockQty" id="add_stock_qty" class="block w-full" />
+                                @if ($hasDistinctUnits)
+                                    <select wire:model.live="addStockQtyUnit" class="rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                                        <option value="purchase">{{ $product->purchaseUnit->name }}</option>
+                                        <option value="selling">{{ $product->sellingUnit->name }}</option>
+                                    </select>
+                                @else
+                                    <span class="inline-flex items-center px-3 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">{{ $addStockUnitLabel }}</span>
+                                @endif
+                            </div>
+                            <x-input-error :messages="$errors->get('addStockQty')" class="mt-2" />
+                            <x-input-error :messages="$errors->get('addStockQtyUnit')" class="mt-2" />
+                        </div>
+                        <div>
+                            <x-input-label for="add_stock_cost" :value="'Unit Cost (per '.$addStockUnitLabel.')'" />
+                            <x-text-input wire:model="addStockUnitCost" id="add_stock_cost" class="block mt-1 w-full" />
+                            <x-input-error :messages="$errors->get('addStockUnitCost')" class="mt-2" />
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <x-input-label for="add_stock_received" value="Received Date" />
+                            <input type="date" wire:model="addStockReceivedDate" id="add_stock_received" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <x-input-error :messages="$errors->get('addStockReceivedDate')" class="mt-2" />
+                        </div>
+                        <div>
+                            <x-input-label for="add_stock_expiry" value="Expiry Date (optional)" />
+                            <input type="date" wire:model="addStockExpiryDate" id="add_stock_expiry" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <x-input-error :messages="$errors->get('addStockExpiryDate')" class="mt-2" />
+                        </div>
+                    </div>
+
+                    <div>
+                        <x-input-label for="add_stock_batch_code" value="Batch Code (optional)" />
+                        <x-text-input wire:model="addStockBatchCode" id="add_stock_batch_code" class="block mt-1 w-full" />
+                        <x-input-error :messages="$errors->get('addStockBatchCode')" class="mt-2" />
+                    </div>
+
+                    <div>
+                        <x-input-label for="add_stock_reason" value="Reason / Note (optional)" />
+                        <textarea wire:model="addStockReason" id="add_stock_reason" rows="2" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+                        <x-input-error :messages="$errors->get('addStockReason')" class="mt-2" />
+                    </div>
+
+                    <div class="flex justify-end gap-2">
+                        <x-secondary-button type="button" wire:click="cancelAddStockForm">Cancel</x-secondary-button>
+                        <x-primary-button type="submit">Add Stock</x-primary-button>
+                    </div>
+                </form>
+            </div>
+        @endif
 
         @if ($showAdjustForm)
             <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 max-w-xl">
@@ -94,7 +163,7 @@
                     </div>
 
                     <div>
-                        <x-input-label for="adjust_qty" value="Quantity" />
+                        <x-input-label for="adjust_qty" :value="'Quantity ('.$product->sellingUnit->name.')'" />
                         <x-text-input wire:model="adjustQty" id="adjust_qty" class="block mt-1 w-full" />
                         <x-input-error :messages="$errors->get('adjustQty')" class="mt-2" />
                     </div>
@@ -179,7 +248,7 @@
                 'Purchase Unit' => $product->purchaseUnit->name,
                 'Selling Unit' => $product->sellingUnit->name,
                 'Conversion' => '1 '.$product->purchaseUnit->name.' = '.rtrim(rtrim(number_format($product->conversion_qty, 3), '0'), '.').' '.$product->sellingUnit->name,
-                'Minimum Stock Level' => rtrim(rtrim(number_format($product->min_stock_level, 3), '0'), '.') ?: '0',
+                'Minimum Stock Level' => (rtrim(rtrim(number_format($product->min_stock_level, 3), '0'), '.') ?: '0').' '.$product->sellingUnit->name,
                 'Promotional Discount' => $product->hasActivePromo()
                     ? ($product->promo_discount_type === 'percentage' ? rtrim(rtrim(number_format($product->promo_discount_value, 2), '0'), '.').'% off' : number_format($product->promo_discount_value, 2).' off')
                     : 'None',
@@ -199,9 +268,9 @@
                 <thead class="bg-gray-50 dark:bg-gray-900/40">
                     <tr>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Batch</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Received</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Remaining</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Unit Cost</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Received ({{ $product->sellingUnit->name }})</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Remaining ({{ $product->sellingUnit->name }})</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Unit Cost (per {{ $product->sellingUnit->name }})</th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Received Date</th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Expiry</th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>

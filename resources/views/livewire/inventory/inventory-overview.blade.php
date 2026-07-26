@@ -54,8 +54,8 @@
                     @forelse ($stock as $row)
                         <tr wire:key="stock-{{ $row->product_id }}">
                             <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{{ $row->product_name }}</td>
-                            <td class="px-4 py-3 text-sm text-right tabular-nums text-gray-600 dark:text-gray-400">{{ rtrim(rtrim(number_format($row->qty_on_hand, 3), '0'), '.') ?: '0' }}</td>
-                            <td class="px-4 py-3 text-sm text-right tabular-nums text-gray-600 dark:text-gray-400">{{ rtrim(rtrim(number_format($row->min_stock_level, 3), '0'), '.') ?: '0' }}</td>
+                            <td class="px-4 py-3 text-sm text-right tabular-nums text-gray-600 dark:text-gray-400">{{ rtrim(rtrim(number_format($row->qty_on_hand, 3), '0'), '.') ?: '0' }} {{ $row->selling_unit_name }}</td>
+                            <td class="px-4 py-3 text-sm text-right tabular-nums text-gray-600 dark:text-gray-400">{{ rtrim(rtrim(number_format($row->min_stock_level, 3), '0'), '.') ?: '0' }} {{ $row->selling_unit_name }}</td>
                             <td class="px-4 py-3 text-sm">
                                 @if ($row->qty_on_hand <= 0)
                                     <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300">Out of Stock</span>
@@ -218,6 +218,7 @@
 
     {{-- ============================== BULK DISCOUNTS ============================== --}}
     @if ($activeTab === 'discounts')
+        @if (auth()->user()->hasPermission('discounts', 'update'))
         <div class="flex flex-wrap items-center gap-3 mb-4">
             <div class="w-full max-w-xs">
                 <x-text-input wire:model.live.debounce.300ms="discountSearch" type="search" placeholder="Search product..." class="w-full" />
@@ -323,6 +324,11 @@
                 </form>
             </div>
         </div>
+        @else
+            <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 p-6 max-w-xl">
+                <p class="text-sm text-gray-500 dark:text-gray-400">You don't have permission to manage discounts.</p>
+            </div>
+        @endif
     @endif
 
     {{-- ============================== EXPIRY TRACKING ============================== --}}

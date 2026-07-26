@@ -2,6 +2,7 @@
 
 namespace App\View\Components;
 
+use App\Models\GeneralSetting;
 use App\Models\ModuleSetting;
 use Illuminate\Support\Facades\Route;
 use Illuminate\View\Component;
@@ -25,7 +26,10 @@ class Sidebar extends Component
             ->filter(fn (array $item) => $this->visibleTo($user, $item))
             ->values();
 
-        return view('components.sidebar', ['items' => $items]);
+        return view('components.sidebar', [
+            'items' => $items,
+            'generalSettings' => GeneralSetting::current(),
+        ]);
     }
 
     /**

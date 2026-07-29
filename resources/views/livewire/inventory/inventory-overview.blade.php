@@ -1,11 +1,11 @@
 <div>
-    <div class="border-b border-gray-200 dark:border-gray-700 mb-4">
-        <nav class="-mb-px flex gap-6">
+    <div class="border-b border-gray-200 dark:border-gray-700 mb-4 overflow-x-auto">
+        <nav class="-mb-px flex gap-6 w-max">
             @foreach (['stock' => 'Stock Overview', 'movements' => 'Movement History', 'adjust' => 'Stock Adjustments', 'expiry' => 'Expiry Tracking', 'discounts' => 'Bulk Discounts'] as $tab => $label)
                 <button
                     wire:click="setTab('{{ $tab }}')"
                     @class([
-                        'py-3 px-1 border-b-2 text-sm font-medium',
+                        'py-3 px-1 border-b-2 text-sm font-medium whitespace-nowrap',
                         'border-indigo-500 text-indigo-600 dark:text-indigo-400' => $activeTab === $tab,
                         'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200' => $activeTab !== $tab,
                     ])

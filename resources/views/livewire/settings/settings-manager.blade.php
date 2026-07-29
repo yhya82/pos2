@@ -39,7 +39,7 @@
 
                 <div>
                     <x-input-label value="Store Logo" />
-                    <div class="flex items-center gap-4 mt-1">
+                    <div class="flex flex-wrap items-center gap-4 mt-1">
                         <div class="h-16 w-16 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center overflow-hidden shrink-0">
                             @if ($logo)
                                 <img src="{{ $logo->temporaryUrl() }}" class="h-full w-full object-cover">
@@ -49,8 +49,8 @@
                                 <x-icon name="cube" class="h-8 w-8 text-gray-400 dark:text-gray-500" />
                             @endif
                         </div>
-                        <div class="flex flex-col gap-1">
-                            <input type="file" wire:model="logo" accept="image/*" class="text-sm text-gray-600 dark:text-gray-400">
+                        <div class="flex flex-col gap-1 min-w-0 max-w-full">
+                            <input type="file" wire:model="logo" accept="image/*" class="text-sm text-gray-600 dark:text-gray-400 max-w-full">
                             @if ($general['business_logo_url'] && ! $logo)
                                 <button type="button" wire:click="removeLogo" class="text-xs text-red-600 dark:text-red-400 hover:underline self-start">Remove logo</button>
                             @endif

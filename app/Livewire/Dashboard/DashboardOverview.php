@@ -11,6 +11,7 @@ use App\Models\Sale;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 /**
@@ -62,6 +63,20 @@ class DashboardOverview extends Component
     public function updatedDateTo(): void
     {
         $this->period = 'custom';
+    }
+
+    /**
+     * Real-time delivery for every card on this page: a completed sale, any
+     * stock movement, or a credit payment all re-trigger render(), which
+     * already recomputes every stat fresh from the DB on each pass — same
+     * no-op-listener pattern as NotificationBell.
+     */
+    #[On('echo-private:dashboard,.SaleCompleted')]
+    #[On('echo-private:dashboard,.CreditBalanceChanged')]
+    #[On('echo-private:stock,.StockChanged')]
+    public function onLiveDataChanged(): void
+    {
+        // No-op — render() below re-queries everything fresh.
     }
 
     public function render()

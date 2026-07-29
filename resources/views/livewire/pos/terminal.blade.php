@@ -46,12 +46,12 @@
     {{-- ============================== LEFT: PRODUCT SEARCH ============================== --}}
     <div class="lg:col-span-2 space-y-4">
         <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 p-4 space-y-3">
-            <div class="flex gap-3">
+            <div class="flex flex-col sm:flex-row gap-3">
                 <input
                     type="text"
                     x-model="search"
                     placeholder="Search products by name..."
-                    class="flex-1 rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                    class="flex-1 min-w-0 rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
                 >
                 <input
                     type="text"
@@ -59,7 +59,7 @@
                     x-ref="barcodeInput"
                     @keydown.enter.prevent="scanBarcode()"
                     placeholder="Scan barcode + Enter"
-                    class="w-56 rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm font-mono"
+                    class="w-full sm:w-56 rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm font-mono"
                 >
             </div>
 

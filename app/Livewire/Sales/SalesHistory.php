@@ -5,6 +5,7 @@ namespace App\Livewire\Sales;
 use App\Livewire\Concerns\AuthorizesModuleActions;
 use App\Models\Sale;
 use App\Services\SaleService;
+use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithPagination;
 use RuntimeException;
@@ -28,6 +29,12 @@ class SalesHistory extends Component
     public function updatingSearch(): void
     {
         $this->resetPage();
+    }
+
+    #[On('echo-private:sales,.SaleCompleted')]
+    public function onSaleCompleted(): void
+    {
+        // No-op — render() below re-queries fresh.
     }
 
     public function render()

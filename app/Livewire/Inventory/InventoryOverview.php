@@ -14,6 +14,7 @@ use App\Models\Supplier;
 use App\Services\InventoryAdjustmentService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -81,6 +82,12 @@ class InventoryOverview extends Component
     public function setTab(string $tab): void
     {
         $this->activeTab = $tab;
+    }
+
+    #[On('echo-private:stock,.StockChanged')]
+    public function onStockChanged(): void
+    {
+        // No-op — render() below re-queries fresh.
     }
 
     public function render()

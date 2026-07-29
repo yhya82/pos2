@@ -123,8 +123,8 @@
 
                 <div class="space-y-3">
                     @foreach ($lines as $index => $line)
-                        <div class="grid grid-cols-12 gap-2 items-start border border-gray-200 dark:border-gray-700 rounded-md p-3" wire:key="line-{{ $index }}">
-                            <div class="col-span-4">
+                        <div class="grid grid-cols-2 sm:grid-cols-12 gap-2 items-start border border-gray-200 dark:border-gray-700 rounded-md p-3" wire:key="line-{{ $index }}">
+                            <div class="col-span-2 sm:col-span-4">
                                 <select wire:model.live="lines.{{ $index }}.product_id" class="block w-full text-sm rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                     <option value="">Product...</option>
                                     @foreach ($products as $product)
@@ -134,12 +134,12 @@
                                 <x-input-error :messages="$errors->get('lines.'.$index.'.product_id')" class="mt-1" />
                             </div>
 
-                            <div class="col-span-2">
+                            <div class="col-span-1 sm:col-span-2">
                                 <input type="text" wire:model="lines.{{ $index }}.qty_ordered" placeholder="Qty" class="block w-full text-sm rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                 <x-input-error :messages="$errors->get('lines.'.$index.'.qty_ordered')" class="mt-1" />
                             </div>
 
-                            <div class="col-span-3">
+                            <div class="col-span-1 sm:col-span-3">
                                 {{-- Read-only: always the product's own purchase unit (auto-filled below when a
                                      product is picked), since conversion_qty is only meaningful for that one
                                      pairing — letting a line override it would silently break unit conversion
@@ -150,7 +150,7 @@
                                 <x-input-error :messages="$errors->get('lines.'.$index.'.purchase_unit_id')" class="mt-1" />
                             </div>
 
-                            <div class="col-span-2">
+                            <div class="col-span-1 sm:col-span-2">
                                 <input type="text" wire:model="lines.{{ $index }}.cost_price" placeholder="Cost" class="block w-full text-sm rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                 <x-input-error :messages="$errors->get('lines.'.$index.'.cost_price')" class="mt-1" />
                             </div>

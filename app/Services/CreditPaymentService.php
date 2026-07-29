@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Events\CreditBalanceChanged;
 use App\Models\AuditLog;
 use App\Models\Customer;
 use App\Models\CreditTransaction;
@@ -28,7 +29,7 @@ class CreditPaymentService
             throw new RuntimeException('Payment amount must be greater than zero.');
         }
 
-        return DB::transaction(function () use ($customer, $amount, $receivedBy) {
+        $transaction = DB::transaction(function () use ($customer, $amount, $receivedBy) {
             $customer = Customer::whereKey($customer->id)->lockForUpdate()->firstOrFail();
 
             $previousBalance = (float) $customer->outstanding_balance;
@@ -61,5 +62,9 @@ class CreditPaymentService
 
             return $transaction;
         });
+
+        event(new CreditBalanceChanged($transaction->customer));
+
+        return $transaction;
     }
 }

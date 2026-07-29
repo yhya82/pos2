@@ -52,7 +52,7 @@
             <div class="md:pl-64 flex flex-col min-h-screen">
                 <!-- Header: business context on the left, notifications and
                      the user menu on the right (SRS Sec. 20.4) -->
-                <header class="h-16 shrink-0 flex items-center justify-between gap-4 px-4 sm:px-6 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                <header class="min-h-16 shrink-0 flex items-center flex-wrap justify-between gap-x-4 gap-y-2 px-4 sm:px-6 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
                     <div class="flex items-center gap-3 min-w-0">
                         <button
                             type="button"
@@ -65,7 +65,7 @@
                         </button>
                         <div class="min-w-0">
                             @isset($header)
-                                <div class="font-semibold text-lg text-gray-800 dark:text-gray-100 truncate">
+                                <div class="font-semibold text-lg text-gray-800 dark:text-gray-100 break-words">
                                     {{ $header }}
                                 </div>
                             @endisset

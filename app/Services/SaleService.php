@@ -17,6 +17,7 @@ use App\Models\SaleLineItemBatch;
 use App\Models\SalesSetting;
 use App\Models\StoreSetting;
 use App\Models\User;
+use App\Events\SaleCompleted;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -49,7 +50,7 @@ class SaleService
             throw new RuntimeException('Cannot complete a sale with no items.');
         }
 
-        return DB::transaction(function () use ($cartLines, $customerId, $paymentMethodId, $referenceNumber, $discountType, $discountValue, $discountReason, $cashier) {
+        $sale = DB::transaction(function () use ($cartLines, $customerId, $paymentMethodId, $referenceNumber, $discountType, $discountValue, $discountReason, $cashier) {
             $paymentMethod = PaymentMethod::where('is_enabled', true)->findOrFail($paymentMethodId);
             $isCredit = $paymentMethod->code === 'credit';
 
@@ -155,6 +156,13 @@ class SaleService
 
             return $sale->fresh(['lineItems.product', 'payment.paymentMethod', 'customer']);
         });
+
+        // Fired only after the transaction above has actually committed —
+        // never from inside it — so this never broadcasts a sale that
+        // could still roll back.
+        event(new SaleCompleted($sale));
+
+        return $sale;
     }
 
     public function voidSale(Sale $sale, string $reason, User $voidedBy): void

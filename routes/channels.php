@@ -24,3 +24,16 @@ Broadcast::channel('role.{roleId}', function ($user, $roleId) {
 Broadcast::channel('online-users', function ($user) {
     return ['id' => $user->id, 'name' => $user->name, 'role' => $user->role?->name];
 });
+
+/**
+ * Live-refresh signal channels for SaleCompleted, StockChanged, and
+ * CreditBalanceChanged (Dashboard, Sales History, Inventory Overview, POS
+ * Terminal). Every payload on these is a no-op — just "something changed,
+ * re-render" — so, same reasoning as 'online-users' above, authorization
+ * here only requires being logged in; each Livewire component's render()
+ * still applies its own real permission gates to decide what's actually
+ * shown.
+ */
+Broadcast::channel('dashboard', fn ($user) => true);
+Broadcast::channel('sales', fn ($user) => true);
+Broadcast::channel('stock', fn ($user) => true);

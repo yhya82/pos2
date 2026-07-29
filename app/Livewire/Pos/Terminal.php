@@ -12,6 +12,7 @@ use App\Models\PaymentMethod;
 use App\Models\Product;
 use App\Models\SalesSetting;
 use App\Services\SaleService;
+use Livewire\Attributes\On;
 use Livewire\Component;
 use RuntimeException;
 
@@ -22,6 +23,18 @@ class Terminal extends Component
     public function mount(): void
     {
         $this->authorizeAction('sales', 'create');
+    }
+
+    /**
+     * Keeps the product grid's stock badges live across concurrent
+     * terminals — e.g. Cashier A selling the last unit should make Cashier
+     * B's screen show "out of stock" without a manual refresh. The cart
+     * itself lives in Alpine state on the client, untouched by this.
+     */
+    #[On('echo-private:stock,.StockChanged')]
+    public function onStockChanged(): void
+    {
+        // No-op — render() below re-queries fresh.
     }
 
     public function render()

@@ -74,6 +74,7 @@ class DashboardOverview extends Component
     #[On('echo-private:dashboard,.SaleCompleted')]
     #[On('echo-private:dashboard,.CreditBalanceChanged')]
     #[On('echo-private:stock,.StockChanged')]
+    #[On('echo-private:settings,.ModuleSettingChanged')]
     public function onLiveDataChanged(): void
     {
         // No-op — render() below re-queries everything fresh.

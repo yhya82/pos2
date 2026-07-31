@@ -2,6 +2,9 @@
 
 namespace App\Livewire\Settings;
 
+use App\Events\GeneralSettingChanged;
+use App\Events\HardwareSettingChanged;
+use App\Events\ModuleSettingChanged;
 use App\Livewire\Concerns\AuthorizesModuleActions;
 use App\Models\BackupRecord;
 use App\Models\GeneralSetting;
@@ -162,6 +165,8 @@ class SettingsManager extends Component
         $this->logo = null;
         $this->general['business_logo_url'] = (string) $logoPath;
 
+        event(new GeneralSettingChanged);
+
         $this->flashSaved();
     }
 
@@ -179,6 +184,8 @@ class SettingsManager extends Component
 
         $this->logo = null;
         $this->general['business_logo_url'] = '';
+
+        event(new GeneralSettingChanged);
 
         $this->flashSaved();
     }
@@ -243,6 +250,9 @@ class SettingsManager extends Component
         ])['hardware'];
 
         HardwareSetting::current()->update($validated + ['updated_by' => auth()->id()]);
+
+        event(new HardwareSettingChanged);
+
         $this->flashSaved();
     }
 
@@ -269,6 +279,8 @@ class SettingsManager extends Component
         $setting = ModuleSetting::where('module_name', $moduleName)->firstOrFail();
         $setting->update(['is_enabled' => ! $setting->is_enabled, 'updated_by' => auth()->id()]);
         $this->moduleToggles[$moduleName] = $setting->is_enabled;
+
+        event(new ModuleSettingChanged($setting->module_name, $setting->is_enabled));
 
         $this->flashSaved();
     }

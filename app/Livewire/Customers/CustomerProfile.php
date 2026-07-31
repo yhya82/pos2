@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\ModuleSetting;
 use App\Services\CreditPaymentService;
 use Livewire\Attributes\Locked;
+use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithPagination;
 use RuntimeException;
@@ -32,6 +33,12 @@ class CustomerProfile extends Component
     public function setTab(string $tab): void
     {
         $this->activeTab = $tab;
+    }
+
+    #[On('echo-private:settings,.ModuleSettingChanged')]
+    public function onModuleSettingChanged(): void
+    {
+        // No-op — render() below re-checks ModuleSetting::enabled() fresh.
     }
 
     public function render()

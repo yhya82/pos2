@@ -37,3 +37,9 @@ Broadcast::channel('online-users', function ($user) {
 Broadcast::channel('dashboard', fn ($user) => true);
 Broadcast::channel('sales', fn ($user) => true);
 Broadcast::channel('stock', fn ($user) => true);
+
+/**
+ * ModuleSettingChanged and GeneralSettingChanged — same no-op,
+ * any-authenticated-user reasoning as the three channels above.
+ */
+Broadcast::channel('settings', fn ($user) => true);

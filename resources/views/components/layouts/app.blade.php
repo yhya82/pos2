@@ -47,7 +47,7 @@
         @endauth
 
         <div class="min-h-screen" x-data="{ sidebarOpen: false }">
-            <x-sidebar />
+            <livewire:layout.sidebar />
 
             <div class="md:pl-64 flex flex-col min-h-screen">
                 <!-- Header: business context on the left, notifications and

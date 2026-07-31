@@ -6,6 +6,7 @@ use App\Livewire\Concerns\AuthorizesModuleActions;
 use App\Models\AuditLog;
 use App\Models\Customer;
 use App\Models\ModuleSetting;
+use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -36,6 +37,12 @@ class CustomerManager extends Component
     public function updatingSearch(): void
     {
         $this->resetPage();
+    }
+
+    #[On('echo-private:settings,.ModuleSettingChanged')]
+    public function onModuleSettingChanged(): void
+    {
+        // No-op — render() below re-checks ModuleSetting::enabled() fresh.
     }
 
     public function render()

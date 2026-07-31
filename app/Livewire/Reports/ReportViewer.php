@@ -4,6 +4,7 @@ namespace App\Livewire\Reports;
 
 use App\Models\ModuleSetting;
 use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -34,6 +35,12 @@ class ReportViewer extends Component
     {
         $this->dateFrom = now()->subDays(29)->toDateString();
         $this->dateTo = now()->toDateString();
+    }
+
+    #[On('echo-private:settings,.ModuleSettingChanged')]
+    public function onModuleSettingChanged(): void
+    {
+        // No-op — render() below re-checks ModuleSetting::enabled() fresh.
     }
 
     public function selectReport(string $key): void

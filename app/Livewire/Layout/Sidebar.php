@@ -1,12 +1,12 @@
 <?php
 
-namespace App\View\Components;
+namespace App\Livewire\Layout;
 
 use App\Models\GeneralSetting;
 use App\Models\ModuleSetting;
 use Illuminate\Support\Facades\Route;
-use Illuminate\View\Component;
-use Illuminate\View\View;
+use Livewire\Attributes\On;
+use Livewire\Component;
 
 /**
  * SRS Sec. 20.3 — nav items shown depend on the logged-in user's role and
@@ -15,10 +15,24 @@ use Illuminate\View\View;
  * renders as a link once `Route::has()` is true for it, and as inactive,
  * unlabelled-as-"soon" plain text otherwise — so this list doesn't need
  * editing again as later phases add their routes.
+ *
+ * A Livewire component rather than the plain Blade View\Component it
+ * started as: the store name/logo (GeneralSettingChanged) and the
+ * module-gated nav items (ModuleSettingChanged) both need to update on an
+ * already-open tab without a full page navigation, which only a Livewire
+ * component listening for those broadcasts can do — a static Blade
+ * component only ever re-renders on the next full page load/wire:navigate.
  */
 class Sidebar extends Component
 {
-    public function render(): View
+    #[On('echo-private:settings,.ModuleSettingChanged')]
+    #[On('echo-private:settings,.GeneralSettingChanged')]
+    public function onSettingsChanged(): void
+    {
+        // No-op — render() below re-derives nav items and general settings fresh.
+    }
+
+    public function render()
     {
         $user = auth()->user();
 
@@ -26,7 +40,7 @@ class Sidebar extends Component
             ->filter(fn (array $item) => $this->visibleTo($user, $item))
             ->values();
 
-        return view('components.sidebar', [
+        return view('livewire.layout.sidebar', [
             'items' => $items,
             'generalSettings' => GeneralSetting::current(),
         ]);

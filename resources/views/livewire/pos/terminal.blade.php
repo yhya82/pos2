@@ -1,17 +1,4 @@
 @php
-    $productsJson = $products->map(fn ($p) => [
-        'id' => $p->id,
-        'name' => $p->name,
-        'barcode' => $p->barcode,
-        'image_url' => $p->imageUrl(),
-        'category_id' => $p->category_id,
-        'selling_price' => (float) $p->selling_price,
-        'effective_price' => $p->effectiveSellingPrice(),
-        'has_promo' => $p->hasActivePromo(),
-        'selling_unit' => $p->sellingUnit->name,
-        'stock_quantity' => (float) ($p->stock_quantity ?? 0),
-    ])->values();
-
     $customersJson = $customers->map(fn ($c) => [
         'id' => $c->id,
         'name' => $c->name,
@@ -20,19 +7,13 @@
         'credit_limit' => (float) $c->credit_limit,
         'outstanding_balance' => (float) $c->outstanding_balance,
     ])->values();
-
-    $paymentMethodsJson = $paymentMethods->map(fn ($m) => [
-        'id' => $m->id,
-        'name' => $m->name,
-        'code' => $m->code,
-    ])->values();
 @endphp
 
 <div
     x-data="posTerminal({
-        products: @js($productsJson),
+        products: @js($products),
         customers: @js($customersJson),
-        paymentMethods: @js($paymentMethodsJson),
+        paymentMethods: @js($paymentMethods),
         categories: @js($categories),
         defaultPaymentMethodId: @js($defaultPaymentMethodId),
         maxDiscountPercentage: {{ $maxDiscountPercentage }},
@@ -40,7 +21,9 @@
         taxRate: {{ $taxRate }},
         currencyCode: @js($currencyCode),
         autoPrintReceipt: {{ $autoPrintReceipt ? 'true' : 'false' }},
+        barcodeScannerEnabled: {{ $barcodeScannerEnabled ? 'true' : 'false' }},
     })"
+    x-on:pos-live-update.window="refreshLiveData($event.detail)"
     class="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start"
 >
     {{-- ============================== LEFT: PRODUCT SEARCH ============================== --}}
@@ -55,6 +38,7 @@
                 >
                 <input
                     type="text"
+                    x-show="barcodeScannerEnabled"
                     x-model="barcodeInput"
                     x-ref="barcodeInput"
                     @keydown.enter.prevent="scanBarcode()"
@@ -118,7 +102,17 @@
 
     {{-- ============================== RIGHT: CART + PAYMENT ============================== --}}
     <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 p-4 space-y-4 lg:sticky lg:top-4">
-        <h3 class="font-semibold text-gray-800 dark:text-gray-100">Cart</h3>
+        <div class="flex items-center justify-between">
+            <h3 class="font-semibold text-gray-800 dark:text-gray-100">Cart</h3>
+            <button
+                type="button"
+                @click="clearCart()"
+                :disabled="cart.length === 0"
+                class="text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+                Clear Cart
+            </button>
+        </div>
 
         <div class="space-y-2 max-h-80 overflow-y-auto">
             <template x-for="(line, index) in cart" :key="line.product_id">
@@ -263,6 +257,7 @@
             taxRate: config.taxRate,
             currencyCode: config.currencyCode,
             autoPrintReceipt: config.autoPrintReceipt,
+            barcodeScannerEnabled: config.barcodeScannerEnabled,
 
             search: '',
             barcodeInput: '',
@@ -329,6 +324,10 @@
                 this.cart.splice(index, 1);
             },
 
+            clearCart() {
+                this.cart = [];
+            },
+
             subtotal() {
                 return this.cart.reduce((sum, l) => sum + (l.quantity * l.unit_price), 0);
             },
@@ -389,6 +388,25 @@
 
             trimQty(qty) {
                 return Number(qty ?? 0).toFixed(3).replace(/\.?0+$/, '') || '0';
+            },
+
+            // Patches server-truth data (stock levels, available payment
+            // methods, tax config) pushed from a StockChanged/
+            // ModuleSettingChanged/GeneralSettingChanged broadcast —
+            // deliberately leaves cart/customerId/discount* untouched, since
+            // this is a background refresh, not a form reset.
+            refreshLiveData(detail) {
+                this.products = detail.products;
+                this.paymentMethods = detail.paymentMethods;
+                this.taxEnabled = detail.taxEnabled;
+                this.taxRate = detail.taxRate;
+                this.currencyCode = detail.currencyCode;
+                this.barcodeScannerEnabled = detail.barcodeScannerEnabled;
+                this.autoPrintReceipt = detail.autoPrintReceipt;
+
+                if (!this.paymentMethods.some(m => m.id === this.paymentMethodId)) {
+                    this.paymentMethodId = this.paymentMethods[0]?.id ?? null;
+                }
             },
 
             async completeSale() {

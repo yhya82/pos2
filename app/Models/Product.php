@@ -145,4 +145,16 @@ class Product extends Model
             ? $cost / (float) $this->conversion_qty
             : $cost;
     }
+
+    /**
+     * Inverse of toSellingUnitCost() — used to keep products.cost_price
+     * (always stored per purchase unit) in sync when a cost is captured in
+     * selling-unit terms, e.g. Add Stock's per-piece entry mode.
+     */
+    public function toPurchaseUnitCost(float $cost, string $unit): float
+    {
+        return $unit === 'selling'
+            ? $cost * (float) $this->conversion_qty
+            : $cost;
+    }
 }

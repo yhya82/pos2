@@ -67,7 +67,7 @@ class PurchaseOrderManager extends Component
                 ->orderByDesc('id')
                 ->paginate(10),
             'suppliers' => Supplier::where('status', 'active')->orderBy('name')->get(),
-            'products' => Product::where('status', 'active')->orderBy('name')->get(),
+            'products' => Product::with(['purchaseUnit', 'sellingUnit'])->where('status', 'active')->orderBy('name')->get(),
         ]);
     }
 
@@ -96,7 +96,11 @@ class PurchaseOrderManager extends Component
 
             if ($product) {
                 $this->lines[(int) $matches[1]]['purchase_unit_id'] = $product->purchase_unit_id;
-                $this->lines[(int) $matches[1]]['cost_price'] = (string) $product->cost_price;
+                // The line's cost_price is denominated in its own purchase
+                // unit (that's what a supplier invoice line is priced in),
+                // but products.cost_price is always per selling unit — so
+                // this default needs converting, not a straight copy.
+                $this->lines[(int) $matches[1]]['cost_price'] = (string) $product->toPurchaseUnitCost((float) $product->cost_price, 'selling');
             }
         }
     }

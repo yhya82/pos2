@@ -59,6 +59,22 @@ class ProductManager extends Component
         $this->resetPage();
     }
 
+    /**
+     * Live "= X per {purchase unit}" reference hint under the Cost Price
+     * field — costPrice is always entered/stored per selling unit (the
+     * product's own smallest unit), so this is just the reverse conversion
+     * for comparing against a supplier's per-carton price. Mirrors
+     * Product::toPurchaseUnitCost() without needing a persisted model.
+     */
+    public function costPerPurchaseUnit(): ?float
+    {
+        if ($this->purchaseUnitId === $this->sellingUnitId || ! is_numeric($this->costPrice)) {
+            return null;
+        }
+
+        return (float) $this->costPrice * (float) $this->conversionQty;
+    }
+
     public function render()
     {
         return view('livewire.products.product-manager', [

@@ -97,7 +97,7 @@ class DashboardOverview extends Component
         $canViewInventoryValue = $canViewInventory && ! $user->isCashier();
 
         $canViewReturns = ModuleSetting::enabled('return_management') && $user->hasPermission('returns', 'view');
-        $canViewPurchaseOrders = $user->hasPermission('purchase_orders', 'view');
+        $canViewPurchaseOrders = ModuleSetting::enabled('purchase_management') && $user->hasPermission('purchase_orders', 'view');
 
         [$from, $to] = $this->periodRange();
 

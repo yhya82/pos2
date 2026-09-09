@@ -221,6 +221,7 @@ class SaleService
                 ->where('status', 'active')
                 ->where('qty_remaining', '>', 0)
                 ->orderByRaw('expiry_date IS NULL, expiry_date ASC')
+                ->orderBy('received_date')
                 ->lockForUpdate()
                 ->get();
 

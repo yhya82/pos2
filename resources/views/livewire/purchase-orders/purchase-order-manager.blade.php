@@ -151,7 +151,18 @@
                             </div>
 
                             <div class="col-span-1 sm:col-span-2">
-                                <input type="text" wire:model="lines.{{ $index }}.cost_price" placeholder="Cost" class="block w-full text-sm rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                @php
+                                    $lineProduct = $products->firstWhere('id', $line['product_id']);
+                                    $lineCostPerSellingUnit = $lineProduct
+                                        && $lineProduct->purchase_unit_id !== $lineProduct->selling_unit_id
+                                        && is_numeric($line['cost_price'])
+                                        ? $lineProduct->toSellingUnitCost((float) $line['cost_price'], 'purchase')
+                                        : null;
+                                @endphp
+                                <input type="text" wire:model.live="lines.{{ $index }}.cost_price" placeholder="{{ $lineProduct ? 'Cost per '.$lineProduct->purchaseUnit->name : 'Cost' }}" class="block w-full text-sm rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                @if ($lineCostPerSellingUnit !== null)
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">= {{ number_format($lineCostPerSellingUnit, 2) }} / {{ $lineProduct->sellingUnit->name }}</p>
+                                @endif
                                 <x-input-error :messages="$errors->get('lines.'.$index.'.cost_price')" class="mt-1" />
                             </div>
 

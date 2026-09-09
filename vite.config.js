@@ -1,7 +1,42 @@
 import { defineConfig } from 'vite';
 import laravel from 'laravel-vite-plugin';
+import dgram from 'dgram';
 
-export default defineConfig({
+/**
+ * Resolves to whatever this machine's current LAN-facing IPv4 address is —
+ * computed fresh every time Vite starts rather than hardcoded, since a
+ * hardcoded address goes stale (and silently breaks every asset/HMR
+ * request with a connection timeout) the moment this PC switches networks
+ * or gets a new DHCP lease.
+ *
+ * Deliberately not os.networkInterfaces()'s first non-internal entry: on a
+ * machine with a hypervisor installed (VirtualBox, VMware, WSL, Hyper-V),
+ * that's frequently a host-only virtual adapter, not the real network —
+ * confirmed the hard way on this exact machine, where it returned
+ * VirtualBox's 192.168.56.1 instead of the Wi-Fi adapter's real address.
+ * Connecting a UDP socket (no packet actually sent — connect() on a
+ * datagram socket just asks the OS to pick a route) reproduces the
+ * decision the OS itself would make for real outbound traffic, which
+ * correctly skips host-only adapters that aren't in the default route.
+ */
+function currentLanIp() {
+    return new Promise((resolve) => {
+        const socket = dgram.createSocket('udp4');
+
+        socket.once('error', () => {
+            socket.close();
+            resolve('localhost');
+        });
+
+        socket.connect(80, '8.8.8.8', () => {
+            const { address } = socket.address();
+            socket.close();
+            resolve(address);
+        });
+    });
+}
+
+export default defineConfig(async () => ({
     plugins: [
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.js'],
@@ -23,10 +58,10 @@ export default defineConfig({
             // Without this, Vite advertises its own bind address (e.g.
             // ::1/localhost) in the asset/HMR URLs it writes to
             // public/hot — which resolves to the requesting device itself,
-            // not this PC. Point it at this machine's actual LAN IP instead.
-            // If your PC's IP changes (new network, DHCP renewal), update
-            // this to match `ipconfig`'s current IPv4 address.
-            host: '192.168.100.6',
+            // not this PC. Point it at this machine's actual LAN IP,
+            // recomputed on every Vite start so a network change just
+            // needs a restart, not a manual edit here.
+            host: await currentLanIp(),
         },
     },
-});
+}));

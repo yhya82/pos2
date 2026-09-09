@@ -70,6 +70,17 @@ class ManualStockService
                 'product_id', 'batch_code', 'qty_received', 'unit_cost', 'expiry_date', 'received_date', 'status',
             ]));
 
+            // Same reference-cost sync as PurchaseReceivingService —
+            // products.cost_price is always per selling unit, so this
+            // reuses $sellingUnitCost (already computed above for the
+            // batch itself) regardless of which unit this entry was made in.
+            if ($sellingUnitCost !== (float) $product->cost_price) {
+                $previousCost = $product->only(['cost_price']);
+                $product->update(['cost_price' => $sellingUnitCost]);
+
+                AuditLog::record('update', 'products', 'Product', $product->id, $previousCost, $product->only(['cost_price']));
+            }
+
             return $batch;
         });
     }

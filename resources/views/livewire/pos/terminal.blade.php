@@ -66,31 +66,31 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
             <template x-for="product in filteredProducts()" :key="product.id">
                 <button
                     type="button"
                     @click="addToCart(product)"
-                    class="text-left bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 overflow-hidden hover:ring-2 hover:ring-indigo-500 transition"
+                    class="flex flex-col h-24 text-left bg-white dark:bg-gray-800 shadow-sm rounded-lg ring-1 ring-gray-900/5 dark:ring-white/10 overflow-hidden hover:ring-2 hover:ring-indigo-500 transition"
                 >
-                    <div class="h-20 w-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
-                        <img x-show="product.image_url" :src="product.image_url" class="h-full w-full object-cover" x-cloak>
-                        <svg x-show="!product.image_url" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-8 w-8 text-gray-400 dark:text-gray-500">
+                    <div class="flex-1 w-full min-h-0 bg-gray-100 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
+                        <img x-show="product.image_url" :src="product.image_url" class="block h-full w-full object-cover" x-cloak>
+                        <svg x-show="!product.image_url" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3.5 w-3.5 text-gray-400 dark:text-gray-500 shrink-0">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" />
                         </svg>
                     </div>
-                    <div class="p-3">
-                        <div class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate" x-text="product.name"></div>
+                    <div class="flex-1 min-h-0 p-1 flex flex-col justify-center overflow-hidden">
+                        <div class="text-xs font-medium text-gray-900 dark:text-gray-100 truncate" x-text="product.name"></div>
                         <template x-if="product.has_promo">
-                            <div class="text-xs mt-1 flex items-center gap-1.5">
+                            <div class="text-[10px] leading-tight mt-0.5 flex items-center gap-1 flex-wrap">
                                 <span class="text-gray-400 dark:text-gray-500 line-through" x-text="formatMoney(product.selling_price)"></span>
                                 <span class="text-emerald-600 dark:text-emerald-400 font-medium" x-text="formatMoney(product.effective_price) + ' / ' + product.selling_unit"></span>
                             </div>
                         </template>
                         <template x-if="!product.has_promo">
-                            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1" x-text="formatMoney(product.selling_price) + ' / ' + product.selling_unit"></div>
+                            <div class="text-[10px] leading-tight text-gray-500 dark:text-gray-400 mt-0.5" x-text="formatMoney(product.selling_price) + ' / ' + product.selling_unit"></div>
                         </template>
-                        <div class="text-xs mt-1" :class="product.stock_quantity <= 0 ? 'text-red-500 dark:text-red-400' : 'text-gray-400 dark:text-gray-500'" x-text="'Stock: ' + trimQty(product.stock_quantity)"></div>
+                        <div class="text-[10px] leading-tight mt-0.5" :class="product.stock_quantity <= 0 ? 'text-red-500 dark:text-red-400' : 'text-gray-400 dark:text-gray-500'" x-text="'Stock: ' + trimQty(product.stock_quantity)"></div>
                     </div>
                 </button>
             </template>

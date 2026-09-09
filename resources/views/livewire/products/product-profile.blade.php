@@ -1,6 +1,12 @@
 <div>
-    <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 p-4 mb-4">
-        <div class="flex flex-wrap items-start gap-4">
+    <div class="relative bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 p-4 mb-4">
+        @if (auth()->user()->hasPermission('products', 'update'))
+            <button type="button" wire:click="openEditForm" class="absolute top-1.5 right-3 p-1.5 rounded-full bg-blue-900 text-white shadow-md hover:bg-blue-800" title="Edit product">
+                <span class="sr-only">Edit product</span>
+                <x-icon name="pencil" class="h-3.5 w-3.5" />
+            </button>
+        @endif
+        <div class="flex flex-wrap items-start gap-4 pt-5">
             <div class="h-24 w-24 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center overflow-hidden shrink-0">
                 @if ($product->imageUrl())
                     <img src="{{ $product->imageUrl() }}" alt="{{ $product->name }}" class="h-full w-full object-cover">
@@ -30,8 +36,6 @@
                     @if (auth()->user()->hasPermission('inventory', 'update'))
                         <x-secondary-button wire:click="openAddStockForm" class="!py-1 !px-2.5 !text-xs !bg-emerald-50 dark:!bg-emerald-900/40 !text-emerald-700 dark:!text-emerald-300 !border-emerald-200 dark:!border-emerald-800 hover:!bg-emerald-100 dark:hover:!bg-emerald-900/60">Add Stock</x-secondary-button>
                         <x-secondary-button wire:click="openAdjustForm('correction_add')" class="!py-1 !px-2.5 !text-xs !bg-blue-50 dark:!bg-blue-900/40 !text-blue-700 dark:!text-blue-300 !border-blue-200 dark:!border-blue-800 hover:!bg-blue-100 dark:hover:!bg-blue-900/60">Adjust Stock</x-secondary-button>
-                        <x-secondary-button wire:click="openAdjustForm('damaged')" class="!py-1 !px-2.5 !text-xs !bg-amber-50 dark:!bg-amber-900/40 !text-amber-700 dark:!text-amber-300 !border-amber-200 dark:!border-amber-800 hover:!bg-amber-100 dark:hover:!bg-amber-900/60">Mark Damaged</x-secondary-button>
-                        <x-secondary-button wire:click="openAdjustForm('correction_remove')" class="!py-1 !px-2.5 !text-xs !bg-red-50 dark:!bg-red-900/40 !text-red-700 dark:!text-red-300 !border-red-200 dark:!border-red-800 hover:!bg-red-100 dark:hover:!bg-red-900/60">Remove Stock</x-secondary-button>
                     @endif
                     @if (auth()->user()->hasPermission('discounts', 'update'))
                         <x-secondary-button wire:click="openDiscountForm" class="!py-1 !px-2.5 !text-xs !bg-pink-50 dark:!bg-pink-900/40 !text-pink-700 dark:!text-pink-300 !border-pink-200 dark:!border-pink-800 hover:!bg-pink-100 dark:hover:!bg-pink-900/60">{{ $product->hasActivePromo() ? 'Edit Discount' : 'Set Discount' }}</x-secondary-button>
@@ -92,7 +96,12 @@
                         </div>
                         <div>
                             <x-input-label for="add_stock_cost" :value="'Unit Cost (per '.$addStockUnitLabel.')'" />
-                            <x-text-input wire:model="addStockUnitCost" id="add_stock_cost" class="block mt-1 w-full" />
+                            <x-text-input wire:model.live="addStockUnitCost" id="add_stock_cost" class="block mt-1 w-full" />
+                            @if ($hasDistinctUnits && $addStockQtyUnit === 'purchase' && is_numeric($addStockUnitCost))
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    = {{ number_format($product->toSellingUnitCost((float) $addStockUnitCost, 'purchase'), 2) }} per {{ $product->sellingUnit->name }}
+                                </p>
+                            @endif
                             <x-input-error :messages="$errors->get('addStockUnitCost')" class="mt-2" />
                         </div>
                     </div>
@@ -238,6 +247,148 @@
         @endif
     </div>
 
+    <x-slide-over name="edit-product" title="Edit Product">
+        <form wire:submit="submitEdit" id="edit-product-form" class="space-y-6">
+            <div x-data="{ preview: null }">
+                <x-input-label value="Photo" />
+                <div class="mt-1 flex items-center gap-4">
+                    <div class="h-16 w-16 rounded-md bg-gray-100 dark:bg-gray-700 flex items-center justify-center overflow-hidden shrink-0">
+                        <img x-show="preview" :src="preview" class="h-full w-full object-cover" x-cloak>
+                        @if ($existingImagePath)
+                            <img x-show="!preview" src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($existingImagePath) }}" class="h-full w-full object-cover">
+                        @else
+                            <x-icon x-show="!preview" name="cube" class="h-6 w-6 text-gray-400 dark:text-gray-500" />
+                        @endif
+                    </div>
+                    <div class="flex-1">
+                        <input
+                            type="file"
+                            wire:model="photo"
+                            accept="image/*"
+                            x-on:change="preview = $event.target.files.length ? URL.createObjectURL($event.target.files[0]) : null"
+                            class="block w-full text-sm text-gray-600 dark:text-gray-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 dark:file:bg-indigo-900/40 dark:file:text-indigo-300 hover:file:bg-indigo-100"
+                        >
+                        <div wire:loading wire:target="photo" class="text-xs text-gray-400 mt-1">Uploading...</div>
+                        @if ($existingImagePath)
+                            <button type="button" wire:click="removePhoto" x-on:click="preview = null" class="text-xs text-red-600 hover:text-red-800 dark:text-red-400 mt-1">Remove photo</button>
+                        @endif
+                        <x-input-error :messages="$errors->get('photo')" class="mt-1" />
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <x-input-label for="edit_name" value="Name" />
+                <x-text-input wire:model="name" id="edit_name" class="block mt-1 w-full" />
+                <x-input-error :messages="$errors->get('name')" class="mt-2" />
+            </div>
+
+            <div>
+                <x-input-label for="edit_description" value="Description" />
+                <textarea wire:model="description" id="edit_description" rows="2" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+                <x-input-error :messages="$errors->get('description')" class="mt-2" />
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <x-input-label for="edit_category" value="Category" />
+                    <select wire:model="categoryId" id="edit_category" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <option value="">None</option>
+                        @foreach ($categories as $category)
+                            <option value="{{ $category->id }}">{{ $category->name }}</option>
+                        @endforeach
+                    </select>
+                    <x-input-error :messages="$errors->get('categoryId')" class="mt-2" />
+                </div>
+
+                <div>
+                    <x-input-label for="edit_supplier" value="Supplier" />
+                    <select wire:model="supplierId" id="edit_supplier" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <option value="">None</option>
+                        @foreach ($suppliers as $supplier)
+                            <option value="{{ $supplier->id }}">{{ $supplier->name }}</option>
+                        @endforeach
+                    </select>
+                    <x-input-error :messages="$errors->get('supplierId')" class="mt-2" />
+                </div>
+            </div>
+
+            <div>
+                <x-input-label for="edit_barcode" value="Barcode" />
+                <x-text-input wire:model="barcode" id="edit_barcode" class="block mt-1 w-full" />
+                <x-input-error :messages="$errors->get('barcode')" class="mt-2" />
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <x-input-label for="edit_purchase_unit" value="Purchase Unit" />
+                    <select wire:model.live="purchaseUnitId" id="edit_purchase_unit" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <option value="">Select...</option>
+                        @foreach ($units as $unit)
+                            <option value="{{ $unit->id }}">{{ $unit->name }}</option>
+                        @endforeach
+                    </select>
+                    <x-input-error :messages="$errors->get('purchaseUnitId')" class="mt-2" />
+                </div>
+
+                <div>
+                    <x-input-label for="edit_selling_unit" value="Selling Unit" />
+                    <select wire:model.live="sellingUnitId" id="edit_selling_unit" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <option value="">Select...</option>
+                        @foreach ($units as $unit)
+                            <option value="{{ $unit->id }}">{{ $unit->name }}</option>
+                        @endforeach
+                    </select>
+                    <x-input-error :messages="$errors->get('sellingUnitId')" class="mt-2" />
+                </div>
+            </div>
+
+            <div>
+                <x-input-label for="edit_conversion_qty" value="Conversion Qty (1 purchase unit = ? selling units)" />
+                <x-text-input wire:model.live="conversionQty" id="edit_conversion_qty" class="block mt-1 w-full" />
+                <x-input-error :messages="$errors->get('conversionQty')" class="mt-2" />
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <x-input-label for="edit_cost_price" :value="'Cost Price'.($sellingUnitId ? ' (per '.($units->firstWhere('id', $sellingUnitId)?->name).')' : '')" />
+                    <x-text-input wire:model.live="costPrice" id="edit_cost_price" class="block mt-1 w-full" />
+                    @if ($this->costPerPurchaseUnit() !== null)
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            ≈ {{ number_format($this->costPerPurchaseUnit(), 2) }} per {{ $units->firstWhere('id', $purchaseUnitId)?->name }}
+                        </p>
+                    @endif
+                    <x-input-error :messages="$errors->get('costPrice')" class="mt-2" />
+                </div>
+
+                <div>
+                    <x-input-label for="edit_selling_price" value="Selling Price" />
+                    <x-text-input wire:model="sellingPrice" id="edit_selling_price" class="block mt-1 w-full" />
+                    <x-input-error :messages="$errors->get('sellingPrice')" class="mt-2" />
+                </div>
+            </div>
+
+            <div>
+                <x-input-label for="edit_min_stock" value="Minimum Stock Level" />
+                <x-text-input wire:model="minStockLevel" id="edit_min_stock" class="block mt-1 w-full" />
+                <x-input-error :messages="$errors->get('minStockLevel')" class="mt-2" />
+            </div>
+
+            <div>
+                <x-input-label for="edit_status" value="Status" />
+                <select wire:model="status" id="edit_status" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                </select>
+            </div>
+        </form>
+
+        <x-slot name="footer">
+            <x-secondary-button x-on:click="show = false">Cancel</x-secondary-button>
+            <x-primary-button type="submit" form="edit-product-form">Save</x-primary-button>
+        </x-slot>
+    </x-slide-over>
+
     <div class="border-b border-gray-200 dark:border-gray-700 mb-4">
         <nav class="-mb-px flex gap-6">
             @foreach (['overview' => 'Overview', 'inventory' => 'Inventory & Batches', 'movements' => 'Stock Movements', 'discounts' => 'Discount History'] as $tab => $label)
@@ -250,9 +401,13 @@
     </div>
 
     @if ($activeTab === 'overview')
+        @php
+            $overviewHasDistinctUnits = $product->purchase_unit_id !== $product->selling_unit_id;
+        @endphp
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             @foreach ([
-                'Cost Price' => number_format($product->cost_price, 2),
+                'Cost Price' => number_format($product->cost_price, 2).' per '.$product->sellingUnit->name,
+                ...($overviewHasDistinctUnits ? ['≈ Cost per '.$product->purchaseUnit->name => number_format($product->toPurchaseUnitCost((float) $product->cost_price, 'selling'), 2)] : []),
                 'Purchase Unit' => $product->purchaseUnit->name,
                 'Selling Unit' => $product->sellingUnit->name,
                 'Conversion' => '1 '.$product->purchaseUnit->name.' = '.rtrim(rtrim(number_format($product->conversion_qty, 3), '0'), '.').' '.$product->sellingUnit->name,

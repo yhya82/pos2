@@ -46,22 +46,30 @@
             </script>
         @endauth
 
-        <div class="min-h-screen" x-data="{ sidebarOpen: false }">
+        <div class="min-h-screen">
             <livewire:layout.sidebar />
 
-            <div class="md:pl-64 flex flex-col min-h-screen">
+            <div class="flex flex-col min-h-screen transition-[padding] duration-200 ease-in-out" :class="$store.sidebar.collapsed ? 'md:pl-16' : 'md:pl-64'">
                 <!-- Header: business context on the left, notifications and
                      the user menu on the right (SRS Sec. 20.4) -->
                 <header class="min-h-16 shrink-0 flex items-center flex-wrap justify-between gap-x-4 gap-y-2 px-4 sm:px-6 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
                     <div class="flex items-center gap-3 min-w-0">
                         <button
                             type="button"
-                            x-on:click="sidebarOpen = true"
+                            x-on:click="$store.sidebar.open = true"
                             class="md:hidden -ml-1 p-2 rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-6 w-6">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
                             </svg>
+                        </button>
+                        <button
+                            type="button"
+                            x-on:click="$store.sidebar.toggleCollapsed()"
+                            class="hidden md:inline-flex -ml-1 p-2 rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+                            :title="$store.sidebar.collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+                        >
+                            <x-icon name="chevron-double-left" class="h-5 w-5 transition-transform duration-200" x-bind:class="{ 'rotate-180': $store.sidebar.collapsed }" />
                         </button>
                         <div class="min-w-0">
                             @isset($header)

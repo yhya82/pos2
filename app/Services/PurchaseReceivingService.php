@@ -71,6 +71,20 @@ class PurchaseReceivingService
 
                 $lineItem->increment('qty_received', $qty);
 
+                // Keep the product's reference cost current — it's meant to
+                // reflect the last price actually paid, but nothing wrote it
+                // on receiving until now, so it went stale after any price
+                // change. products.cost_price is always per selling unit,
+                // so this reuses the same $sellingUnitCost already computed
+                // above for the batch itself, not the line's raw
+                // purchase-unit cost.
+                if ($sellingUnitCost !== (float) $product->cost_price) {
+                    $previousCost = $product->only(['cost_price']);
+                    $product->update(['cost_price' => $sellingUnitCost]);
+
+                    AuditLog::record('update', 'products', 'Product', $product->id, $previousCost, $product->only(['cost_price']));
+                }
+
                 InventoryMovement::create([
                     'product_id' => $lineItem->product_id,
                     'batch_id' => $batch->id,

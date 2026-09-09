@@ -5,24 +5,61 @@ namespace App\Livewire\Products;
 use App\Livewire\Concerns\AuthorizesModuleActions;
 use App\Models\AuditLog;
 use App\Models\Batch;
+use App\Models\Category;
 use App\Models\InventoryMovement;
 use App\Models\Product;
 use App\Models\SaleLineItem;
+use App\Models\Supplier;
+use App\Models\Unit;
 use App\Services\InventoryAdjustmentService;
 use App\Services\ManualStockService;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 use RuntimeException;
 
 class ProductProfile extends Component
 {
-    use WithPagination, AuthorizesModuleActions;
+    use WithPagination, WithFileUploads, AuthorizesModuleActions;
 
     #[Locked]
     public int $productId;
 
     public string $activeTab = 'overview';
+
+    // --- Edit product (slide-over; open/close state lives in Alpine, not here) ---
+    public string $name = '';
+
+    public string $description = '';
+
+    public $photo = null;
+
+    public ?string $existingImagePath = null;
+
+    public ?string $originalImagePath = null;
+
+    public ?int $categoryId = null;
+
+    public ?int $supplierId = null;
+
+    public string $barcode = '';
+
+    public ?int $purchaseUnitId = null;
+
+    public ?int $sellingUnitId = null;
+
+    public string $conversionQty = '1.000';
+
+    public string $costPrice = '0.00';
+
+    public string $sellingPrice = '';
+
+    public string $minStockLevel = '0.000';
+
+    public string $status = 'active';
 
     // --- Add stock (no purchase order) ---
     public bool $showAddStockForm = false;
@@ -75,9 +112,134 @@ class ProductProfile extends Component
         $this->activeTab = $tab;
     }
 
+    /**
+     * Only one quick-action panel is ever open at a time — without this,
+     * clicking Edit while Add Stock is still open stacked a second bordered
+     * form directly underneath the first instead of replacing it. The Edit
+     * slide-over's own open/close state lives in Alpine (like every other
+     * slide-over in the app), so closing it from here is a dispatched
+     * window event rather than a property flip.
+     */
+    private function closeAllForms(): void
+    {
+        $this->showAddStockForm = false;
+        $this->showAdjustForm = false;
+        $this->showDiscountForm = false;
+        $this->dispatch('close-modal', 'edit-product');
+    }
+
+    public function openEditForm(): void
+    {
+        $this->authorizeAction('products', 'update');
+
+        $this->closeAllForms();
+
+        $product = Product::findOrFail($this->productId);
+
+        $this->name = $product->name;
+        $this->description = (string) $product->description;
+        $this->photo = null;
+        $this->existingImagePath = $product->image_path;
+        $this->originalImagePath = $product->image_path;
+        $this->categoryId = $product->category_id;
+        $this->supplierId = $product->supplier_id;
+        $this->barcode = (string) $product->barcode;
+        $this->purchaseUnitId = $product->purchase_unit_id;
+        $this->sellingUnitId = $product->selling_unit_id;
+        $this->conversionQty = (string) $product->conversion_qty;
+        $this->costPrice = (string) $product->cost_price;
+        $this->sellingPrice = (string) $product->selling_price;
+        $this->minStockLevel = (string) $product->min_stock_level;
+        $this->status = $product->status;
+        $this->resetValidation();
+
+        $this->dispatch('open-modal', 'edit-product');
+    }
+
+    public function removePhoto(): void
+    {
+        $this->photo = null;
+        $this->existingImagePath = null;
+    }
+
+    /**
+     * Live "= X per {purchase unit}" reference hint under the Cost Price
+     * field — costPrice is always entered/stored per selling unit now, so
+     * this is just the reverse conversion for comparing against a
+     * supplier's per-carton price. Same formula as
+     * ProductManager::costPerPurchaseUnit().
+     */
+    public function costPerPurchaseUnit(): ?float
+    {
+        if ($this->purchaseUnitId === $this->sellingUnitId || ! is_numeric($this->costPrice)) {
+            return null;
+        }
+
+        return (float) $this->costPrice * (float) $this->conversionQty;
+    }
+
+    public function submitEdit(): void
+    {
+        $this->authorizeAction('products', 'update');
+
+        $validated = $this->validate([
+            'name' => ['required', 'string', 'max:200'],
+            'description' => ['nullable', 'string'],
+            'photo' => ['nullable', 'image', 'max:2048'],
+            'categoryId' => ['required', 'exists:categories,id'],
+            'supplierId' => ['required', 'exists:suppliers,id'],
+            'barcode' => ['nullable', 'string', 'max:64', Rule::unique('products', 'barcode')->ignore($this->productId)],
+            'purchaseUnitId' => ['required', 'exists:units,id'],
+            'sellingUnitId' => ['required', 'exists:units,id'],
+            'conversionQty' => ['required', 'numeric', 'gt:0'],
+            'costPrice' => ['required', 'numeric', 'min:0'],
+            'sellingPrice' => ['required', 'numeric', 'min:0'],
+            'minStockLevel' => ['required', 'numeric', 'min:0'],
+            'status' => ['required', 'in:active,inactive'],
+        ]);
+
+        $product = Product::findOrFail($this->productId);
+
+        $imagePath = $this->existingImagePath;
+        if ($this->photo) {
+            if ($this->originalImagePath) {
+                Storage::disk('public')->delete($this->originalImagePath);
+            }
+            $imagePath = $this->photo->store('products', 'public');
+        } elseif ($this->originalImagePath && ! $this->existingImagePath) {
+            Storage::disk('public')->delete($this->originalImagePath);
+        }
+
+        $attributes = [
+            'name' => $validated['name'],
+            'description' => $validated['description'] ?: null,
+            'image_path' => $imagePath,
+            'category_id' => $validated['categoryId'],
+            'supplier_id' => $validated['supplierId'],
+            'barcode' => $validated['barcode'] ?: null,
+            'purchase_unit_id' => $validated['purchaseUnitId'],
+            'selling_unit_id' => $validated['sellingUnitId'],
+            'conversion_qty' => $validated['conversionQty'],
+            'cost_price' => $validated['costPrice'],
+            'selling_price' => $validated['sellingPrice'],
+            'min_stock_level' => $validated['minStockLevel'],
+            'status' => $validated['status'],
+        ];
+
+        $previous = $product->only(array_keys($attributes));
+        $product->update($attributes);
+
+        AuditLog::record('update', 'products', 'Product', $product->id, $previous, $product->only(array_keys($attributes)));
+
+        $this->dispatch('close-modal', 'edit-product');
+        $this->dispatch('flash-message', message: 'Product updated.', variant: 'success');
+    }
+
     public function openAddStockForm(): void
     {
         $this->authorizeAction('inventory', 'update');
+
+        $this->closeAllForms();
 
         $this->reset(['addStockQty', 'addStockQtyUnit', 'addStockUnitCost', 'addStockExpiryDate', 'addStockBatchCode', 'addStockReason']);
         $this->addStockReceivedDate = now()->toDateString();
@@ -127,6 +289,8 @@ class ProductProfile extends Component
     {
         $this->authorizeAction('inventory', 'update');
 
+        $this->closeAllForms();
+
         $this->reset(['adjustBatchId', 'adjustQty', 'adjustReason']);
         $this->adjustType = $type;
         $this->showAdjustForm = true;
@@ -168,6 +332,8 @@ class ProductProfile extends Component
     public function openDiscountForm(): void
     {
         $this->authorizeAction('discounts', 'update');
+
+        $this->closeAllForms();
 
         $product = Product::findOrFail($this->productId);
 
@@ -263,6 +429,13 @@ class ProductProfile extends Component
             'availableBatches' => $this->showAdjustForm
                 ? Batch::where('product_id', $this->productId)->where('status', 'active')->orderBy('expiry_date')->get()
                 : null,
+            // The edit slide-over is always present in the DOM (Alpine just
+            // hides it), same as ProductManager's own create/edit modal —
+            // so these load unconditionally rather than gated on a "form is
+            // open" flag that no longer exists.
+            'categories' => Category::where('status', 'active')->orderBy('name')->get(),
+            'suppliers' => Supplier::where('status', 'active')->orderBy('name')->get(),
+            'units' => Unit::where('is_active', true)->orderBy('name')->get(),
         ]);
     }
 }

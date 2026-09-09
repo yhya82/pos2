@@ -193,8 +193,13 @@
 
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <x-input-label for="product_cost_price" value="Cost Price" />
-                    <x-text-input wire:model="costPrice" id="product_cost_price" class="block mt-1 w-full" />
+                    <x-input-label for="product_cost_price" :value="'Cost Price'.($sellingUnitId ? ' (per '.($units->firstWhere('id', $sellingUnitId)?->name).')' : '')" />
+                    <x-text-input wire:model.live="costPrice" id="product_cost_price" class="block mt-1 w-full" />
+                    @if ($this->costPerPurchaseUnit() !== null)
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            ≈ {{ number_format($this->costPerPurchaseUnit(), 2) }} per {{ $units->firstWhere('id', $purchaseUnitId)?->name }}
+                        </p>
+                    @endif
                     <x-input-error :messages="$errors->get('costPrice')" class="mt-2" />
                 </div>
 

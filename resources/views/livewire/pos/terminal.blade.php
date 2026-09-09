@@ -160,9 +160,16 @@
 
             <div>
                 <label class="text-xs text-gray-500 dark:text-gray-400">Payment Method</label>
+                {{-- :selected is set explicitly (not left to x-model alone) because
+                     x-model's initial sync runs on this <select> before its child
+                     x-for has created any <option> elements yet — Alpine walks
+                     parent-before-children, so that first sync finds zero options
+                     and silently selects nothing, leaving the browser's native
+                     "first option in the list" as the visible (wrong) default even
+                     though paymentMethodId itself is already correct underneath. --}}
                 <select x-model.number="paymentMethodId" class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100">
                     <template x-for="method in paymentMethods" :key="method.id">
-                        <option :value="method.id" x-text="method.name"></option>
+                        <option :value="method.id" :selected="method.id === paymentMethodId" x-text="method.name"></option>
                     </template>
                 </select>
             </div>
@@ -181,6 +188,12 @@
                 <template x-if="paymentMethodCode() !== 'cash'">
                     <input type="text" x-model="referenceNumber" class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100">
                 </template>
+                <div class="flex justify-between text-sm text-red-600 dark:text-red-400 mt-1" x-show="paymentMethodCode() === 'cash' && tenderedAmount !== '' && changeDue() > 0">
+                    <span>Change Due</span><span class="font-bold" x-text="formatMoney(changeDue())"></span>
+                </div>
+                <div class="flex justify-between text-sm text-red-600 dark:text-red-400 mt-1" x-show="paymentMethodCode() === 'cash' && tenderedAmount !== '' && changeDue() < 0">
+                    <span>Amount Short</span><span class="font-bold" x-text="formatMoney(Math.abs(changeDue()))"></span>
+                </div>
             </div>
         </div>
 
@@ -196,9 +209,6 @@
             </div>
             <div class="flex justify-between font-semibold text-gray-900 dark:text-gray-100 text-base">
                 <span>Total</span><span x-text="formatMoney(total())"></span>
-            </div>
-            <div class="flex justify-between text-gray-500 dark:text-gray-400" x-show="paymentMethodCode() === 'cash' && tenderedAmount">
-                <span>Change Due</span><span x-text="formatMoney(changeDue())"></span>
             </div>
         </div>
 
@@ -267,7 +277,14 @@
             discountType: 'none',
             discountValue: 0,
             discountReason: '',
-            paymentMethodId: config.defaultPaymentMethodId ?? (config.paymentMethods[0]?.id ?? null),
+            // Cash always wins as the starting selection, regardless of
+            // the configured default_payment_method_id setting — every
+            // till opens on Cash. Only falls through to the configured
+            // setting (then "first in the list") if Cash itself isn't
+            // among the enabled payment methods.
+            paymentMethodId: config.paymentMethods.find(m => m.code === 'cash')?.id
+                ?? config.defaultPaymentMethodId
+                ?? (config.paymentMethods[0]?.id ?? null),
             referenceNumber: '',
             tenderedAmount: '',
             processing: false,
@@ -405,7 +422,7 @@
                 this.autoPrintReceipt = detail.autoPrintReceipt;
 
                 if (!this.paymentMethods.some(m => m.id === this.paymentMethodId)) {
-                    this.paymentMethodId = this.paymentMethods[0]?.id ?? null;
+                    this.paymentMethodId = this.paymentMethods.find(m => m.code === 'cash')?.id ?? this.paymentMethods[0]?.id ?? null;
                 }
             },
 
@@ -416,6 +433,11 @@
 
                 if (this.isCredit() && !this.customerId) {
                     this.errorMessage = 'Credit sales require a customer to be selected.';
+                    return;
+                }
+
+                if (this.paymentMethodCode() === 'cash' && (Number(this.tenderedAmount) || 0) < this.total()) {
+                    this.errorMessage = 'Amount tendered is less than the total due.';
                     return;
                 }
 

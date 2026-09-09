@@ -34,7 +34,7 @@
                         <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap font-mono">{{ $sale->receipt_number }}</td>
                         <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ $sale->sale_date->format('Y-m-d H:i') }}</td>
                         <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ $sale->cashier->name }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ $sale->customer?->name ?? '—' }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ $sale->customer?->name ?? 'Walk-in' }}</td>
                         <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ $sale->payment?->paymentMethod->name }}</td>
                         <td class="px-4 py-3 text-sm text-right tabular-nums text-gray-700 dark:text-gray-300 whitespace-nowrap">{{ number_format($sale->total_amount, 2) }}</td>
                         <td class="px-4 py-3 text-sm whitespace-nowrap">

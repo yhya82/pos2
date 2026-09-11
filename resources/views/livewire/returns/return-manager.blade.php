@@ -58,18 +58,8 @@
     @endif
 
     @if ($mode === 'process')
-        <div class="max-w-2xl space-y-4">
-            <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 p-4">
-                <div class="flex gap-3">
-                    <x-text-input wire:model="saleSearch" wire:keydown.enter="findSale" placeholder="Enter the original sale's receipt number..." class="flex-1" />
-                    <x-primary-button wire:click="findSale">Find Sale</x-primary-button>
-                </div>
-                @if ($saleSearchError)
-                    <p class="text-sm text-red-600 mt-2">{{ $saleSearchError }}</p>
-                @endif
-            </div>
-
-            @if ($foundSale)
+        @if ($foundSale)
+            <div class="max-w-2xl space-y-4">
                 <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 p-4">
                     <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
                         {{ $foundSale->receipt_number }} — {{ $foundSale->sale_date->format('Y-m-d H:i') }}
@@ -115,11 +105,54 @@
                         </div>
                     </form>
                 </div>
-            @else
-                <div class="flex justify-start">
-                    <x-secondary-button wire:click="cancelProcessing">Back to List</x-secondary-button>
+            </div>
+        @else
+            <div class="flex items-center justify-between gap-4 mb-4">
+                <div class="w-full max-w-xs">
+                    <x-text-input wire:model.live.debounce.300ms="saleSearch" type="search" placeholder="Search receipt # or customer..." class="w-full" />
                 </div>
+                <x-secondary-button wire:click="cancelProcessing">Back to Returns</x-secondary-button>
+            </div>
+
+            @if ($saleSearchError)
+                <p class="text-sm text-red-600 mb-4">{{ $saleSearchError }}</p>
             @endif
-        </div>
+
+            <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead class="bg-gray-50 dark:bg-gray-900/40">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Receipt #</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Customer</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Cashier</th>
+                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total</th>
+                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                        @forelse ($returnableSales as $sale)
+                            <tr wire:key="returnable-sale-{{ $sale->id }}">
+                                <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100 font-mono whitespace-nowrap">{{ $sale->receipt_number }}</td>
+                                <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ $sale->sale_date->format('Y-m-d H:i') }}</td>
+                                <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ $sale->customer?->name ?? 'Walk-in' }}</td>
+                                <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ $sale->cashier->name }}</td>
+                                <td class="px-4 py-3 text-sm text-right tabular-nums text-gray-700 dark:text-gray-300 whitespace-nowrap">{{ number_format($sale->total_amount, 2) }}</td>
+                                <td class="px-4 py-3 text-sm text-right whitespace-nowrap">
+                                    <button type="button" wire:click="selectSale({{ $sale->id }})" class="text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300 font-medium">Refund</button>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="6" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No sales found.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+                <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+                    {{ $returnableSales->links() }}
+                </div>
+            </div>
+        @endif
     @endif
 </div>

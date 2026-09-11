@@ -56,11 +56,23 @@ class ReturnManager extends Component
         $this->resetPage();
     }
 
+    /**
+     * saleSearch doubles as the filter for the returnable-sales list (see
+     * returnableSalesQuery()) once "Process Return" has been clicked — a
+     * separate paginator name keeps it from colliding with the returns
+     * list's own pagination.
+     */
+    public function updatingSaleSearch(): void
+    {
+        $this->resetPage('salesPage');
+    }
+
     public function render()
     {
         return view('livewire.returns.return-manager', [
             'returns' => $this->mode === 'list' ? $this->returnsQuery() : null,
             'foundSale' => $this->foundSaleId ? Sale::with(['customer', 'cashier'])->find($this->foundSaleId) : null,
+            'returnableSales' => ($this->mode === 'process' && ! $this->foundSaleId) ? $this->returnableSalesQuery() : null,
         ]);
     }
 
@@ -71,6 +83,22 @@ class ReturnManager extends Component
                 ->orWhereHas('originalSale', fn ($sq) => $sq->where('receipt_number', 'like', "%{$this->search}%")))
             ->orderByDesc('created_at')
             ->paginate(10);
+    }
+
+    /**
+     * "Process Return" no longer opens a blank type-the-receipt-number box
+     * — it opens this list so a cashier can search/browse instead of
+     * needing the exact number in hand, same idea as Sales History's own
+     * per-row Refund link.
+     */
+    private function returnableSalesQuery()
+    {
+        return Sale::with(['customer', 'cashier'])
+            ->where('status', 'completed')
+            ->when($this->saleSearch, fn ($q) => $q->where('receipt_number', 'like', "%{$this->saleSearch}%")
+                ->orWhereHas('customer', fn ($cq) => $cq->where('name', 'like', "%{$this->saleSearch}%")))
+            ->orderByDesc('sale_date')
+            ->paginate(10, pageName: 'salesPage');
     }
 
     public function startProcessing(): void
@@ -90,6 +118,13 @@ class ReturnManager extends Component
         $this->mode = 'list';
     }
 
+    /**
+     * URL-driven entry point only now — Sales History's own per-row Refund
+     * link deep-links here via ?receipt=..., picked up by mount(). The
+     * in-page UI no longer exposes a "type a receipt number" box itself;
+     * selectSale() below is what the returnable-sales list's row action
+     * uses instead.
+     */
     public function findSale(): void
     {
         $this->saleSearchError = '';
@@ -105,6 +140,22 @@ class ReturnManager extends Component
 
             return;
         }
+
+        $this->loadSaleForReturn($sale);
+    }
+
+    public function selectSale(int $saleId): void
+    {
+        $sale = Sale::with(['lineItems.product'])->findOrFail($saleId);
+
+        $this->loadSaleForReturn($sale);
+    }
+
+    private function loadSaleForReturn(Sale $sale): void
+    {
+        $this->saleSearchError = '';
+        $this->foundSaleId = null;
+        $this->returnLines = [];
 
         if ($sale->status !== 'completed') {
             $this->saleSearchError = "This sale is {$sale->status} — only completed sales can have a return processed.";

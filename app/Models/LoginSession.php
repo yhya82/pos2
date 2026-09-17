@@ -21,6 +21,7 @@ class LoginSession extends Model
     protected function casts(): array
     {
         return [
+            'created_at' => 'datetime',
             'expires_at' => 'datetime',
             'revoked_at' => 'datetime',
         ];

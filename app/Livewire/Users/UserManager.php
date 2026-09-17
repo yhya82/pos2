@@ -63,10 +63,17 @@ class UserManager extends Component
             'name' => ['required', 'string', 'max:150'],
             'username' => ['required', 'string', 'max:100', Rule::unique('users', 'username')->ignore($this->editingUserId)],
             'email' => ['nullable', 'string', 'email', 'max:150', Rule::unique('users', 'email')->ignore($this->editingUserId)],
-            'phone' => ['nullable', 'string', 'max:30'],
+            'phone' => ['required', 'string', 'max:30', 'regex:/^\+220\d{7}$/', Rule::unique('users', 'phone')->ignore($this->editingUserId)],
             'roleId' => ['required', 'exists:roles,id'],
             'status' => ['required', 'in:active,inactive'],
             'password' => [$this->editingUserId ? 'nullable' : 'required', 'string', "min:{$passwordMin}"],
+        ];
+    }
+
+    protected function messages(): array
+    {
+        return [
+            'phone.regex' => 'Phone number must be in the format +220 followed by 7 digits (e.g. +2201234567).',
         ];
     }
 

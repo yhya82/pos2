@@ -6,6 +6,7 @@ use App\Livewire\Concerns\AuthorizesModuleActions;
 use App\Models\AuditLog;
 use App\Models\Customer;
 use App\Models\ModuleSetting;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -62,12 +63,19 @@ class CustomerManager extends Component
     {
         return [
             'name' => ['required', 'string', 'max:150'],
-            'phone' => ['nullable', 'string', 'max:30'],
+            'phone' => ['required', 'string', 'max:30', 'regex:/^\+220\d{7}$/', Rule::unique('customers', 'phone')->ignore($this->editingCustomerId)],
             'email' => ['nullable', 'string', 'email', 'max:150'],
             'address' => ['nullable', 'string', 'max:255'],
             'creditEnabled' => ['boolean'],
             'creditLimit' => ['required', 'numeric', 'min:0'],
             'status' => ['required', 'in:active,inactive'],
+        ];
+    }
+
+    protected function messages(): array
+    {
+        return [
+            'phone.regex' => 'Phone number must be in the format +220 followed by 7 digits (e.g. +2201234567).',
         ];
     }
 
@@ -111,7 +119,7 @@ class CustomerManager extends Component
 
         $attributes = [
             'name' => $validated['name'],
-            'phone' => $validated['phone'] ?: null,
+            'phone' => $validated['phone'],
             'email' => $validated['email'] ?: null,
             'address' => $validated['address'] ?: null,
             'credit_enabled' => $validated['creditEnabled'],
@@ -157,7 +165,7 @@ class CustomerManager extends Component
         $customer = Customer::findOrFail($this->customerIdPendingDeactivation);
 
         if ($customer->status === 'active' && (float) $customer->outstanding_balance > 0) {
-            $this->dispatch('flash-message', message: "Can't deactivate \"{$customer->name}\" — they still have an outstanding balance of {$customer->outstanding_balance}.", variant: 'error');
+            $this->dispatch('flash-message', message: "Can't deactivate \"{$customer->name}\" they still have an outstanding balance of {$customer->outstanding_balance}.", variant: 'error');
             $this->dispatch('close-modal', 'confirm-deactivate-customer');
 
             return;

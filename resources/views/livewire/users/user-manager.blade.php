@@ -19,6 +19,7 @@
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Username</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Email</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Role</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Phone</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
                     <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
                 </tr>
@@ -26,10 +27,13 @@
             <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                 @forelse ($users as $user)
                     <tr wire:key="user-{{ $user->id }}">
-                        <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{{ $user->name }}</td>
+                        <td class="px-4 py-3 text-sm font-medium whitespace-nowrap">
+                            <a href="{{ route('users.show', $user) }}" wire:navigate class="text-gray-900 dark:text-gray-100 hover:text-indigo-600 dark:hover:text-indigo-400">{{ $user->name }}</a>
+                        </td>
                         <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ $user->username }}</td>
                         <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ $user->email }}</td>
                         <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ $user->role->name }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ $user->phone }}</td>
                         <td class="px-4 py-3 text-sm">
                             <span @class([
                                 'inline-flex px-2 py-0.5 rounded-full text-xs font-medium',
@@ -89,7 +93,7 @@
 
             <div>
                 <x-input-label for="user_phone" value="Phone" />
-                <x-text-input wire:model="phone" id="user_phone" class="block mt-1 w-full" />
+                <x-text-input wire:model="phone" id="user_phone" placeholder="+2201234567" class="block mt-1 w-full" />
                 <x-input-error :messages="$errors->get('phone')" class="mt-2" />
             </div>
 

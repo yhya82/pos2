@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\GeneralSetting;
 use App\Models\HardwareSetting;
 use App\Models\Product;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -22,6 +23,10 @@ Route::view('profile', 'profile')
 Route::view('users', 'users.index')
     ->middleware(['auth', 'permission:users,view'])
     ->name('users.index');
+
+Route::get('users/{user}', fn (User $user) => view('users.show', ['user' => $user]))
+    ->middleware(['auth', 'permission:users,view'])
+    ->name('users.show');
 
 Route::view('roles', 'roles.index')
     ->middleware(['auth', 'permission:roles,view'])

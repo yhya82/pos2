@@ -80,7 +80,7 @@
 
             <div>
                 <x-input-label for="customer_phone" value="Phone" />
-                <x-text-input wire:model="phone" id="customer_phone" class="block mt-1 w-full" />
+                <x-text-input wire:model="phone" id="customer_phone" placeholder="+2201234567" class="block mt-1 w-full" />
                 <x-input-error :messages="$errors->get('phone')" class="mt-2" />
             </div>
 

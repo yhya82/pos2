@@ -71,6 +71,15 @@ class User extends Authenticatable
     }
 
     /**
+     * Display-only — phone is always stored as a contiguous +220 + 9 digits
+     * (no space), so this doesn't touch what's actually persisted/validated.
+     */
+    public function formattedPhone(): ?string
+    {
+        return $this->phone ? substr($this->phone, 0, 4).' '.substr($this->phone, 4) : null;
+    }
+
+    /**
      * Store-wide revenue figures and other cashiers' sales are restricted
      * by role, not by the module/action permission grid — there's no
      * "own records only" concept in the permission schema, so this is a

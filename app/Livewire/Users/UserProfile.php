@@ -43,7 +43,7 @@ class UserProfile extends Component
         $this->name = $user->name;
         $this->username = $user->username;
         $this->email = (string) $user->email;
-        $this->phone = (string) $user->phone;
+        $this->phone = $user->phone ? substr($user->phone, 4) : '';
         $this->roleId = $user->role_id;
         $this->status = $user->status;
     }
@@ -56,7 +56,7 @@ class UserProfile extends Component
             'name' => ['required', 'string', 'max:150'],
             'username' => ['required', 'string', 'max:100', Rule::unique('users', 'username')->ignore($this->userId)],
             'email' => ['nullable', 'string', 'email', 'max:150', Rule::unique('users', 'email')->ignore($this->userId)],
-            'phone' => ['required', 'string', 'max:30', 'regex:/^\+220\d{7}$/', Rule::unique('users', 'phone')->ignore($this->userId)],
+            'phone' => ['required', 'digits:9'],
             'roleId' => ['required', 'exists:roles,id'],
             'status' => ['required', 'in:active,inactive'],
             'password' => ['nullable', 'string', "min:{$passwordMin}"],
@@ -66,7 +66,7 @@ class UserProfile extends Component
     protected function messages(): array
     {
         return [
-            'phone.regex' => 'Phone number must be in the format +220 followed by 7 digits (e.g. +2201234567).',
+            'phone.digits' => 'Phone number must be exactly 9 digits (the +220 prefix is added automatically).',
         ];
     }
 
@@ -78,11 +78,23 @@ class UserProfile extends Component
 
         $user = User::findOrFail($this->userId);
 
+        // Uniqueness has to be checked against the full +220-prefixed value
+        // actually stored in the column — see UserManager::save() for why.
+        $fullPhone = '+220'.$validated['phone'];
+
+        $phoneTaken = User::where('phone', $fullPhone)->where('id', '!=', $this->userId)->exists();
+
+        if ($phoneTaken) {
+            $this->addError('phone', 'This phone number is already in use.');
+
+            return;
+        }
+
         $attributes = [
             'name' => $validated['name'],
             'username' => $validated['username'],
             'email' => $validated['email'] ?: null,
-            'phone' => $validated['phone'],
+            'phone' => $fullPhone,
             'role_id' => $validated['roleId'],
             'status' => $validated['status'],
         ];

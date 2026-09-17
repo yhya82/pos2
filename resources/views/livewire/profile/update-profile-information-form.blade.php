@@ -18,7 +18,7 @@ new class extends Component
     {
         $this->name = Auth::user()->name;
         $this->email = Auth::user()->email;
-        $this->phone = (string) Auth::user()->phone;
+        $this->phone = Auth::user()->phone ? substr(Auth::user()->phone, 4) : '';
     }
 
     /**
@@ -31,10 +31,26 @@ new class extends Component
         $validated = $this->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', Rule::unique(User::class)->ignore($user->id)],
-            'phone' => ['required', 'string', 'max:30', 'regex:/^\+220\d{7}$/', Rule::unique(User::class, 'phone')->ignore($user->id)],
+            'phone' => ['required', 'digits:9'],
         ], [
-            'phone.regex' => 'Phone number must be in the format +220 followed by 7 digits (e.g. +2201234567).',
+            'phone.digits' => 'Phone number must be exactly 9 digits (the +220 prefix is added automatically).',
         ]);
+
+        // Uniqueness has to be checked against the full +220-prefixed value
+        // actually stored in the column — the form only collects the local
+        // 9 digits, so Rule::unique on that raw input would never match
+        // anything and let duplicates through silently.
+        $fullPhone = '+220'.$validated['phone'];
+
+        $phoneTaken = User::where('phone', $fullPhone)->where('id', '!=', $user->id)->exists();
+
+        if ($phoneTaken) {
+            $this->addError('phone', 'This phone number is already in use.');
+
+            return;
+        }
+
+        $validated['phone'] = $fullPhone;
 
         $user->fill($validated);
         $user->save();
@@ -69,7 +85,10 @@ new class extends Component
 
         <div>
             <x-input-label for="phone" :value="__('Phone')" />
-            <x-text-input wire:model="phone" id="phone" name="phone" type="text" placeholder="+2201234567" class="mt-1 block w-full" required autocomplete="tel" />
+            <div class="mt-1 flex items-center gap-2">
+                <span class="text-sm text-gray-500 dark:text-gray-400">+220</span>
+                <x-text-input wire:model="phone" id="phone" name="phone" type="text" placeholder="831234567" maxlength="9" class="block w-full" required autocomplete="tel" />
+            </div>
             <x-input-error class="mt-2" :messages="$errors->get('phone')" />
         </div>
 

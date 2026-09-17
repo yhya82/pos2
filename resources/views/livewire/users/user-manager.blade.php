@@ -33,7 +33,7 @@
                         <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ $user->username }}</td>
                         <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ $user->email }}</td>
                         <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ $user->role->name }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ $user->phone }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ $user->formattedPhone() }}</td>
                         <td class="px-4 py-3 text-sm">
                             <span @class([
                                 'inline-flex px-2 py-0.5 rounded-full text-xs font-medium',
@@ -93,7 +93,10 @@
 
             <div>
                 <x-input-label for="user_phone" value="Phone" />
-                <x-text-input wire:model="phone" id="user_phone" placeholder="+2201234567" class="block mt-1 w-full" />
+                <div class="mt-1 flex items-center gap-2">
+                    <span class="text-sm text-gray-500 dark:text-gray-400">+220</span>
+                    <x-text-input wire:model="phone" id="user_phone" placeholder="831234567" maxlength="9" class="block w-full" />
+                </div>
                 <x-input-error :messages="$errors->get('phone')" class="mt-2" />
             </div>
 

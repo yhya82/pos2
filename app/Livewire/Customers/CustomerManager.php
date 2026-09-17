@@ -6,7 +6,6 @@ use App\Livewire\Concerns\AuthorizesModuleActions;
 use App\Models\AuditLog;
 use App\Models\Customer;
 use App\Models\ModuleSetting;
-use Illuminate\Validation\Rule;
 use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -63,7 +62,7 @@ class CustomerManager extends Component
     {
         return [
             'name' => ['required', 'string', 'max:150'],
-            'phone' => ['required', 'string', 'max:30', 'regex:/^\+220\d{7}$/', Rule::unique('customers', 'phone')->ignore($this->editingCustomerId)],
+            'phone' => ['required', 'digits:9'],
             'email' => ['nullable', 'string', 'email', 'max:150'],
             'address' => ['nullable', 'string', 'max:255'],
             'creditEnabled' => ['boolean'],
@@ -75,7 +74,7 @@ class CustomerManager extends Component
     protected function messages(): array
     {
         return [
-            'phone.regex' => 'Phone number must be in the format +220 followed by 7 digits (e.g. +2201234567).',
+            'phone.digits' => 'Phone number must be exactly 9 digits (the +220 prefix is added automatically).',
         ];
     }
 
@@ -99,7 +98,7 @@ class CustomerManager extends Component
 
         $this->editingCustomerId = $customer->id;
         $this->name = $customer->name;
-        $this->phone = (string) $customer->phone;
+        $this->phone = $customer->phone ? substr($customer->phone, 4) : '';
         $this->email = (string) $customer->email;
         $this->address = (string) $customer->address;
         $this->creditEnabled = $customer->credit_enabled;
@@ -117,9 +116,23 @@ class CustomerManager extends Component
 
         $validated = $this->validate();
 
+        // Uniqueness has to be checked against the full +220-prefixed value
+        // actually stored in the column — see UserManager::save() for why.
+        $fullPhone = '+220'.$validated['phone'];
+
+        $phoneTaken = Customer::where('phone', $fullPhone)
+            ->when($this->editingCustomerId, fn ($q) => $q->where('id', '!=', $this->editingCustomerId))
+            ->exists();
+
+        if ($phoneTaken) {
+            $this->addError('phone', 'This phone number is already in use.');
+
+            return;
+        }
+
         $attributes = [
             'name' => $validated['name'],
-            'phone' => $validated['phone'],
+            'phone' => $fullPhone,
             'email' => $validated['email'] ?: null,
             'address' => $validated['address'] ?: null,
             'credit_enabled' => $validated['creditEnabled'],

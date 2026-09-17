@@ -13,7 +13,7 @@
                 <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
                     {{ '@'.$user->username }} · {{ $user->role->name }}
                     @if ($user->email) · {{ $user->email }} @endif
-                    @if ($user->phone) · {{ $user->phone }} @endif
+                    @if ($user->phone) · {{ $user->formattedPhone() }} @endif
                 </p>
             </div>
 
@@ -50,7 +50,10 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <x-input-label for="profile_phone" value="Phone" />
-                        <x-text-input wire:model="phone" id="profile_phone" placeholder="+2201234567" class="block mt-1 w-full" />
+                        <div class="mt-1 flex items-center gap-2">
+                            <span class="text-sm text-gray-500 dark:text-gray-400">+220</span>
+                            <x-text-input wire:model="phone" id="profile_phone" placeholder="831234567" maxlength="9" class="block w-full" />
+                        </div>
                         <x-input-error :messages="$errors->get('phone')" class="mt-2" />
                     </div>
                     <div>

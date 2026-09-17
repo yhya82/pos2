@@ -49,4 +49,13 @@ class Customer extends Model
     {
         return (float) $this->credit_limit - (float) $this->outstanding_balance;
     }
+
+    /**
+     * Display-only — phone is always stored as a contiguous +220 + 9 digits
+     * (no space), so this doesn't touch what's actually persisted/validated.
+     */
+    public function formattedPhone(): ?string
+    {
+        return $this->phone ? substr($this->phone, 0, 4).' '.substr($this->phone, 4) : null;
+    }
 }

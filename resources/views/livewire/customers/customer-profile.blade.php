@@ -3,7 +3,7 @@
         <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
                 <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ $customer->name }}</h2>
-                <p class="text-sm text-gray-500 dark:text-gray-400">{{ $customer->phone }} @if ($customer->email) · {{ $customer->email }} @endif</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">{{ $customer->formattedPhone() }} @if ($customer->email) · {{ $customer->email }} @endif</p>
                 @if ($customer->address)
                     <p class="text-sm text-gray-500 dark:text-gray-400">{{ $customer->address }}</p>
                 @endif

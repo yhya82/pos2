@@ -31,7 +31,7 @@
                         <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
                             <a href="{{ route('customers.show', $customer) }}" wire:navigate class="hover:text-indigo-600 dark:hover:text-indigo-400">{{ $customer->name }}</a>
                         </td>
-                        <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ $customer->phone }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ $customer->formattedPhone() }}</td>
                         <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ $customer->email }}</td>
                         @if ($creditModuleEnabled)
                             <td class="px-4 py-3 text-sm text-right tabular-nums text-gray-600 dark:text-gray-400 whitespace-nowrap">
@@ -80,7 +80,10 @@
 
             <div>
                 <x-input-label for="customer_phone" value="Phone" />
-                <x-text-input wire:model="phone" id="customer_phone" placeholder="+2201234567" class="block mt-1 w-full" />
+                <div class="mt-1 flex items-center gap-2">
+                    <span class="text-sm text-gray-500 dark:text-gray-400">+220</span>
+                    <x-text-input wire:model="phone" id="customer_phone" placeholder="831234567" maxlength="9" class="block w-full" />
+                </div>
                 <x-input-error :messages="$errors->get('phone')" class="mt-2" />
             </div>
 

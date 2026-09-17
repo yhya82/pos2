@@ -63,7 +63,7 @@ class UserManager extends Component
             'name' => ['required', 'string', 'max:150'],
             'username' => ['required', 'string', 'max:100', Rule::unique('users', 'username')->ignore($this->editingUserId)],
             'email' => ['nullable', 'string', 'email', 'max:150', Rule::unique('users', 'email')->ignore($this->editingUserId)],
-            'phone' => ['required', 'string', 'max:30', 'regex:/^\+220\d{7}$/', Rule::unique('users', 'phone')->ignore($this->editingUserId)],
+            'phone' => ['required', 'digits:9'],
             'roleId' => ['required', 'exists:roles,id'],
             'status' => ['required', 'in:active,inactive'],
             'password' => [$this->editingUserId ? 'nullable' : 'required', 'string', "min:{$passwordMin}"],
@@ -73,7 +73,7 @@ class UserManager extends Component
     protected function messages(): array
     {
         return [
-            'phone.regex' => 'Phone number must be in the format +220 followed by 7 digits (e.g. +2201234567).',
+            'phone.digits' => 'Phone number must be exactly 9 digits (the +220 prefix is added automatically).',
         ];
     }
 
@@ -98,7 +98,7 @@ class UserManager extends Component
         $this->name = $user->name;
         $this->username = $user->username;
         $this->email = (string) $user->email;
-        $this->phone = (string) $user->phone;
+        $this->phone = $user->phone ? substr($user->phone, 4) : '';
         $this->roleId = $user->role_id;
         $this->status = $user->status;
         $this->password = '';
@@ -113,11 +113,27 @@ class UserManager extends Component
 
         $validated = $this->validate();
 
+        // Uniqueness has to be checked against the full +220-prefixed value
+        // actually stored in the column — the form only collects the local
+        // 9 digits, so Rule::unique('users', 'phone') on that raw input
+        // would never match anything and let duplicates through silently.
+        $fullPhone = '+220'.$validated['phone'];
+
+        $phoneTaken = User::where('phone', $fullPhone)
+            ->when($this->editingUserId, fn ($q) => $q->where('id', '!=', $this->editingUserId))
+            ->exists();
+
+        if ($phoneTaken) {
+            $this->addError('phone', 'This phone number is already in use.');
+
+            return;
+        }
+
         $attributes = [
             'name' => $validated['name'],
             'username' => $validated['username'],
             'email' => $validated['email'] ?: null,
-            'phone' => $validated['phone'] ?: null,
+            'phone' => $fullPhone,
             'role_id' => $validated['roleId'],
             'status' => $validated['status'],
         ];

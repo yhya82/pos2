@@ -89,7 +89,7 @@ class ReturnService
             ]);
 
             foreach ($lineData as $line) {
-                SalesReturnLineItem::create([
+                $returnLineItem = SalesReturnLineItem::create([
                     'return_id' => $salesReturn->id,
                     'sale_line_item_id' => $line['saleLineItem']->id,
                     'product_id' => $line['saleLineItem']->product_id,
@@ -98,7 +98,7 @@ class ReturnService
                     'reason' => $line['reason'],
                 ]);
 
-                $this->restoreInventory($line['saleLineItem'], $line['quantity'], $line['conditionType'], $salesReturn, $processedBy);
+                $this->restoreInventory($line['saleLineItem'], $returnLineItem, $line['quantity'], $line['conditionType'], $salesReturn, $processedBy);
             }
 
             $this->refundCreditIfApplicable($originalSale, $refundAmount, $processedBy);
@@ -116,7 +116,7 @@ class ReturnService
         });
     }
 
-    private function restoreInventory(SaleLineItem $saleLineItem, float $quantity, string $conditionType, SalesReturn $salesReturn, User $user): void
+    private function restoreInventory(SaleLineItem $saleLineItem, SalesReturnLineItem $returnLineItem, float $quantity, string $conditionType, SalesReturn $salesReturn, User $user): void
     {
         $remainingToAllocate = $quantity;
 
@@ -141,6 +141,14 @@ class ReturnService
             $afterReturn = $previousQty + $restoreQty;
             $batch->qty_remaining = $afterReturn;
             $batch->save();
+
+            // Which batch these units went back into — lets the realized
+            // profit view recover their exact cost instead of an average.
+            DB::table('sales_return_line_item_batches')->insert([
+                'return_line_item_id' => $returnLineItem->id,
+                'batch_id' => $batch->id,
+                'quantity' => $restoreQty,
+            ]);
 
             InventoryMovement::create([
                 'product_id' => $saleLineItem->product_id,

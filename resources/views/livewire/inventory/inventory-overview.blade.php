@@ -1,7 +1,14 @@
 <div>
     <div class="border-b border-gray-200 dark:border-gray-700 mb-4 overflow-x-auto">
         <nav class="-mb-px flex gap-6 w-max">
-            @foreach (['stock' => 'Stock Overview', 'movements' => 'Movement History', 'adjust' => 'Stock Adjustments', 'expiry' => 'Expiry Tracking', 'discounts' => 'Bulk Discounts'] as $tab => $label)
+            @foreach (array_filter([
+                'stock' => 'Stock Overview',
+                'valuation' => $canViewValuation ? 'Stock Valuation' : null,
+                'movements' => 'Movement History',
+                'adjust' => 'Stock Adjustments',
+                'expiry' => 'Expiry Tracking',
+                'discounts' => 'Bulk Discounts',
+            ]) as $tab => $label)
                 <button
                     wire:click="setTab('{{ $tab }}')"
                     @class([
@@ -15,6 +22,89 @@
             @endforeach
         </nav>
     </div>
+
+    {{-- ============================== STOCK VALUATION ============================== --}}
+    @if ($activeTab === 'valuation' && $valuation)
+        <div class="flex flex-wrap items-center gap-3 mb-2">
+            <div class="w-full max-w-xs">
+                <x-text-input wire:model.live.debounce.300ms="valuationSearch" type="search" placeholder="Search product..." class="w-full" />
+            </div>
+            <select wire:model.live="valuationCategoryId" class="rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                <option value="">All categories</option>
+                @foreach ($categories as $category)
+                    <option value="{{ $category->id }}">{{ $category->name }}</option>
+                @endforeach
+            </select>
+            <label class="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                <input type="checkbox" wire:model.live="valuationInStockOnly" class="rounded border-gray-300 dark:border-gray-700 dark:bg-gray-900 text-indigo-600 shadow-sm focus:ring-indigo-500">
+                In stock only
+            </label>
+        </div>
+
+        <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">
+            Selling value uses today's selling price (the promo price while a promo is running). Cost is what each batch actually cost. Profit is selling value minus cost. The totals match the dashboard's Inventory Value and Estimated Gross Profit cards when no filters are applied.
+        </p>
+
+        <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-900/40">
+                    <tr>
+                        @foreach ([['product_name', 'Product', 'left'], ['qty_on_hand', 'Qty on Hand', 'right'], ['value_at_cost', 'Value at Cost', 'right'], ['value_at_selling_price', 'Selling Value', 'right'], ['estimated_gross_profit', 'Gross Profit', 'right']] as [$key, $label, $align])
+                            <th class="px-4 py-3 text-{{ $align }} text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                <button type="button" wire:click="sortValuation('{{ $key }}')" class="uppercase tracking-wider hover:text-gray-700 dark:hover:text-gray-200">
+                                    {{ $label }}
+                                    @if ($valuationSortBy === $key)
+                                        <span aria-hidden="true">{{ $valuationSortDirection === 'asc' ? '▲' : '▼' }}</span>
+                                    @endif
+                                </button>
+                            </th>
+                        @endforeach
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Margin</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                    @forelse ($valuation as $row)
+                        @php
+                            $margin = (float) $row->value_at_selling_price > 0
+                                ? (float) $row->estimated_gross_profit / (float) $row->value_at_selling_price * 100
+                                : null;
+                        @endphp
+                        <tr wire:key="valuation-{{ $row->product_id }}">
+                            <td class="px-4 py-3 text-sm font-medium whitespace-nowrap">
+                                <a href="{{ route('products.show', $row->product_id) }}" wire:navigate class="text-gray-900 dark:text-gray-100 hover:text-indigo-600 dark:hover:text-indigo-400">{{ $row->product_name }}</a>
+                            </td>
+                            <td class="px-4 py-3 text-sm text-right tabular-nums text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ rtrim(rtrim(number_format($row->qty_on_hand, 3), '0'), '.') ?: '0' }} {{ $row->selling_unit_name }}</td>
+                            <td class="px-4 py-3 text-sm text-right tabular-nums text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ number_format($row->value_at_cost, 2) }}</td>
+                            <td class="px-4 py-3 text-sm text-right tabular-nums text-gray-900 dark:text-gray-100 whitespace-nowrap">{{ number_format($row->value_at_selling_price, 2) }}</td>
+                            <td @class(['px-4 py-3 text-sm text-right tabular-nums whitespace-nowrap', 'text-emerald-600 dark:text-emerald-400' => $row->estimated_gross_profit >= 0, 'text-red-600 dark:text-red-400' => $row->estimated_gross_profit < 0])>{{ number_format($row->estimated_gross_profit, 2) }}</td>
+                            <td class="px-4 py-3 text-sm text-right tabular-nums text-gray-500 dark:text-gray-400 whitespace-nowrap">{{ $margin === null ? '—' : number_format($margin, 1).'%' }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="6" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No products to value.</td></tr>
+                    @endforelse
+                </tbody>
+                <tfoot class="bg-gray-50 dark:bg-gray-900/40 border-t-2 border-gray-300 dark:border-gray-600">
+                    @php
+                        $totalMargin = (float) $valuationTotals->value_at_selling_price > 0
+                            ? (float) $valuationTotals->estimated_gross_profit / (float) $valuationTotals->value_at_selling_price * 100
+                            : null;
+                        $filtered = $valuationSearch !== '' || $valuationCategoryId || ! $valuationInStockOnly;
+                    @endphp
+                    <tr class="font-semibold">
+                        <td class="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                            Total{{ $filtered ? ' (filtered)' : '' }} · {{ $valuationTotals->product_count }} product(s)
+                        </td>
+                        <td></td>
+                        <td class="px-4 py-3 text-sm text-right tabular-nums text-gray-900 dark:text-gray-100 whitespace-nowrap">{{ number_format($valuationTotals->value_at_cost, 2) }}</td>
+                        <td class="px-4 py-3 text-sm text-right tabular-nums text-gray-900 dark:text-gray-100 whitespace-nowrap">{{ number_format($valuationTotals->value_at_selling_price, 2) }}</td>
+                        <td @class(['px-4 py-3 text-sm text-right tabular-nums whitespace-nowrap', 'text-emerald-600 dark:text-emerald-400' => $valuationTotals->estimated_gross_profit >= 0, 'text-red-600 dark:text-red-400' => $valuationTotals->estimated_gross_profit < 0])>{{ number_format($valuationTotals->estimated_gross_profit, 2) }}</td>
+                        <td class="px-4 py-3 text-sm text-right tabular-nums text-gray-500 dark:text-gray-400 whitespace-nowrap">{{ $totalMargin === null ? '—' : number_format($totalMargin, 1).'%' }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+            <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700">{{ $valuation->links() }}</div>
+        </div>
+    @endif
 
     {{-- ============================== STOCK OVERVIEW ============================== --}}
     @if ($activeTab === 'stock')

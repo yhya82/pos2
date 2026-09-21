@@ -114,6 +114,23 @@
             </button>
         </div>
 
+        <div x-show="priceNotices.length > 0" x-cloak class="rounded-md border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/30 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
+            <div class="flex items-start justify-between gap-2">
+                <div class="font-semibold">Prices updated — your cart total has changed</div>
+                <button type="button" @click="priceNotices = []" class="text-amber-700 hover:text-amber-900 dark:text-amber-300" aria-label="Dismiss">✕</button>
+            </div>
+            <ul class="mt-1 space-y-0.5">
+                <template x-for="notice in priceNotices" :key="notice.product_id">
+                    <li>
+                        <span x-text="notice.name"></span>:
+                        <span class="line-through opacity-70" x-text="formatMoney(notice.from)"></span>
+                        &rarr;
+                        <span class="font-semibold" x-text="formatMoney(notice.to)"></span>
+                    </li>
+                </template>
+            </ul>
+        </div>
+
         <div class="space-y-2 max-h-80 overflow-y-auto">
             <template x-for="(line, index) in cart" :key="line.product_id">
                 <div class="flex items-center gap-2 text-sm border-b border-gray-100 dark:border-gray-700 pb-2">
@@ -289,6 +306,7 @@
             tenderedAmount: '',
             processing: false,
             errorMessage: '',
+            priceNotices: [],
             lastReceiptNumber: null,
             lastSaleId: null,
 
@@ -343,6 +361,33 @@
 
             clearCart() {
                 this.cart = [];
+                this.priceNotices = [];
+            },
+
+            // A price or promo changed while items were already in the cart —
+            // bring those lines to the new price (the server charges the
+            // current price regardless, so this just keeps the screen honest)
+            // and say so, so neither the cashier nor the customer is
+            // surprised by a total that moved. One notice per product: if the
+            // price moves twice, it shows original -> latest, and disappears
+            // if it lands back where the line started.
+            repriceCart() {
+                this.cart.forEach(line => {
+                    const product = this.products.find(p => p.id === line.product_id);
+
+                    if (!product || Math.abs(product.effective_price - line.unit_price) < 0.005) return;
+
+                    const existing = this.priceNotices.find(n => n.product_id === line.product_id);
+                    const from = existing ? existing.from : line.unit_price;
+
+                    this.priceNotices = this.priceNotices.filter(n => n.product_id !== line.product_id);
+
+                    line.unit_price = product.effective_price;
+
+                    if (Math.abs(from - product.effective_price) >= 0.005) {
+                        this.priceNotices.push({ product_id: line.product_id, name: line.name, from, to: product.effective_price });
+                    }
+                });
             },
 
             subtotal() {
@@ -414,6 +459,7 @@
             // this is a background refresh, not a form reset.
             refreshLiveData(detail) {
                 this.products = detail.products;
+                this.repriceCart();
                 this.paymentMethods = detail.paymentMethods;
                 this.taxEnabled = detail.taxEnabled;
                 this.taxRate = detail.taxRate;
@@ -444,7 +490,7 @@
                 this.processing = true;
 
                 const result = await this.$wire.checkout(
-                    this.cart.map(l => ({ product_id: l.product_id, quantity: l.quantity, unit_price: l.unit_price })),
+                    this.cart.map(l => ({ product_id: l.product_id, quantity: l.quantity })),
                     this.customerId,
                     this.paymentMethodId,
                     this.paymentMethodCode() === 'cash' ? null : this.referenceNumber,
@@ -475,6 +521,7 @@
                 });
 
                 this.cart = [];
+                this.priceNotices = [];
                 this.customerId = null;
                 this.discountType = 'none';
                 this.discountValue = 0;

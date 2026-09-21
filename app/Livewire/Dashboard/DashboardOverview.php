@@ -118,6 +118,7 @@ class DashboardOverview extends Component
                 default => "Today's Revenue",
             },
             'periodSales' => $canViewRevenue ? $this->periodSales($from, $to) : null,
+            'periodProfit' => $canViewRevenue ? $this->periodProfit($from, $to) : null,
             'lowStockCount' => $canViewInventory ? CurrentStock::where('is_low_stock', 1)->where('qty_on_hand', '>', 0)->count() : null,
             'lowStockNames' => $canViewInventory
                 ? CurrentStock::where('is_low_stock', 1)->where('qty_on_hand', '>', 0)->orderBy('qty_on_hand')->limit(3)->pluck('product_name')
@@ -171,6 +172,19 @@ class DashboardOverview extends Component
             ->where('status', 'completed')
             ->selectRaw('COUNT(*) as transaction_count, COALESCE(SUM(total_amount), 0) as revenue')
             ->first();
+    }
+
+    /**
+     * Realized profit on sales made in the period (v_realized_profit_lines):
+     * net of discounts and refunds, costed from the batches actually sold.
+     * Distinct from the "Estimated Gross Profit" tile, which is a forecast
+     * for stock still on hand.
+     */
+    private function periodProfit(Carbon $from, Carbon $to): float
+    {
+        return round((float) DB::table('v_realized_profit_lines')
+            ->whereBetween('sale_date', [$from, $to])
+            ->sum('profit'), 2);
     }
 
     private function expiringSoonCount(): int

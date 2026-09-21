@@ -37,6 +37,17 @@
                 {{ number_format($periodSales->revenue, 2) }}
                 <x-slot name="footer">{{ $periodSales->transaction_count }} transaction(s)</x-slot>
             </x-dashboard-stat-card>
+
+            <x-dashboard-stat-card
+                icon="arrow-trending-up"
+                icon-class="bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400"
+                accent="bg-emerald-500"
+                label="Profit (Selected Period)"
+                :value-class="$periodProfit < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'"
+            >
+                {{ number_format($periodProfit, 2) }}
+                <x-slot name="footer">after discounts &amp; refunds</x-slot>
+            </x-dashboard-stat-card>
         @endif
 
         @if ($canViewInventory)

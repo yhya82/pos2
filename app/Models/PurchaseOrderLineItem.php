@@ -14,6 +14,8 @@ class PurchaseOrderLineItem extends Model
         'product_id',
         'qty_ordered',
         'qty_received',
+        'qty_damaged',
+        'qty_closed_short',
         'purchase_unit_id',
         'cost_price',
     ];
@@ -22,7 +24,9 @@ class PurchaseOrderLineItem extends Model
     {
         return [
             'qty_ordered' => 'decimal:3',
-            'qty_received' => 'decimal:3',
+            'qty_received' => 'decimal:6',
+            'qty_damaged' => 'decimal:6',
+            'qty_closed_short' => 'decimal:6',
             'cost_price' => 'decimal:2',
         ];
     }
@@ -44,6 +48,10 @@ class PurchaseOrderLineItem extends Model
 
     public function remainingQty(): float
     {
-        return (float) $this->qty_ordered - (float) $this->qty_received;
+        // Damaged units did arrive and closed-short units will never arrive:
+        // neither is still expected, so neither counts as remaining.
+        // Six decimals: a few pieces out of a packet is a repeating fraction,
+        // and float subtraction must not leave a 0.0000000001 "remaining".
+        return max(0.0, round((float) $this->qty_ordered - (float) $this->qty_received - (float) $this->qty_damaged - (float) $this->qty_closed_short, 6));
     }
 }

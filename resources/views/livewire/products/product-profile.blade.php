@@ -96,7 +96,11 @@
                         </div>
                         <div>
                             <x-input-label for="add_stock_cost" :value="'Unit Cost (per '.$addStockUnitLabel.')'" />
-                            <x-text-input wire:model.live="addStockUnitCost" id="add_stock_cost" class="block mt-1 w-full" />
+                            @if ($canEditPrices)
+                                <x-text-input wire:model.live="addStockUnitCost" id="add_stock_cost" class="block mt-1 w-full" />
+                            @else
+                                <div class="flex items-center h-[38px] mt-1 px-3 text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/40 rounded-md border border-gray-200 dark:border-gray-700" title="Only users who can edit products can change costs">{{ is_numeric($addStockUnitCost) ? number_format((float) $addStockUnitCost, 2) : '—' }}</div>
+                            @endif
                             @if ($hasDistinctUnits && $addStockQtyUnit === 'purchase' && is_numeric($addStockUnitCost))
                                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                     = {{ number_format($product->toSellingUnitCost((float) $addStockUnitCost, 'purchase'), 2) }} per {{ $product->sellingUnit->name }}
@@ -104,6 +108,33 @@
                             @endif
                             <x-input-error :messages="$errors->get('addStockUnitCost')" class="mt-2" />
                         </div>
+                    </div>
+
+                    @php
+                        // Profit per selling unit if both numbers are usable — so the
+                        // cost and price are judged against each other as they're typed.
+                        $asSellingCost = is_numeric($addStockUnitCost) ? $product->toSellingUnitCost((float) $addStockUnitCost, $addStockQtyUnit) : null;
+                        $newPrice = is_numeric($addStockSellingPrice) && (float) $addStockSellingPrice > 0 ? (float) $addStockSellingPrice : null;
+                        $priceIsChanging = $newPrice !== null && abs($newPrice - (float) $product->selling_price) >= 0.005;
+                    @endphp
+                    <div>
+                        <x-input-label for="add_stock_price" :value="'Selling Price (per '.$product->sellingUnit->name.')'" />
+                        @if ($canEditPrices)
+                            <x-text-input wire:model.live="addStockSellingPrice" id="add_stock_price" class="block mt-1 w-full" />
+                        @else
+                            <div class="flex items-center h-[38px] mt-1 px-3 text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/40 rounded-md border border-gray-200 dark:border-gray-700" title="Only users who can edit products can change prices">{{ is_numeric($addStockSellingPrice) ? number_format((float) $addStockSellingPrice, 2) : '—' }}</div>
+                        @endif
+                        @if ($priceIsChanging)
+                            <p class="text-xs text-amber-700 dark:text-amber-300 mt-1">This changes the product's selling price from {{ number_format((float) $product->selling_price, 2) }} to {{ number_format($newPrice, 2) }} for all its stock.</p>
+                        @endif
+                        @if ($asSellingCost !== null && $newPrice !== null)
+                            @if ($asSellingCost >= $newPrice)
+                                <p class="text-xs text-red-600 dark:text-red-400 mt-1">Cost {{ number_format($asSellingCost, 2) }} per {{ $product->sellingUnit->name }} is not below this price — there'd be no profit. Raise the price, or check the cost.</p>
+                            @else
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Profit per {{ $product->sellingUnit->name }}: {{ number_format($newPrice - $asSellingCost, 2) }} ({{ number_format(($newPrice - $asSellingCost) / $newPrice * 100, 1) }}% margin)</p>
+                            @endif
+                        @endif
+                        <x-input-error :messages="$errors->get('addStockSellingPrice')" class="mt-2" />
                     </div>
 
                     <div class="grid grid-cols-2 gap-4">
@@ -389,6 +420,165 @@
         </x-slot>
     </x-slide-over>
 
+    <x-slide-over name="correct-batch-cost" title="Correct Batch Cost">
+        @php
+            $unitName = $product->sellingUnit->name;
+            // +1.50 / −1.50 / 0.00 — an explicit sign so a change reads at a glance.
+            $signed = fn (float $n) => ($n > 0.004 ? '+' : ($n < -0.004 ? '−' : '')).number_format(abs($n), 2);
+            $pct = fn (?float $n) => $n === null ? '—' : number_format($n, 1).'%';
+            $priorCorrections = $costCorrectionBatchId ? ($corrections[$costCorrectionBatchId] ?? collect()) : collect();
+        @endphp
+
+        <form wire:submit="submitCostCorrection" id="correct-batch-cost-form" class="space-y-5">
+            @if ($costPreview)
+                {{-- The "before", kept on screen as fixed text — the input below is
+                     pre-filled with it, so once you start typing it would otherwise be gone. --}}
+                <div class="rounded-lg bg-gray-50 dark:bg-gray-900/40 ring-1 ring-gray-200 dark:ring-gray-700 p-3">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">Current cost (per {{ $unitName }})</div>
+                            <div @class(['text-2xl font-semibold tabular-nums', 'text-red-600 dark:text-red-400' => $costPreview['old'] > $costPreview['price'], 'text-gray-900 dark:text-gray-100' => $costPreview['old'] <= $costPreview['price']])>{{ number_format($costPreview['old'], 2) }}</div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">Selling price (per {{ $unitName }})</div>
+                            <div class="text-2xl font-semibold tabular-nums text-gray-900 dark:text-gray-100">{{ number_format($costPreview['price'], 2) }}</div>
+                        </div>
+                    </div>
+                    <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        Batch {{ $costPreview['batch']->batch_code ?: '#'.$costPreview['batch']->id }}
+                        · {{ rtrim(rtrim(number_format($costPreview['qty'], 3), '0'), '.') ?: '0' }} {{ $unitName }} in stock
+                    </div>
+                </div>
+            @endif
+
+            <p class="text-sm text-gray-600 dark:text-gray-400">
+                Use this when a batch was received at the wrong cost — for example a cost entered per pack instead of per {{ $unitName }}. Stock value and profit use each batch's own cost, so fixing the product's cost price doesn't fix an existing batch.
+            </p>
+
+            <div>
+                <x-input-label for="cost_correction_value" :value="'New cost (per '.$unitName.')'" />
+                <x-text-input wire:model.live.debounce.300ms="costCorrectionValue" id="cost_correction_value" class="block mt-1 w-full" />
+                <x-input-error :messages="$errors->get('costCorrectionValue')" class="mt-2" />
+            </div>
+
+            <div>
+                <x-input-label for="cost_correction_price" :value="'Selling price (per '.$unitName.')'" />
+                <x-text-input wire:model.live.debounce.300ms="costCorrectionPrice" id="cost_correction_price" class="block mt-1 w-full" />
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Pre-filled with the current price. Change it here if the price, not the cost, is what was wrong.</p>
+                <x-input-error :messages="$errors->get('costCorrectionPrice')" class="mt-2" />
+            </div>
+
+            @if ($costPreview && $costPreview['new'] !== null)
+                @if (! $costPreview['changed'])
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Enter a different cost or selling price to see what changes.</p>
+                @else
+                    <div class="rounded-lg ring-1 ring-gray-200 dark:ring-gray-700 overflow-hidden">
+                        <table class="min-w-full text-sm">
+                            <thead class="bg-gray-50 dark:bg-gray-900/40 text-xs text-gray-500 dark:text-gray-400">
+                                <tr>
+                                    <th class="px-3 py-2 text-left font-medium">What changes</th>
+                                    <th class="px-3 py-2 text-right font-medium">Before</th>
+                                    <th class="px-3 py-2 text-right font-medium">After</th>
+                                    <th class="px-3 py-2 text-right font-medium">Change</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100 dark:divide-gray-700 tabular-nums text-gray-700 dark:text-gray-300">
+                                <tr>
+                                    <td class="px-3 py-2">Cost per {{ $unitName }}</td>
+                                    <td class="px-3 py-2 text-right">{{ number_format($costPreview['old'], 2) }}</td>
+                                    <td class="px-3 py-2 text-right font-semibold">{{ number_format($costPreview['new'], 2) }}</td>
+                                    <td class="px-3 py-2 text-right">{{ $signed($costPreview['new'] - $costPreview['old']) }}</td>
+                                </tr>
+                                @if ($costPreview['priceChanged'])
+                                    <tr>
+                                        <td class="px-3 py-2">Selling price per {{ $unitName }}</td>
+                                        <td class="px-3 py-2 text-right">{{ number_format($costPreview['listOld'], 2) }}</td>
+                                        <td class="px-3 py-2 text-right font-semibold">{{ number_format($costPreview['listNew'], 2) }}</td>
+                                        <td class="px-3 py-2 text-right">{{ $signed($costPreview['listNew'] - $costPreview['listOld']) }}</td>
+                                    </tr>
+                                @endif
+                                <tr>
+                                    <td class="px-3 py-2">Profit per {{ $unitName }} <span class="text-xs text-gray-400">(at {{ number_format($costPreview['price'], 2) }})</span></td>
+                                    <td @class(['px-3 py-2 text-right', 'text-red-600 dark:text-red-400' => $costPreview['unitProfitOld'] < 0])>{{ number_format($costPreview['unitProfitOld'], 2) }}</td>
+                                    <td @class(['px-3 py-2 text-right font-semibold', 'text-red-600 dark:text-red-400' => $costPreview['unitProfitNew'] < 0, 'text-emerald-600 dark:text-emerald-400' => $costPreview['unitProfitNew'] >= 0])>{{ number_format($costPreview['unitProfitNew'], 2) }}</td>
+                                    <td class="px-3 py-2 text-right">{{ $signed($costPreview['unitProfitNew'] - $costPreview['unitProfitOld']) }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-3 py-2">Margin</td>
+                                    <td class="px-3 py-2 text-right">{{ $pct($costPreview['marginOld']) }}</td>
+                                    <td class="px-3 py-2 text-right font-semibold">{{ $pct($costPreview['marginNew']) }}</td>
+                                    <td class="px-3 py-2 text-right">{{ $costPreview['marginOld'] !== null && $costPreview['marginNew'] !== null ? $signed($costPreview['marginNew'] - $costPreview['marginOld']).' pts' : '—' }}</td>
+                                </tr>
+                                @if ($costPreview['countsTowardStock'])
+                                    <tr>
+                                        <td class="px-3 py-2">Stock value at cost <span class="text-xs text-gray-400">({{ rtrim(rtrim(number_format($costPreview['qty'], 3), '0'), '.') ?: '0' }} in stock)</span></td>
+                                        <td class="px-3 py-2 text-right">{{ number_format($costPreview['valueOld'], 2) }}</td>
+                                        <td class="px-3 py-2 text-right font-semibold">{{ number_format($costPreview['valueNew'], 2) }}</td>
+                                        <td class="px-3 py-2 text-right">{{ $signed($costPreview['valueNew'] - $costPreview['valueOld']) }}</td>
+                                    </tr>
+                                @endif
+                            </tbody>
+                        </table>
+                    </div>
+
+                    @unless ($costPreview['countsTowardStock'])
+                        <p class="text-xs text-gray-500 dark:text-gray-400">This batch is {{ str_replace('_', ' ', $costPreview['batch']->status) }}, so it isn't counted in stock value.</p>
+                    @endunless
+
+                    {{-- The knock-on effect that's easy to miss: sales already made from
+                         this batch were costed at the old figure, and the profit report
+                         reads the batch's cost, so those numbers move too. --}}
+                    @if (! $costPreview['costChanged'])
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Only the selling price changes, so profit already reported on past sales stays as it is.</p>
+                    @elseif ($costPreview['netUnitsSold'] > 0)
+                        <div class="rounded-md border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/30 px-3 py-2 text-sm text-amber-900 dark:text-amber-200">
+                            <strong>{{ rtrim(rtrim(number_format($costPreview['netUnitsSold'], 3), '0'), '.') }} {{ $unitName }}</strong>
+                            already sold from this batch (after returns). Reported profit on those sales will change by
+                            <strong>{{ $signed($costPreview['pastProfitChange']) }}</strong>.
+                        </div>
+                    @else
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Nothing has been sold from this batch yet, so no past profit changes.</p>
+                    @endif
+
+                    @if ($costPreview['stillAbovePrice'])
+                        <div class="rounded-md border border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-900/30 px-3 py-2 text-sm text-red-800 dark:text-red-200">
+                            This cost is still not below the selling price ({{ number_format($costPreview['price'], 2) }}), so these units would sell at no profit or a loss. If the cost really is that high, raise the selling price above it.
+                        </div>
+                    @endif
+                @endif
+            @endif
+
+            <div>
+                <x-input-label for="cost_correction_reason" value="Reason" />
+                <textarea wire:model="costCorrectionReason" id="cost_correction_reason" rows="2" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+                <x-input-error :messages="$errors->get('costCorrectionReason')" class="mt-2" />
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Recorded in the audit log with the old and new cost.</p>
+            </div>
+
+            @if ($priorCorrections->isNotEmpty())
+                <div>
+                    <div class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Earlier corrections to this batch</div>
+                    <ul class="space-y-1.5 text-xs text-gray-600 dark:text-gray-400">
+                        @foreach ($priorCorrections as $log)
+                            <li class="rounded-md bg-gray-50 dark:bg-gray-900/40 px-2.5 py-1.5">
+                                <span class="tabular-nums">{{ number_format($log->previous_value['unit_cost'], 2) }} → {{ number_format($log->new_value['unit_cost'], 2) }}</span>
+                                · {{ $log->created_at->format('Y-m-d') }} · {{ $log->user?->name ?? 'System' }}
+                                @if (! empty($log->new_value['reason']))
+                                    <div class="text-gray-500 dark:text-gray-500">“{{ $log->new_value['reason'] }}”</div>
+                                @endif
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+        </form>
+
+        <x-slot name="footer">
+            <x-secondary-button x-on:click="show = false">Cancel</x-secondary-button>
+            <x-primary-button type="submit" form="correct-batch-cost-form">Save Correction</x-primary-button>
+        </x-slot>
+    </x-slide-over>
+
     <div class="border-b border-gray-200 dark:border-gray-700 mb-4">
         <nav class="-mb-px flex gap-6">
             @foreach (['overview' => 'Overview', 'inventory' => 'Inventory & Batches', 'movements' => 'Stock Movements', 'discounts' => 'Discount History'] as $tab => $label)
@@ -426,6 +616,16 @@
     @endif
 
     @if ($activeTab === 'inventory')
+        @if ($product->batches()->where('status', 'active')->where('qty_remaining', '>', 0)->where('unit_cost', '>=', $product->effectiveSellingPrice())->exists())
+            <div class="mb-3 rounded-md border border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-900/30 px-3 py-2 text-sm text-red-800 dark:text-red-200">
+                Some stock here cost as much as or more than it sells for ({{ number_format($product->effectiveSellingPrice(), 2) }}). If a batch cost was entered wrongly, use <strong>Correct cost</strong> on that batch; otherwise reprice the product.
+            </div>
+        @endif
+        @if ($product->hasActivePromo())
+            <p class="text-xs text-emerald-700 dark:text-emerald-400 mb-2">
+                Profit is calculated at the promotional price ({{ number_format($product->effectiveSellingPrice(), 2) }}), not the list price ({{ number_format($product->selling_price, 2) }}).
+            </p>
+        @endif
         <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead class="bg-gray-50 dark:bg-gray-900/40">
@@ -434,18 +634,33 @@
                         <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Received ({{ $product->sellingUnit->name }})</th>
                         <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Remaining ({{ $product->sellingUnit->name }})</th>
                         <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Unit Cost (per {{ $product->sellingUnit->name }})</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Profit (per {{ $product->sellingUnit->name }})</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Est. Profit (remaining)</th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Received Date</th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Expiry</th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                     @forelse ($batches as $batch)
                         <tr wire:key="batch-{{ $batch->id }}">
-                            <td class="px-4 py-3 text-sm font-mono text-gray-700 dark:text-gray-300 whitespace-nowrap">{{ $batch->batch_code ?? '#'.$batch->id }}</td>
+                            <td class="px-4 py-3 text-sm font-mono text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                                {{ $batch->batch_code ?? '#'.$batch->id }}
+                                @php $batchCorrections = $corrections[$batch->id] ?? collect(); $last = $batchCorrections->first(); @endphp
+                                @if ($last)
+                                    <span
+                                        class="ml-1 inline-flex px-1.5 py-0.5 rounded text-[10px] font-sans font-medium bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 cursor-help"
+                                        title="Cost corrected {{ $batchCorrections->count() > 1 ? $batchCorrections->count().' times. Last: ' : ': ' }}{{ number_format($last->previous_value['unit_cost'], 2) }} → {{ number_format($last->new_value['unit_cost'], 2) }} on {{ $last->created_at->format('Y-m-d') }} by {{ $last->user?->name ?? 'System' }}{{ ! empty($last->new_value['reason']) ? ' — '.$last->new_value['reason'] : '' }}"
+                                    >corrected</span>
+                                @endif
+                            </td>
                             <td class="px-4 py-3 text-sm text-right tabular-nums text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ rtrim(rtrim(number_format($batch->qty_received, 3), '0'), '.') }}</td>
                             <td class="px-4 py-3 text-sm text-right tabular-nums text-gray-900 dark:text-gray-100 whitespace-nowrap">{{ rtrim(rtrim(number_format($batch->qty_remaining, 3), '0'), '.') ?: '0' }}</td>
                             <td class="px-4 py-3 text-sm text-right tabular-nums text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ number_format($batch->unit_cost, 2) }}</td>
+                            @php $unitProfit = $product->effectiveSellingPrice() - (float) $batch->unit_cost; @endphp
+                            <td @class(['px-4 py-3 text-sm text-right tabular-nums whitespace-nowrap', 'text-emerald-600 dark:text-emerald-400' => $unitProfit >= 0, 'text-red-600 dark:text-red-400' => $unitProfit < 0])>{{ number_format($unitProfit, 2) }}</td>
+                            <td @class(['px-4 py-3 text-sm text-right tabular-nums whitespace-nowrap', 'text-gray-900 dark:text-gray-100' => $unitProfit >= 0, 'text-red-600 dark:text-red-400' => $unitProfit < 0])>{{ $batch->status === 'active' ? number_format((float) $batch->qty_remaining * $unitProfit, 2) : '—' }}</td>
                             <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ $batch->received_date->format('Y-m-d') }}</td>
                             <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ $batch->expiry_date?->format('Y-m-d') ?? '—' }}</td>
                             <td class="px-4 py-3 text-sm whitespace-nowrap">
@@ -457,9 +672,14 @@
                                     'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300' => $batch->status === 'written_off',
                                 ])>{{ ucfirst(str_replace('_', ' ', $batch->status)) }}</span>
                             </td>
+                            <td class="px-4 py-3 text-sm text-right whitespace-nowrap">
+                                @if (auth()->user()->hasPermission('inventory', 'update') && $canEditPrices)
+                                    <button type="button" wire:click="openCostCorrection({{ $batch->id }})" class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium">Correct cost</button>
+                                @endif
+                            </td>
                         </tr>
                     @empty
-                        <tr><td colspan="7" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No batches received yet.</td></tr>
+                        <tr><td colspan="10" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No batches received yet.</td></tr>
                     @endforelse
                 </tbody>
             </table>

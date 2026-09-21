@@ -17,3 +17,4 @@ Schedule::command('pos:prune')->daily();
 Schedule::command('pos:check-integrity')->daily();
 Schedule::command('pos:backup')->dailyAt('02:00');
 Schedule::command('pos:health-check')->everyFifteenMinutes();
+Schedule::command('pos:refresh-prices')->dailyAt('00:00');

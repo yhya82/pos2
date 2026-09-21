@@ -24,8 +24,11 @@ class ProductFactory extends Factory
             'purchase_unit_id' => fn () => Unit::factory(),
             'selling_unit_id' => fn () => Unit::factory(),
             'conversion_qty' => 1,
-            'cost_price' => fake()->randomFloat(2, 1, 20),
             'selling_price' => fake()->randomFloat(2, 5, 50),
+            // Derived from whatever selling_price ends up being (including a
+            // test's override) — the DB rejects cost above price, so an
+            // independently random cost would fail tests at random.
+            'cost_price' => fn (array $attributes) => round((float) $attributes['selling_price'] * 0.6, 2),
             'min_stock_level' => 10,
             'status' => 'active',
         ];

@@ -99,14 +99,59 @@ class Product extends Model
             return (float) $this->selling_price;
         }
 
-        $price = (float) $this->selling_price;
-        $value = (float) $this->promo_discount_value;
+        return static::priceAfterDiscount((float) $this->selling_price, $this->promo_discount_type, (float) $this->promo_discount_value);
+    }
 
-        $discounted = $this->promo_discount_type === 'percentage'
-            ? $price - round($price * $value / 100, 2)
-            : $price - $value;
+    /**
+     * The one place discount math lives, so the price the POS charges, the
+     * price a promo form is validated against, and v_inventory_valuation's
+     * SQL copy of this rule can't drift apart. Never below zero.
+     */
+    public static function priceAfterDiscount(float $price, string $type, float $value): float
+    {
+        $discounted = match ($type) {
+            'percentage' => $price - round($price * $value / 100, 2),
+            'fixed' => $price - $value,
+            default => $price,
+        };
 
         return max(0.0, $discounted);
+    }
+
+    /**
+     * Receiving stock can't be refused just because a supplier's price rose
+     * past what the product sells for — the goods are already on the shelf —
+     * so the batch is recorded at its real cost and this says what needs
+     * attention instead. Null when the cost is fine.
+     */
+    public function costAbovePriceWarning(float $sellingUnitCost): ?string
+    {
+        if ($sellingUnitCost < (float) $this->selling_price) {
+            return null;
+        }
+
+        return sprintf(
+            '"%s" was received at a cost of %s, not below its selling price of %s (no profit) — reprice it, or correct the batch cost if that was a mistake.',
+            $this->name,
+            number_format($sellingUnitCost, 2),
+            number_format((float) $this->selling_price, 2),
+        );
+    }
+
+    /**
+     * The lowest price this product can be sold at without losing money on
+     * stock already in hand: the higher of its reference cost and the most
+     * expensive active batch still on the shelf. A promotion is checked
+     * against this, since any of those units could be the one it's sold from.
+     */
+    public function breakEvenCost(): float
+    {
+        $dearestBatch = (float) $this->batches()
+            ->where('status', 'active')
+            ->where('qty_remaining', '>', 0)
+            ->max('unit_cost');
+
+        return max((float) $this->cost_price, $dearestBatch);
     }
 
     /**

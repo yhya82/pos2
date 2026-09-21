@@ -8,6 +8,7 @@ use App\Models\InventoryMovement;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 /**
  * Creates a batch with no purchase order behind it — batches.
@@ -36,8 +37,13 @@ class ManualStockService
         ?string $batchCode,
         ?string $reason,
         User $user,
+        ?float $sellingPrice = null,
     ): Batch {
-        return DB::transaction(function () use ($product, $quantity, $quantityUnit, $unitCost, $receivedDate, $expiryDate, $batchCode, $reason, $user) {
+        if ($sellingPrice !== null && $sellingPrice <= 0) {
+            throw new RuntimeException('The selling price must be above 0.');
+        }
+
+        return DB::transaction(function () use ($product, $quantity, $quantityUnit, $unitCost, $receivedDate, $expiryDate, $batchCode, $reason, $user, $sellingPrice) {
             $sellingQty = $product->toSellingQty($quantity, $quantityUnit);
             $sellingUnitCost = $product->toSellingUnitCost($unitCost, $quantityUnit);
 
@@ -74,11 +80,47 @@ class ManualStockService
             // products.cost_price is always per selling unit, so this
             // reuses $sellingUnitCost (already computed above for the
             // batch itself) regardless of which unit this entry was made in.
-            if ($sellingUnitCost !== (float) $product->cost_price) {
-                $previousCost = $product->only(['cost_price']);
-                $product->update(['cost_price' => $sellingUnitCost]);
+            //
+            // The price this delivery is sold at — the product's current one
+            // unless the caller changed it because the new stock warrants it.
+            $price = $sellingPrice ?? (float) $product->selling_price;
+            $priceChanged = abs($price - (float) $product->selling_price) >= 0.005;
 
-                AuditLog::record('update', 'products', 'Product', $product->id, $previousCost, $product->only(['cost_price']));
+            $updates = [];
+
+            if ($priceChanged) {
+                $updates['selling_price'] = $price;
+            }
+
+            // Skipped when the cost is not below the selling price (a DB rule
+            // forbids the product holding that) — the batch keeps its real
+            // cost and the caller surfaces $product->costAbovePriceWarning().
+            if ($sellingUnitCost < $price && $sellingUnitCost !== (float) $product->cost_price) {
+                $updates['cost_price'] = $sellingUnitCost;
+            }
+
+            if ($updates) {
+                $finalCost = (float) ($updates['cost_price'] ?? $product->cost_price);
+
+                if ($finalCost >= $price) {
+                    throw new RuntimeException("The selling price must be above the product's cost price of ".number_format($finalCost, 2).'. Change the cost price first.');
+                }
+
+                $previous = $product->only(array_keys($updates));
+                // One update, so a price drop and a cost drop can't trip the
+                // cost-below-price rule halfway through.
+                $product->update($updates);
+
+                AuditLog::record('update', 'products', 'Product', $product->id, $previous, $product->only(array_keys($updates)));
+            }
+
+            if ($priceChanged && $product->promo_discount_type !== 'none') {
+                $promoPrice = Product::priceAfterDiscount($price, $product->promo_discount_type, (float) $product->promo_discount_value);
+                $floor = $product->breakEvenCost();
+
+                if ($promoPrice < $floor) {
+                    throw new RuntimeException("With this product's current promotion the price would be ".number_format($promoPrice, 2).', below its cost of '.number_format($floor, 2).'. Change the promotion first.');
+                }
             }
 
             return $batch;

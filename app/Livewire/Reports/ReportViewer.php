@@ -137,6 +137,7 @@ class ReportViewer extends Component
         $user = auth()->user();
         $creditEnabled = ModuleSetting::enabled('customer_credit');
         $returnsEnabled = ModuleSetting::enabled('return_management');
+        $purchasingEnabled = ModuleSetting::enabled('purchase_management') && $user->hasPermission('purchase_orders', 'view');
 
         $all = [
             'daily_sales' => [
@@ -168,6 +169,19 @@ class ReportViewer extends Component
                     ['key' => 'sale_day', 'label' => 'Date'],
                     ['key' => 'transaction_count', 'label' => 'Transactions', 'align' => 'right'],
                     ['key' => 'total_amount', 'label' => 'Amount', 'align' => 'right', 'money' => true],
+                ],
+            ],
+            // Same audience as the dashboard's revenue/profit tiles — a
+            // cashier can process sales but doesn't see store-wide profit.
+            'realized_profit' => [
+                'label' => 'Profit Report', 'group' => 'Sales', 'visible' => $user->hasPermission('sales', 'view') && ! $user->isCashier(),
+                'columns' => [
+                    ['key' => 'product_name', 'label' => 'Product'],
+                    ['key' => 'quantity_sold', 'label' => 'Qty Sold', 'align' => 'right'],
+                    ['key' => 'net_revenue', 'label' => 'Revenue (net)', 'align' => 'right', 'money' => true],
+                    ['key' => 'net_cost', 'label' => 'Cost', 'align' => 'right', 'money' => true],
+                    ['key' => 'profit', 'label' => 'Profit', 'align' => 'right', 'money' => true],
+                    ['key' => 'margin_pct', 'label' => 'Margin %', 'align' => 'right'],
                 ],
             ],
             'discounts' => [
@@ -228,6 +242,35 @@ class ReportViewer extends Component
                     ['key' => 'last_sold_at', 'label' => 'Last Sold'],
                 ],
             ],
+            // Goods that arrived damaged or never arrived — the loss at cost,
+            // and what each supplier still owes for it.
+            'receiving_losses' => [
+                'label' => 'Receiving Losses', 'group' => 'Inventory', 'visible' => $purchasingEnabled,
+                'dateColumn' => 'created_at',
+                'columns' => [
+                    ['key' => 'created_at', 'label' => 'Date'],
+                    ['key' => 'po_number', 'label' => 'PO #'],
+                    ['key' => 'supplier_name', 'label' => 'Supplier'],
+                    ['key' => 'product_name', 'label' => 'Product'],
+                    ['key' => 'issue_type', 'label' => 'Issue'],
+                    ['key' => 'qty_label', 'label' => 'Qty', 'align' => 'right'],
+                    ['key' => 'loss_value', 'label' => 'Loss (cost)', 'align' => 'right', 'money' => true],
+                    ['key' => 'claim_status', 'label' => 'Claim'],
+                    ['key' => 'credited_amount', 'label' => 'Credited', 'align' => 'right', 'money' => true],
+                ],
+            ],
+            'supplier_claims' => [
+                'label' => 'Supplier Claims', 'group' => 'Financial', 'visible' => $purchasingEnabled,
+                'dateColumn' => 'created_at',
+                'columns' => [
+                    ['key' => 'supplier_name', 'label' => 'Supplier'],
+                    ['key' => 'open_claims', 'label' => 'Open Claims', 'align' => 'right'],
+                    ['key' => 'owed', 'label' => 'Still Owed', 'align' => 'right', 'money' => true],
+                    ['key' => 'credited', 'label' => 'Credited', 'align' => 'right', 'money' => true],
+                    ['key' => 'waived', 'label' => 'Waived', 'align' => 'right', 'money' => true],
+                    ['key' => 'total_claimed', 'label' => 'Total Claimed', 'align' => 'right', 'money' => true],
+                ],
+            ],
             'credit_balances' => [
                 'label' => 'Outstanding Customer Balances', 'group' => 'Financial', 'visible' => $creditEnabled && $user->hasPermission('customers', 'view'),
                 'columns' => [
@@ -253,6 +296,53 @@ class ReportViewer extends Component
     private function queryFor(string $key)
     {
         $report = $this->availableReports()[$key];
+
+        // Row-per-sold-line view, rolled up per product for the chosen date
+        // range — every other report reads its view as-is.
+        if ($key === 'realized_profit') {
+            return DB::table('v_realized_profit_lines')
+                ->when($this->dateFrom && $this->dateTo, fn ($q) => $q->whereBetween('sale_date', [$this->dateFrom, $this->dateTo.' 23:59:59']))
+                ->selectRaw('product_id, product_name,
+                    SUM(quantity_sold) AS quantity_sold,
+                    ROUND(SUM(net_revenue), 2) AS net_revenue,
+                    ROUND(SUM(net_cost), 2) AS net_cost,
+                    ROUND(SUM(profit), 2) AS profit,
+                    CASE WHEN SUM(net_revenue) > 0 THEN ROUND(SUM(profit) / SUM(net_revenue) * 100, 1) ELSE NULL END AS margin_pct')
+                ->groupBy('product_id', 'product_name')
+                ->orderByDesc('profit')
+                ->paginate(15);
+        }
+
+        if ($key === 'receiving_losses') {
+            return DB::table('receiving_issues as ri')
+                ->join('purchase_orders as po', 'po.id', '=', 'ri.purchase_order_id')
+                ->join('suppliers as s', 's.id', '=', 'ri.supplier_id')
+                ->join('products as p', 'p.id', '=', 'ri.product_id')
+                ->join('units as su', 'su.id', '=', 'p.selling_unit_id')
+                ->when($this->dateFrom && $this->dateTo, fn ($q) => $q->whereBetween('ri.created_at', [$this->dateFrom, $this->dateTo.' 23:59:59']))
+                ->selectRaw("ri.created_at, po.po_number, s.name AS supplier_name, p.name AS product_name, ri.issue_type, CONCAT(TRIM(TRAILING '.' FROM TRIM(TRAILING '0' FROM ri.qty)), ' ', su.name) AS qty_label, ri.loss_value, ri.claim_status, ri.credited_amount")
+                ->orderByDesc('ri.created_at')
+                ->orderByDesc('ri.id')
+                ->paginate(15);
+        }
+
+        // One row per supplier: what they still owe, and what's been settled.
+        if ($key === 'supplier_claims') {
+            return DB::table('receiving_issues as ri')
+                ->join('suppliers as s', 's.id', '=', 'ri.supplier_id')
+                ->when($this->dateFrom && $this->dateTo, fn ($q) => $q->whereBetween('ri.created_at', [$this->dateFrom, $this->dateTo.' 23:59:59']))
+                ->selectRaw("s.name AS supplier_name,
+                    SUM(ri.claim_status = 'owed') AS open_claims,
+                    ROUND(SUM(CASE WHEN ri.claim_status = 'owed' THEN ri.loss_value ELSE 0 END), 2) AS owed,
+                    ROUND(SUM(ri.credited_amount), 2) AS credited,
+                    ROUND(SUM(CASE WHEN ri.claim_status = 'waived' THEN ri.loss_value ELSE 0 END), 2) AS waived,
+                    ROUND(SUM(ri.loss_value), 2) AS total_claimed")
+                ->groupBy('ri.supplier_id', 's.name')
+                ->orderByDesc('owed')
+                ->orderBy('s.name')
+                ->paginate(15);
+        }
+
         $view = match ($key) {
             'daily_sales' => 'v_daily_sales_summary',
             'sales_by_cashier' => 'v_sales_by_cashier',

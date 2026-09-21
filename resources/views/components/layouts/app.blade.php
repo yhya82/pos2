@@ -122,7 +122,7 @@
                         message = $event.detail.message;
                         variant = $event.detail.variant ?? 'success';
                         show = true;
-                        setTimeout(() => show = false, 4000);
+                        setTimeout(() => show = false, variant === 'warning' ? 12000 : 4000);
                     "
                     x-show="show"
                     x-transition
@@ -131,7 +131,7 @@
                 >
                     <div
                         class="rounded-md px-4 py-3 shadow-lg text-sm font-medium text-white"
-                        :class="variant === 'success' ? 'bg-emerald-600' : 'bg-red-600'"
+                        :class="variant === 'success' ? 'bg-emerald-600' : (variant === 'warning' ? 'bg-amber-600' : 'bg-red-600')"
                         x-text="message"
                     ></div>
                 </div>

@@ -32,7 +32,7 @@ use RuntimeException;
 class SaleService
 {
     /**
-     * @param  array<int, array{product_id: int, quantity: float|string, unit_price?: float|string}>  $cartLines
+     * @param  array<int, array{product_id: int, quantity: float|string}>  $cartLines  Any unit_price on a line is ignored — see buildLines().
      *
      * @throws RuntimeException on empty cart, insufficient stock, disabled/missing customer credit, or a discount over the configured cap
      */
@@ -91,6 +91,8 @@ class SaleService
             }
 
             $discountAmount = min($discountAmount, $subtotal);
+
+            $this->assertNoDiscountedLineBelowCost($lineData, $subtotal, $discountAmount);
 
             $taxableAmount = $subtotal - $discountAmount;
             $taxAmount = $generalSettings->tax_enabled
@@ -205,7 +207,11 @@ class SaleService
                 throw new RuntimeException("Invalid quantity for \"{$product->name}\".");
             }
 
-            $unitPrice = isset($line['unit_price']) ? (float) $line['unit_price'] : (float) $product->selling_price;
+            // The charged price is decided here, never taken from the
+            // client — a cart line's unit_price is display-only on the POS,
+            // and trusting it would let a tampered request sell at any price
+            // (which also corrupts every profit figure downstream).
+            $unitPrice = $product->effectiveSellingPrice();
             $lineSubtotal = round($quantity * $unitPrice, 2);
             $subtotal += $lineSubtotal;
 
@@ -266,6 +272,44 @@ class SaleService
         }
 
         return [$lineData, $subtotal];
+    }
+
+    /**
+     * A discount — a product's promotion, or one the cashier applies to the
+     * whole sale — may not push what a unit actually brings in below what
+     * the batch it's taken from cost. The sale-level discount is spread
+     * across lines in proportion to their value (the same way the profit
+     * report attributes it), and each line is held against the dearest batch
+     * it draws from. Undiscounted sales are deliberately not this rule's
+     * concern: it's about discounts, not about legacy stock priced badly.
+     *
+     * @param  array<int, array{product: Product, quantity: float, subtotal: float, allocations: array<int, array{batch: Batch, qty: float}>, line_discount_amount: float}>  $lineData
+     *
+     * @throws RuntimeException
+     */
+    private function assertNoDiscountedLineBelowCost(array $lineData, float $subtotal, float $saleDiscount): void
+    {
+        foreach ($lineData as $line) {
+            $share = $subtotal > 0 ? $saleDiscount * ($line['subtotal'] / $subtotal) : 0.0;
+
+            if ($share <= 0 && $line['line_discount_amount'] <= 0) {
+                continue;
+            }
+
+            $netUnitPrice = $line['quantity'] > 0 ? ($line['subtotal'] - $share) / $line['quantity'] : 0.0;
+
+            $batchCosts = array_map(fn ($allocation) => (float) $allocation['batch']->unit_cost, $line['allocations']);
+            $cost = $batchCosts ? max($batchCosts) : (float) $line['product']->cost_price;
+
+            if ($netUnitPrice + 0.005 < $cost) {
+                throw new RuntimeException(sprintf(
+                    'This discount would sell "%s" at %s each, below its cost of %s. Reduce the discount.',
+                    $line['product']->name,
+                    number_format($netUnitPrice, 2),
+                    number_format($cost, 2),
+                ));
+            }
+        }
     }
 
     private function writeLinesAndDeductStock(Sale $sale, array $lineData, User $cashier): void

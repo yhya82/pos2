@@ -43,6 +43,7 @@ class Terminal extends Component
      * self-adjusts stock after its own checkout().
      */
     #[On('echo-private:stock,.StockChanged')]
+    #[On('echo-private:stock,.ProductPriceChanged')]
     #[On('echo-private:settings,.ModuleSettingChanged')]
     #[On('echo-private:settings,.GeneralSettingChanged')]
     #[On('echo-private:settings,.HardwareSettingChanged')]
@@ -116,7 +117,7 @@ class Terminal extends Component
     }
 
     /**
-     * @param  array<int, array{product_id: int, quantity: float|string, unit_price?: float|string}>  $cart
+     * @param  array<int, array{product_id: int, quantity: float|string}>  $cart
      * @return array{success: bool, message?: string, saleId?: int, receiptNumber?: string}
      */
     public function checkout(

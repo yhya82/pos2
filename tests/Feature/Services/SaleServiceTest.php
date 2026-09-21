@@ -72,6 +72,54 @@ class SaleServiceTest extends TestCase
         $this->assertTrue(AuditLog::where('module', 'sales')->where('record_id', $sale->id)->where('action', 'create')->exists());
     }
 
+    public function test_a_client_supplied_unit_price_is_ignored(): void
+    {
+        $product = Product::factory()->create(['selling_price' => 10]);
+        Batch::factory()->for($product)->remaining(50)->create();
+
+        $sale = $this->service->completeSale(
+            cartLines: [['product_id' => $product->id, 'quantity' => 3, 'unit_price' => 0.01]],
+            customerId: null,
+            paymentMethodId: $this->cashMethod()->id,
+            referenceNumber: null,
+            discountType: 'none',
+            discountValue: 0,
+            discountReason: null,
+            cashier: User::factory()->create(),
+        );
+
+        $this->assertEquals(10.00, $sale->lineItems()->first()->unit_price);
+        $this->assertEquals(30.00, $sale->total_amount);
+    }
+
+    public function test_the_charged_price_is_the_promo_price_when_a_promo_is_active(): void
+    {
+        $product = Product::factory()->create([
+            'selling_price' => 10,
+            'promo_discount_type' => 'percentage',
+            'promo_discount_value' => 20,
+        ]);
+        // Explicit cost: a random one could exceed the 8.00 promo price and
+        // (correctly) trip the discounts-can't-go-below-cost rule.
+        Batch::factory()->for($product)->remaining(50)->create(['unit_cost' => 5]);
+
+        $sale = $this->service->completeSale(
+            cartLines: [['product_id' => $product->id, 'quantity' => 5]],
+            customerId: null,
+            paymentMethodId: $this->cashMethod()->id,
+            referenceNumber: null,
+            discountType: 'none',
+            discountValue: 0,
+            discountReason: null,
+            cashier: User::factory()->create(),
+        );
+
+        $line = $sale->lineItems()->first();
+
+        $this->assertEquals(8.00, $line->unit_price);
+        $this->assertEquals(10.00, $line->line_discount_amount);
+    }
+
     public function test_cannot_complete_a_sale_with_an_empty_cart(): void
     {
         $this->expectException(RuntimeException::class);

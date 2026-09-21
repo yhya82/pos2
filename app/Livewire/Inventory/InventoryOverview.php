@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Inventory;
 
+use App\Events\ProductPriceChanged;
 use App\Livewire\Concerns\AuthorizesModuleActions;
 use App\Models\AuditLog;
 use App\Models\Batch;
@@ -57,6 +58,17 @@ class InventoryOverview extends Component
 
     public string $adjustReason = '';
 
+    // --- Stock valuation ---
+    public string $valuationSearch = '';
+
+    public ?int $valuationCategoryId = null;
+
+    public bool $valuationInStockOnly = true;
+
+    public string $valuationSortBy = 'value_at_selling_price';
+
+    public string $valuationSortDirection = 'desc';
+
     // --- Expiry tracking ---
     public string $expirySearch = '';
 
@@ -90,9 +102,98 @@ class InventoryOverview extends Component
         // No-op — render() below re-queries fresh.
     }
 
+    /**
+     * Same audience as the dashboard's Inventory Value / Estimated Gross
+     * Profit cards — the money value of stock is a financial figure, not an
+     * operational one, so a Cashier doesn't see it.
+     */
+    private function canViewValuation(): bool
+    {
+        $user = auth()->user();
+
+        return $user->hasPermission('inventory', 'view') && ! $user->isCashier();
+    }
+
+    public function sortValuation(string $column): void
+    {
+        if ($this->valuationSortBy === $column) {
+            $this->valuationSortDirection = $this->valuationSortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            $this->valuationSortBy = $column;
+            $this->valuationSortDirection = $column === 'product_name' ? 'asc' : 'desc';
+        }
+
+        $this->resetPage('valuationPage');
+    }
+
+    public function updatingValuationSearch(): void
+    {
+        $this->resetPage('valuationPage');
+    }
+
+    public function updatingValuationCategoryId(): void
+    {
+        $this->resetPage('valuationPage');
+    }
+
+    public function updatingValuationInStockOnly(): void
+    {
+        $this->resetPage('valuationPage');
+    }
+
+    /**
+     * One row per product straight from v_inventory_valuation — the same
+     * view the dashboard's cards sum — so the totals row here and those
+     * cards can never disagree. Cost is each batch's own cost; the selling
+     * side is the price actually charged today (promo-aware).
+     */
+    private function valuationBaseQuery()
+    {
+        return DB::table('v_inventory_valuation as v')
+            ->join('products as p', 'p.id', '=', 'v.product_id')
+            ->join('units as u', 'u.id', '=', 'p.selling_unit_id')
+            ->when($this->valuationSearch, fn ($q) => $q->where('v.product_name', 'like', "%{$this->valuationSearch}%"))
+            ->when($this->valuationCategoryId, fn ($q) => $q->where('p.category_id', $this->valuationCategoryId))
+            ->when($this->valuationInStockOnly, fn ($q) => $q->where('v.qty_on_hand', '>', 0));
+    }
+
+    private function valuationQuery()
+    {
+        $sortable = ['product_name', 'qty_on_hand', 'value_at_cost', 'value_at_selling_price', 'estimated_gross_profit'];
+        $sortBy = in_array($this->valuationSortBy, $sortable, true) ? $this->valuationSortBy : 'value_at_selling_price';
+        $direction = $this->valuationSortDirection === 'asc' ? 'asc' : 'desc';
+
+        return $this->valuationBaseQuery()
+            ->select('v.*', 'u.name as selling_unit_name')
+            ->orderBy("v.{$sortBy}", $direction)
+            ->orderBy('v.product_name')
+            ->paginate(15, pageName: 'valuationPage');
+    }
+
+    private function valuationTotals(): object
+    {
+        return $this->valuationBaseQuery()
+            ->selectRaw('COUNT(*) AS product_count,
+                COALESCE(SUM(v.value_at_cost), 0) AS value_at_cost,
+                COALESCE(SUM(v.value_at_selling_price), 0) AS value_at_selling_price,
+                COALESCE(SUM(v.estimated_gross_profit), 0) AS estimated_gross_profit')
+            ->first();
+    }
+
     public function render()
     {
+        // A deep link (?tab=valuation) or stale tab state shouldn't expose
+        // the valuation to someone who can't see it.
+        $canViewValuation = $this->canViewValuation();
+
+        if ($this->activeTab === 'valuation' && ! $canViewValuation) {
+            $this->activeTab = 'stock';
+        }
+
         return view('livewire.inventory.inventory-overview', [
+            'canViewValuation' => $canViewValuation,
+            'valuation' => $this->activeTab === 'valuation' ? $this->valuationQuery() : null,
+            'valuationTotals' => $this->activeTab === 'valuation' ? $this->valuationTotals() : null,
             'stock' => $this->activeTab === 'stock' ? $this->stockQuery() : null,
             'movements' => $this->activeTab === 'movements' ? $this->movementsQuery() : null,
             'expiring' => $this->activeTab === 'expiry' ? $this->expiryQuery() : null,
@@ -201,28 +302,59 @@ class InventoryOverview extends Component
             return;
         }
 
+        // No product in the selection may end up priced below its cost.
+        // All-or-nothing: applying it to some and skipping the rest would
+        // leave the selection half-discounted with no clear record of which.
+        $belowCost = Product::whereIn('id', $this->selectedProductIds)->get()
+            ->map(function (Product $product) use ($validated) {
+                $price = Product::priceAfterDiscount((float) $product->selling_price, $validated['bulkDiscountType'], (float) $validated['bulkDiscountValue']);
+                $floor = $product->breakEvenCost();
+
+                return $price < $floor ? "{$product->name} (would be ".number_format($price, 2).", cost ".number_format($floor, 2).')' : null;
+            })
+            ->filter()
+            ->values();
+
+        if ($belowCost->isNotEmpty()) {
+            $shown = $belowCost->take(5)->implode('; ');
+            $more = $belowCost->count() > 5 ? ' and '.($belowCost->count() - 5).' more' : '';
+
+            $this->addError('bulkDiscountValue', "This discount would price {$belowCost->count()} product(s) below cost, so nothing was applied: {$shown}{$more}.");
+
+            return;
+        }
+
         $count = 0;
 
-        DB::transaction(function () use ($validated, &$count) {
+        $changedIds = [];
+
+        DB::transaction(function () use ($validated, &$count, &$changedIds) {
             $products = Product::whereIn('id', $this->selectedProductIds)->get();
 
-            foreach ($products as $product) {
-                $previous = $product->only(['promo_discount_type', 'promo_discount_value', 'promo_starts_at', 'promo_ends_at']);
+            // Per-product observer events are suppressed — one broadcast for
+            // the whole batch below, not one (and one till refresh) each.
+            Product::withoutEvents(function () use ($products, $validated, &$count, &$changedIds) {
+                foreach ($products as $product) {
+                    $previous = $product->only(['promo_discount_type', 'promo_discount_value', 'promo_starts_at', 'promo_ends_at']);
 
-                $product->update([
-                    'promo_discount_type' => $validated['bulkDiscountType'],
-                    'promo_discount_value' => $validated['bulkDiscountValue'],
-                    'promo_starts_at' => $validated['bulkStartsAt'] ?: null,
-                    'promo_ends_at' => $validated['bulkEndsAt'] ?: null,
-                ]);
+                    $product->update([
+                        'promo_discount_type' => $validated['bulkDiscountType'],
+                        'promo_discount_value' => $validated['bulkDiscountValue'],
+                        'promo_starts_at' => $validated['bulkStartsAt'] ?: null,
+                        'promo_ends_at' => $validated['bulkEndsAt'] ?: null,
+                    ]);
 
-                AuditLog::record('update', 'products', 'Product', $product->id, $previous, $product->only([
-                    'promo_discount_type', 'promo_discount_value', 'promo_starts_at', 'promo_ends_at',
-                ]));
+                    AuditLog::record('update', 'products', 'Product', $product->id, $previous, $product->only([
+                        'promo_discount_type', 'promo_discount_value', 'promo_starts_at', 'promo_ends_at',
+                    ]));
 
-                $count++;
-            }
+                    $changedIds[] = $product->id;
+                    $count++;
+                }
+            });
         });
+
+        ProductPriceChanged::dispatchSafely($changedIds);
 
         $this->dispatch('flash-message', message: "Discount applied to {$count} product(s).", variant: 'success');
     }
@@ -239,26 +371,34 @@ class InventoryOverview extends Component
 
         $count = 0;
 
-        DB::transaction(function () use (&$count) {
+        $changedIds = [];
+
+        DB::transaction(function () use (&$count, &$changedIds) {
             $products = Product::whereIn('id', $this->selectedProductIds)->get();
 
-            foreach ($products as $product) {
-                $previous = $product->only(['promo_discount_type', 'promo_discount_value', 'promo_starts_at', 'promo_ends_at']);
+            // See applyBulkDiscount() — one broadcast for the batch.
+            Product::withoutEvents(function () use ($products, &$count, &$changedIds) {
+                foreach ($products as $product) {
+                    $previous = $product->only(['promo_discount_type', 'promo_discount_value', 'promo_starts_at', 'promo_ends_at']);
 
-                $product->update([
-                    'promo_discount_type' => 'none',
-                    'promo_discount_value' => 0,
-                    'promo_starts_at' => null,
-                    'promo_ends_at' => null,
-                ]);
+                    $product->update([
+                        'promo_discount_type' => 'none',
+                        'promo_discount_value' => 0,
+                        'promo_starts_at' => null,
+                        'promo_ends_at' => null,
+                    ]);
 
-                AuditLog::record('update', 'products', 'Product', $product->id, $previous, $product->only([
-                    'promo_discount_type', 'promo_discount_value', 'promo_starts_at', 'promo_ends_at',
-                ]));
+                    AuditLog::record('update', 'products', 'Product', $product->id, $previous, $product->only([
+                        'promo_discount_type', 'promo_discount_value', 'promo_starts_at', 'promo_ends_at',
+                    ]));
 
-                $count++;
-            }
+                    $changedIds[] = $product->id;
+                    $count++;
+                }
+            });
         });
+
+        ProductPriceChanged::dispatchSafely($changedIds);
 
         $this->dispatch('flash-message', message: "Discount removed from {$count} product(s).", variant: 'success');
     }

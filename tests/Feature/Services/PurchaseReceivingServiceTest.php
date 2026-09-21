@@ -89,7 +89,7 @@ class PurchaseReceivingServiceTest extends TestCase
         [$po, $line, , $user] = $this->makeOrderWithLine(10);
 
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('only 10 remaining');
+        $this->expectExceptionMessage('remaining on this order');
 
         $this->service->receive($po, [
             ['line_item_id' => $line->id, 'qty' => 15],

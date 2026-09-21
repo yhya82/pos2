@@ -46,6 +46,11 @@ class PurchaseOrder extends Model
         return $this->hasMany(PurchaseOrderLineItem::class);
     }
 
+    public function receivingIssues(): HasMany
+    {
+        return $this->hasMany(ReceivingIssue::class);
+    }
+
     /**
      * PO-{YYYYMMDD}-{0001}. Not concurrency-proof (two POs created in the
      * same request-second could in theory race for the same suffix), but

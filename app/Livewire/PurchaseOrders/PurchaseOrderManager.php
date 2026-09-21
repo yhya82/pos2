@@ -4,11 +4,14 @@ namespace App\Livewire\PurchaseOrders;
 
 use App\Livewire\Concerns\AuthorizesModuleActions;
 use App\Models\AuditLog;
+use App\Models\Batch;
+use App\Models\ReceivingIssue;
 use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\Supplier;
 use App\Models\Unit;
 use App\Services\PurchaseReceivingService;
+use App\Services\SupplierClaimService;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -37,10 +40,22 @@ class PurchaseOrderManager extends Component
 
     public ?int $poIdPendingDelete = null;
 
+    // --- Details panel ---
+    public ?int $viewingPoId = null;
+
+    // --- Settling a supplier claim ---
+    public ?int $resolvingIssueId = null;
+
+    public string $resolveAction = 'credited';
+
+    public string $resolveAmount = '';
+
+    public string $resolveNote = '';
+
     // --- Receiving form state ---
     public ?int $receivingPoId = null;
 
-    /** @var array<int, array{line_item_id: int, product_name: string, remaining: float, qty: string, batch_code: string, expiry_date: string, received_date: string}> */
+    /** @var array<int, array{line_item_id: int, product_name: string, remaining: float, ordered: float, already_in: float, qty: string, qty_unit: string, damaged_unit: string, damaged_qty: string, damaged_reason: string, close_short: bool, short_reason: string, batch_code: string, expiry_date: string, received_date: string, unit_cost: string, selling_price: string, conversion_qty: float, units_differ: bool, selling_unit_name: string, current_price: float}> */
     public array $receivingLines = [];
 
     public function updatingSearch(): void
@@ -53,10 +68,126 @@ class PurchaseOrderManager extends Component
         $this->resetPage();
     }
 
+    /**
+     * Costs and selling prices are money the shop's books are built on, so
+     * only someone allowed to edit products can set them by hand. Everyone
+     * else sees the figures read-only, and the server ignores anything they
+     * send for them (the inputs being read-only is not the protection).
+     */
+    private function canEditPrices(): bool
+    {
+        return auth()->user()->hasPermission('products', 'update');
+    }
+
+    /**
+     * Closing a line short and settling or waiving a supplier claim write
+     * money off, so they're for people who may edit products, not everyone
+     * who can receive stock. Anyone can *report* damaged goods.
+     */
+    private function canWriteOff(): bool
+    {
+        return auth()->user()->hasPermission('products', 'update');
+    }
+
+    public function openResolve(int $issueId): void
+    {
+        $this->authorizeAction('purchase_orders', 'update');
+        $this->authorizeAction('products', 'update');
+
+        $issue = ReceivingIssue::findOrFail($issueId);
+
+        if ($issue->claim_status !== 'owed') {
+            $this->dispatch('flash-message', message: 'That claim has already been settled.', variant: 'error');
+
+            return;
+        }
+
+        $this->resolvingIssueId = $issue->id;
+        $this->resolveAction = 'credited';
+        $this->resolveAmount = (string) $issue->loss_value;
+        $this->resolveNote = '';
+        $this->resetValidation();
+
+        $this->dispatch('open-modal', 'resolve-claim');
+    }
+
+    public function submitResolve(SupplierClaimService $service): void
+    {
+        $this->authorizeAction('purchase_orders', 'update');
+        $this->authorizeAction('products', 'update');
+
+        $this->validate([
+            'resolveAction' => ['required', 'in:credited,waived'],
+            'resolveAmount' => ['nullable', 'numeric', 'min:0'],
+            'resolveNote' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $issue = ReceivingIssue::findOrFail($this->resolvingIssueId);
+
+        try {
+            $service->resolve(
+                $issue,
+                $this->resolveAction,
+                is_numeric($this->resolveAmount) ? (float) $this->resolveAmount : null,
+                $this->resolveNote,
+                auth()->user(),
+            );
+        } catch (RuntimeException $e) {
+            $this->addError('resolveNote', $e->getMessage());
+
+            return;
+        }
+
+        $this->reset(['resolvingIssueId', 'resolveAmount', 'resolveNote']);
+        $this->dispatch('close-modal', 'resolve-claim');
+        $this->dispatch('flash-message', message: 'Claim updated.', variant: 'success');
+    }
+
+    public function view(int $poId): void
+    {
+        PurchaseOrder::findOrFail($poId);
+
+        $this->viewingPoId = $poId;
+        $this->dispatch('open-modal', 'po-details');
+    }
+
+    /**
+     * Everything the details panel needs: the whole order, and the batches
+     * its deliveries actually created (what was received, when, at what cost).
+     *
+     * @return array{po: PurchaseOrder, batches: \Illuminate\Support\Collection, issues: \Illuminate\Support\Collection}|null
+     */
+    private function details(): ?array
+    {
+        if (! $this->viewingPoId) {
+            return null;
+        }
+
+        $po = PurchaseOrder::with(['supplier', 'creator', 'approver', 'lineItems.product.sellingUnit', 'lineItems.purchaseUnit'])->find($this->viewingPoId);
+
+        if (! $po) {
+            return null;
+        }
+
+        $batches = Batch::whereIn('purchase_order_line_item_id', $po->lineItems->pluck('id'))
+            ->with('product.sellingUnit')
+            ->orderByDesc('received_date')
+            ->orderByDesc('id')
+            ->get();
+
+        $issues = $po->receivingIssues()->with(['product.sellingUnit', 'reporter', 'resolver'])->orderByDesc('id')->get();
+
+        return ['po' => $po, 'batches' => $batches, 'issues' => $issues];
+    }
+
     public function render()
     {
         return view('livewire.purchase-orders.purchase-order-manager', [
-            'purchaseOrders' => PurchaseOrder::with(['supplier', 'creator'])
+            'details' => $this->details(),
+            'canEditPrices' => $this->canEditPrices(),
+            'canWriteOff' => $this->canWriteOff(),
+            'resolvingIssue' => $this->resolvingIssueId ? ReceivingIssue::with(['product.sellingUnit', 'supplier'])->find($this->resolvingIssueId) : null,
+            'purchaseOrders' => PurchaseOrder::with(['supplier', 'creator', 'lineItems.product:id,name', 'lineItems.purchaseUnit:id,name'])
                 ->withCount('lineItems')
                 ->when($this->search, fn ($query) => $query->where(function ($q) {
                     $q->where('po_number', 'like', "%{$this->search}%")
@@ -162,7 +293,15 @@ class PurchaseOrderManager extends Component
 
         $validated = $this->validate();
 
-        DB::transaction(function () use ($validated, $isCreating) {
+        $canEditPrices = $this->canEditPrices();
+
+        DB::transaction(function () use ($validated, $isCreating, $canEditPrices) {
+            // Costs already on this draft, so a user who can't edit prices
+            // doesn't wipe out what someone who can already set.
+            $previousCosts = $isCreating
+                ? collect()
+                : PurchaseOrder::findOrFail($this->editingPoId)->lineItems->pluck('cost_price', 'product_id');
+
             if ($isCreating) {
                 $po = PurchaseOrder::create([
                     'po_number' => PurchaseOrder::generatePoNumber(),
@@ -184,11 +323,21 @@ class PurchaseOrderManager extends Component
             }
 
             foreach ($validated['lines'] as $line) {
+                $product = Product::findOrFail($line['product_id']);
+
+                // A line is always priced in the product's own purchase unit
+                // (its conversion only means anything for that pairing).
+                // Without price rights the cost is the product's current one
+                // — or what the draft already had — whatever was submitted.
+                $cost = $canEditPrices
+                    ? $line['cost_price']
+                    : ($previousCosts[$product->id] ?? $product->toPurchaseUnitCost((float) $product->cost_price, 'selling'));
+
                 $po->lineItems()->create([
-                    'product_id' => $line['product_id'],
+                    'product_id' => $product->id,
                     'qty_ordered' => $line['qty_ordered'],
-                    'purchase_unit_id' => $line['purchase_unit_id'],
-                    'cost_price' => $line['cost_price'],
+                    'purchase_unit_id' => $product->purchase_unit_id,
+                    'cost_price' => $cost,
                 ]);
             }
 
@@ -295,7 +444,7 @@ class PurchaseOrderManager extends Component
     {
         $this->authorizeAction('purchase_orders', 'update');
 
-        $po = PurchaseOrder::with(['lineItems.product', 'lineItems.purchaseUnit'])->findOrFail($poId);
+        $po = PurchaseOrder::with(['lineItems.product.sellingUnit', 'lineItems.purchaseUnit'])->findOrFail($poId);
 
         if (! in_array($po->status, ['ordered', 'partially_received'], true)) {
             $this->dispatch('flash-message', message: 'Only ordered or partially received purchase orders can be received.', variant: 'error');
@@ -311,10 +460,27 @@ class PurchaseOrderManager extends Component
                 'product_name' => $line->product->name,
                 'unit_name' => $line->purchaseUnit->name,
                 'remaining' => $line->remainingQty(),
+                'ordered' => (float) $line->qty_ordered,
+                'already_in' => round((float) $line->qty_ordered - $line->remainingQty(), 6),
                 'qty' => '',
                 'batch_code' => '',
                 'expiry_date' => '',
                 'received_date' => now()->toDateString(),
+                // Pre-filled from the order and the product; change either when the
+                // delivery was invoiced or is being priced differently.
+                'unit_cost' => rtrim(rtrim(number_format((float) $line->cost_price, 4, '.', ''), '0'), '.') ?: '0',
+                'selling_price' => rtrim(rtrim(number_format((float) $line->product->selling_price, 4, '.', ''), '0'), '.') ?: '0',
+                'conversion_qty' => (float) $line->product->conversion_qty,
+                'units_differ' => $line->product->purchase_unit_id !== $line->product->selling_unit_id,
+                'selling_unit_name' => $line->product->sellingUnit->name,
+                'current_price' => (float) $line->product->selling_price,
+                // Damaged on arrival, and (for people who may write things off) closing the rest short.
+                'qty_unit' => 'purchase',
+                'damaged_unit' => 'purchase',
+                'damaged_qty' => '',
+                'damaged_reason' => '',
+                'close_short' => false,
+                'short_reason' => '',
             ])->values()->all();
 
         $this->dispatch('open-modal', 'receive-form');
@@ -326,14 +492,27 @@ class PurchaseOrderManager extends Component
 
         $po = PurchaseOrder::findOrFail($this->receivingPoId);
 
+        $canEditPrices = $this->canEditPrices();
+        $canWriteOff = $this->canWriteOff();
+
         $receipts = collect($this->receivingLines)
-            ->filter(fn ($line) => filled($line['qty']))
+            ->filter(fn ($line) => filled($line['qty']) || filled($line['damaged_qty']) || ($canWriteOff && $line['close_short']))
             ->map(fn ($line) => [
                 'line_item_id' => $line['line_item_id'],
                 'qty' => $line['qty'],
                 'batch_code' => $line['batch_code'],
                 'expiry_date' => $line['expiry_date'] ?: null,
                 'received_date' => $line['received_date'] ?: null,
+                'qty_unit' => $line['qty_unit'] ?? 'purchase',
+                'damaged_unit' => $line['damaged_unit'] ?? 'purchase',
+                'damaged_qty' => filled($line['damaged_qty']) ? $line['damaged_qty'] : 0,
+                'damaged_reason' => $line['damaged_reason'],
+                // Only people who may write things off can give up on the rest of a line.
+                'close_short' => $canWriteOff && $line['close_short'],
+                'short_reason' => $line['short_reason'],
+                // Without price rights: cost as ordered, price unchanged.
+                'unit_cost' => $canEditPrices ? $line['unit_cost'] : null,
+                'selling_price' => $canEditPrices ? $line['selling_price'] : null,
             ])->all();
 
         if (empty($receipts)) {
@@ -342,8 +521,25 @@ class PurchaseOrderManager extends Component
             return;
         }
 
+        foreach ($receipts as $receipt) {
+            $cost = $receipt['unit_cost'];
+            $price = $receipt['selling_price'];
+
+            if (! is_numeric($receipt['damaged_qty']) || (float) $receipt['damaged_qty'] < 0 || (filled($receipt['qty']) && ! is_numeric($receipt['qty']))) {
+                $this->dispatch('flash-message', message: 'Quantities must be numbers, 0 or more.', variant: 'error');
+
+                return;
+            }
+
+            if ((filled($cost) && (! is_numeric($cost) || (float) $cost < 0)) || (filled($price) && (! is_numeric($price) || (float) $price <= 0))) {
+                $this->dispatch('flash-message', message: 'Cost must be a number, 0 or more, and the selling price a number above 0.', variant: 'error');
+
+                return;
+            }
+        }
+
         try {
-            $service->receive($po, $receipts, auth()->user());
+            $warnings = $service->receive($po, $receipts, auth()->user());
         } catch (RuntimeException $e) {
             $this->dispatch('flash-message', message: $e->getMessage(), variant: 'error');
 
@@ -351,7 +547,11 @@ class PurchaseOrderManager extends Component
         }
 
         $this->dispatch('close-modal', 'receive-form');
-        $this->dispatch('flash-message', message: "Stock received against {$po->po_number}.", variant: 'success');
+        $this->dispatch(
+            'flash-message',
+            message: "Received against {$po->po_number}.".($warnings ? ' Note: '.implode(' ', $warnings) : ''),
+            variant: $warnings ? 'warning' : 'success',
+        );
         $this->receivingPoId = null;
     }
 }

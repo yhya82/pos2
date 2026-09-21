@@ -126,10 +126,18 @@ class ProductManager extends Component
             'purchaseUnitId' => ['required', 'exists:units,id'],
             'sellingUnitId' => ['required', 'exists:units,id'],
             'conversionQty' => ['required', 'numeric', 'gt:0'],
-            'costPrice' => ['required', 'numeric', 'min:0'],
-            'sellingPrice' => ['required', 'numeric', 'min:0'],
+            'costPrice' => ['required', 'numeric', 'min:0', 'lt:sellingPrice'],
+            'sellingPrice' => ['required', 'numeric', 'gt:0'],
             'minStockLevel' => ['required', 'numeric', 'min:0'],
             'status' => ['required', 'in:active,inactive'],
+        ];
+    }
+
+    protected function messages(): array
+    {
+        return [
+            'sellingPrice.gt' => 'The selling price must be above 0.',
+            'costPrice.lt' => "The cost price must be lower than the selling price — a product can't be sold at its cost.",
         ];
     }
 
@@ -186,6 +194,24 @@ class ProductManager extends Component
         $this->authorizeAction('products', $this->editingProductId ? 'update' : 'create');
 
         $validated = $this->validate();
+
+        // An edit can leave a promotion already on the product pricing it
+        // below cost even though cost <= selling price still holds (e.g. the
+        // selling price came down, or the cost went up) — the promotion
+        // rules are otherwise only checked when the promotion itself is saved.
+        if ($this->editingProductId) {
+            $existing = Product::findOrFail($this->editingProductId);
+
+            if ($existing->promo_discount_type !== 'none') {
+                $promoPrice = Product::priceAfterDiscount((float) $validated['sellingPrice'], $existing->promo_discount_type, (float) $existing->promo_discount_value);
+
+                if ($promoPrice < (float) $validated['costPrice']) {
+                    $this->addError('sellingPrice', 'With this product\'s current promotion the price would be '.number_format($promoPrice, 2).', below the cost of '.number_format((float) $validated['costPrice'], 2).'. Change the promotion first.');
+
+                    return;
+                }
+            }
+        }
 
         $imagePath = $this->existingImagePath;
         if ($this->photo) {

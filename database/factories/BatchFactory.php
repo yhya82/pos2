@@ -20,7 +20,11 @@ class BatchFactory extends Factory
         return [
             'product_id' => fn () => Product::factory(),
             'batch_code' => fake()->unique()->bothify('BATCH-####'),
-            'qty_received' => $qty,
+            // A batch can never have more remaining than it received (DB
+            // check), and remaining() overrides only qty_remaining — so
+            // received is derived, or a test asking for e.g. remaining(99)
+            // fails whenever the random received quantity lands below it.
+            'qty_received' => fn (array $attributes) => max((float) $attributes['qty_remaining'], $qty),
             'qty_remaining' => $qty,
             'unit_cost' => fake()->randomFloat(2, 1, 20),
             'expiry_date' => null,

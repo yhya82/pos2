@@ -13,6 +13,7 @@ use App\Models\Unit;
 use App\Services\PurchaseReceivingService;
 use App\Services\SupplierClaimService;
 use Illuminate\Support\Facades\DB;
+use App\Rules\WholeNumber;
 use Livewire\Component;
 use Livewire\WithPagination;
 use RuntimeException;
@@ -209,7 +210,7 @@ class PurchaseOrderManager extends Component
             'orderDate' => ['required', 'date'],
             'lines' => ['required', 'array', 'min:1'],
             'lines.*.product_id' => ['required', 'exists:products,id'],
-            'lines.*.qty_ordered' => ['required', 'numeric', 'gt:0'],
+            'lines.*.qty_ordered' => ['required', new WholeNumber(1)],
             'lines.*.purchase_unit_id' => ['required', 'exists:units,id'],
             'lines.*.cost_price' => ['required', 'numeric', 'min:0'],
         ];
@@ -333,6 +334,16 @@ class PurchaseOrderManager extends Component
                     ? $line['cost_price']
                     : ($previousCosts[$product->id] ?? $product->toPurchaseUnitCost((float) $product->cost_price, 'selling'));
 
+                // The form never lets this user change these — so a different
+                // value arriving means a doctored request. Keep the record.
+                if (! $canEditPrices && abs((float) $line['cost_price'] - (float) $cost) > 0.005) {
+                    AuditLog::tamperIgnored("PO line cost for \"{$product->name}\"", ['cost_price' => (float) $line['cost_price']], ['cost_price' => (float) $cost]);
+                }
+
+                if ((int) $line['purchase_unit_id'] !== (int) $product->purchase_unit_id) {
+                    AuditLog::tamperIgnored("PO line unit for \"{$product->name}\"", ['purchase_unit_id' => $line['purchase_unit_id']], ['purchase_unit_id' => $product->purchase_unit_id]);
+                }
+
                 $po->lineItems()->create([
                     'product_id' => $product->id,
                     'qty_ordered' => $line['qty_ordered'],
@@ -431,9 +442,21 @@ class PurchaseOrderManager extends Component
 
         $poNumber = $po->po_number;
         $poId = $po->id;
+        // What was deleted, not just that something was: the row is gone afterwards.
+        $snapshot = [
+            'po_number' => $po->po_number,
+            'supplier' => $po->supplier?->name,
+            'order_date' => $po->order_date?->toDateString(),
+            'lines' => $po->lineItems()->with('product:id,name')->get()->map(fn ($l) => [
+                'product' => $l->product?->name,
+                'qty_ordered' => (float) $l->qty_ordered,
+                'cost_price' => (float) $l->cost_price,
+            ])->all(),
+        ];
+
         $po->delete();
 
-        AuditLog::record('delete', 'purchase_orders', 'PurchaseOrder', $poId);
+        AuditLog::record('delete', 'purchase_orders', 'PurchaseOrder', $poId, $snapshot);
 
         $this->dispatch('close-modal', 'confirm-delete-po');
         $this->dispatch('flash-message', message: "{$poNumber} deleted.", variant: 'success');
@@ -495,6 +518,35 @@ class PurchaseOrderManager extends Component
         $canEditPrices = $this->canEditPrices();
         $canWriteOff = $this->canWriteOff();
 
+        // Compare what came back against what the form was given, so anything
+        // a user without the rights sent for a cost, price, or close-short is
+        // recorded before it's ignored.
+        if (! $canEditPrices || ! $canWriteOff) {
+            $orderLines = $po->lineItems()->with('product')->get()->keyBy('id');
+
+            foreach ($this->receivingLines as $sent) {
+                $orig = $orderLines->get($sent['line_item_id'] ?? null);
+
+                if (! $orig) {
+                    continue;
+                }
+
+                $name = $orig->product->name;
+
+                if (! $canEditPrices && filled($sent['unit_cost'] ?? null) && abs((float) $sent['unit_cost'] - (float) $orig->cost_price) > 0.005) {
+                    AuditLog::tamperIgnored("received cost for \"{$name}\"", ['unit_cost' => $sent['unit_cost']], ['unit_cost' => (float) $orig->cost_price]);
+                }
+
+                if (! $canEditPrices && filled($sent['selling_price'] ?? null) && abs((float) $sent['selling_price'] - (float) $orig->product->selling_price) > 0.005) {
+                    AuditLog::tamperIgnored("selling price for \"{$name}\" on receiving", ['selling_price' => $sent['selling_price']], ['selling_price' => (float) $orig->product->selling_price]);
+                }
+
+                if (! $canWriteOff && ! empty($sent['close_short'])) {
+                    AuditLog::tamperIgnored("closing \"{$name}\" short", ['close_short' => true], ['close_short' => false]);
+                }
+            }
+        }
+
         $receipts = collect($this->receivingLines)
             ->filter(fn ($line) => filled($line['qty']) || filled($line['damaged_qty']) || ($canWriteOff && $line['close_short']))
             ->map(fn ($line) => [
@@ -525,8 +577,8 @@ class PurchaseOrderManager extends Component
             $cost = $receipt['unit_cost'];
             $price = $receipt['selling_price'];
 
-            if (! is_numeric($receipt['damaged_qty']) || (float) $receipt['damaged_qty'] < 0 || (filled($receipt['qty']) && ! is_numeric($receipt['qty']))) {
-                $this->dispatch('flash-message', message: 'Quantities must be numbers, 0 or more.', variant: 'error');
+            if (! \App\Support\Whole::is($receipt['damaged_qty']) || (float) $receipt['damaged_qty'] < 0 || (filled($receipt['qty']) && (! \App\Support\Whole::is($receipt['qty']) || (float) $receipt['qty'] < 0))) {
+                $this->dispatch('flash-message', message: 'Quantities must be whole numbers, like 3 — no decimals.', variant: 'error');
 
                 return;
             }

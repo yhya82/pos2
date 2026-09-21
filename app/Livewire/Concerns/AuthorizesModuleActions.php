@@ -14,6 +14,10 @@ trait AuthorizesModuleActions
 {
     protected function authorizeAction(string $module, string $action): void
     {
-        abort_unless(auth()->user()->hasPermission($module, $action), 403);
+        if (! auth()->user()->hasPermission($module, $action)) {
+            \App\Models\AuditLog::accessDenied("needs {$module}.{$action}", static::class);
+
+            abort(403);
+        }
     }
 }

@@ -93,7 +93,6 @@ class SettingsManager extends Component
         $sales = SalesSetting::current();
         $this->sales = [
             'default_payment_method_id' => $sales?->default_payment_method_id,
-            'max_discount_percentage' => (string) $sales?->max_discount_percentage,
             'allow_negative_stock_sale' => (bool) $sales?->allow_negative_stock_sale,
         ];
 
@@ -215,7 +214,6 @@ class SettingsManager extends Component
 
         $validated = $this->validate([
             'sales.default_payment_method_id' => ['nullable', 'exists:payment_methods,id'],
-            'sales.max_discount_percentage' => ['required', 'numeric', 'min:0', 'max:100'],
             'sales.allow_negative_stock_sale' => ['boolean'],
         ])['sales'];
 
@@ -228,7 +226,7 @@ class SettingsManager extends Component
         $this->authorizeAction('settings', 'update');
 
         $validated = $this->validate([
-            'inventory.low_stock_default_threshold' => ['required', 'numeric', 'min:0'],
+            'inventory.low_stock_default_threshold' => ['required', new \App\Rules\WholeNumber(0)],
             'inventory.expiry_alert_days_1' => ['required', 'integer', 'min:0'],
             'inventory.expiry_alert_days_2' => ['required', 'integer', 'min:0'],
             'inventory.expiry_alert_days_3' => ['required', 'integer', 'min:0'],

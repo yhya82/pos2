@@ -95,8 +95,9 @@
                         @endforeach
 
                         <div>
-                            <x-input-label for="overall_reason" value="Overall Reason" />
+                            <x-input-label for="overall_reason" value="Overall Reason (required)" />
                             <textarea wire:model="overallReason" id="overall_reason" rows="2" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+                            <x-input-error :messages="$errors->get('overallReason')" class="mt-2" />
                         </div>
 
                         <div class="flex justify-end gap-3">

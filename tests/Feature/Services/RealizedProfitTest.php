@@ -67,12 +67,20 @@ class RealizedProfitTest extends TestCase
         $this->assertEqualsWithDelta(21.00, (float) $row->profit, 0.001);
     }
 
-    public function test_sale_level_discount_reduces_revenue_but_not_cost(): void
+    public function test_an_older_sale_that_carried_a_discount_still_reports_its_profit_correctly(): void
     {
+        // New sales can't carry a discount, but ones made before that rule still exist
+        // and must keep reporting as they always did — so build one the way it would be stored.
         $product = Product::factory()->create(['selling_price' => 10]);
         Batch::factory()->for($product)->remaining(50)->create(['unit_cost' => 6]);
 
-        $row = $this->profitFor($this->sell($product, 5, 'fixed', 10));
+        $sale = $this->sell($product, 5);
+        DB::table('sales')->where('id', $sale->id)->update([
+            'discount_type' => 'fixed', 'discount_value' => 10, 'discount_amount' => 10,
+            'discount_reason' => 'legacy', 'discount_applied_by' => $sale->cashier_id, 'total_amount' => 40,
+        ]);
+
+        $row = $this->profitFor($sale);
 
         $this->assertEqualsWithDelta(40.00, (float) $row->net_revenue, 0.001);
         $this->assertEqualsWithDelta(10.00, (float) $row->profit, 0.001);

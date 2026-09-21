@@ -12,6 +12,7 @@
     </div>
 
     <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 overflow-hidden">
+        @php $showActions = auth()->user()->hasPermission('suppliers', 'update') || auth()->user()->hasPermission('suppliers', 'delete'); @endphp
         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead class="bg-gray-50 dark:bg-gray-900/40">
                 <tr>
@@ -20,7 +21,9 @@
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Email</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Products</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                    @if ($showActions)
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                    @endif
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
@@ -39,6 +42,7 @@
                                 {{ ucfirst($supplier->status) }}
                             </span>
                         </td>
+                        @if ($showActions)
                         <td class="px-4 py-3 text-sm text-right space-x-3">
                             @if (auth()->user()->hasPermission('suppliers', 'update'))
                                 <button wire:click="edit({{ $supplier->id }})" class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium">
@@ -51,10 +55,11 @@
                                 </button>
                             @endif
                         </td>
+                        @endif
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                        <td colspan="{{ $showActions ? 6 : 5 }}" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
                             No suppliers found.
                         </td>
                     </tr>

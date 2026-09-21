@@ -9,6 +9,15 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Sale extends Model
 {
+    /**
+     * A cashier sees only their own sales; every other role sees whatever
+     * its permissions let it open. Apply to every query a user can browse.
+     */
+    public function scopeVisibleTo($query, User $user)
+    {
+        return $user->isCashier() ? $query->where('cashier_id', $user->id) : $query;
+    }
+
     const UPDATED_AT = null;
 
     protected $fillable = [

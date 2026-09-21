@@ -179,15 +179,13 @@ class SaleServiceTest extends TestCase
         $this->assertEquals(10, $later->fresh()->qty_remaining);
     }
 
-    public function test_discount_over_the_configured_cap_is_rejected(): void
+    public function test_a_discount_on_a_sale_is_refused(): void
     {
-        SalesSetting::current()->update(['max_discount_percentage' => 10]);
-
         $product = Product::factory()->create(['selling_price' => 100]);
         Batch::factory()->for($product)->remaining(10)->create();
 
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Discount exceeds the maximum allowed');
+        $this->expectExceptionMessage("Discounts can't be applied to a sale");
 
         $this->service->completeSale(
             cartLines: [['product_id' => $product->id, 'quantity' => 1]],
@@ -195,8 +193,8 @@ class SaleServiceTest extends TestCase
             paymentMethodId: $this->cashMethod()->id,
             referenceNumber: null,
             discountType: 'percentage',
-            discountValue: 50,
-            discountReason: 'too generous',
+            discountValue: 5,
+            discountReason: 'any reason',
             cashier: User::factory()->create(),
         );
     }

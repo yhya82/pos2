@@ -48,7 +48,7 @@ class CustomerProfile extends Component
         return view('livewire.customers.customer-profile', [
             'customer' => $customer,
             'sales' => $this->activeTab === 'purchases'
-                ? $customer->sales()->with(['payment.paymentMethod'])->orderByDesc('sale_date')->paginate(10, pageName: 'salesPage')
+                ? $customer->sales()->visibleTo(auth()->user())->with(['payment.paymentMethod'])->orderByDesc('sale_date')->paginate(10, pageName: 'salesPage')
                 : null,
             'creditTransactions' => $this->activeTab === 'credit'
                 ? $customer->creditTransactions()->with('sale')->orderByDesc('created_at')->paginate(10, pageName: 'creditPage')

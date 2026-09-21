@@ -49,7 +49,7 @@
                         </td>
                         <td class="px-4 py-3 text-sm text-right whitespace-nowrap space-x-3">
                             <a href="{{ route('sales.receipt', $sale) }}" target="_blank" class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium">Receipt</a>
-                            @if ($sale->status === 'completed' && auth()->user()->hasPermission('returns', 'create') && \App\Models\ModuleSetting::enabled('return_management'))
+                            @if ($sale->status === 'completed' && auth()->user()->hasPermission('returns', 'create') && auth()->user()->canRefundSale($sale) && \App\Models\ModuleSetting::enabled('return_management'))
                                 <a href="{{ route('returns.index', ['receipt' => $sale->receipt_number]) }}" wire:navigate class="text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300 font-medium">Refund</a>
                             @endif
                             @if ($sale->status === 'completed' && auth()->user()->hasPermission('sales', 'update'))

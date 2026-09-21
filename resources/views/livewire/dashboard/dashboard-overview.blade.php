@@ -235,7 +235,7 @@
         </div>
     @endif
 
-    @if ($canViewRevenue || ! auth()->user()->isCashier())
+    @if ($canViewRevenue || auth()->user()->canSeeFinancials())
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
             @if ($canViewRevenue)
                 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm ring-1 ring-gray-900/5 dark:ring-white/10 p-5">
@@ -268,9 +268,9 @@
                 </div>
             @endif
 
-            @unless (auth()->user()->isCashier())
+            @if (auth()->user()->canSeeFinancials())
                 <livewire:dashboard.online-users />
-            @endunless
+            @endif
         </div>
     @endif
 

@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Forms;
 
+use App\Models\AuditLog;
 use App\Models\SecuritySetting;
 use App\Models\User;
 use Illuminate\Auth\Events\Lockout;
@@ -50,12 +51,22 @@ class LoginForm extends Form
                 $this->registerFailedAttempt($user);
             }
 
+            // Never the password — only who they tried to be. An unknown email
+            // is logged too: someone guessing usernames is worth seeing.
+            AuditLog::security('login_failed', $user?->id, [
+                'email' => $this->email,
+                'known_account' => (bool) $user,
+                'attempts' => $user?->failed_login_attempts,
+            ], 'User');
+
             throw ValidationException::withMessages([
                 'form.email' => trans('auth.failed'),
             ]);
         }
 
         RateLimiter::clear($this->throttleKey());
+
+        AuditLog::security('login', $user->id, ['email' => $user->email], 'User');
 
         $user->forceFill([
             'failed_login_attempts' => 0,
@@ -82,6 +93,8 @@ class LoginForm extends Form
             return;
         }
 
+        AuditLog::security('login_blocked', $user->id, ['email' => $user->email, 'reason' => 'account deactivated'], 'User');
+
         throw ValidationException::withMessages([
             'form.email' => 'This account has been deactivated. Contact an administrator.',
         ]);
@@ -100,6 +113,8 @@ class LoginForm extends Form
 
         $minutes = (int) ceil(now()->diffInMinutes($user->locked_until, true));
 
+        AuditLog::security('login_blocked', $user->id, ['email' => $user->email, 'reason' => 'account locked', 'minutes_left' => $minutes], 'User');
+
         throw ValidationException::withMessages([
             'form.email' => "Too many failed login attempts. This account is locked for another {$minutes} minute(s).",
         ]);
@@ -110,12 +125,16 @@ class LoginForm extends Form
         $security = SecuritySetting::current();
         $attempts = $user->failed_login_attempts + 1;
 
+        $locks = $attempts >= $security->max_failed_login_attempts;
+
         $user->forceFill([
             'failed_login_attempts' => $attempts,
-            'locked_until' => $attempts >= $security->max_failed_login_attempts
-                ? now()->addMinutes($security->lockout_duration_minutes)
-                : null,
+            'locked_until' => $locks ? now()->addMinutes($security->lockout_duration_minutes) : null,
         ])->save();
+
+        if ($locks) {
+            AuditLog::security('account_locked', $user->id, ['email' => $user->email, 'failed_attempts' => $attempts, 'locked_minutes' => $security->lockout_duration_minutes], 'User');
+        }
     }
 
     /**
@@ -128,6 +147,8 @@ class LoginForm extends Form
         }
 
         event(new Lockout(request()));
+
+        AuditLog::security('rate_limited', User::where('email', $this->email)->value('id'), ['email' => $this->email], 'User');
 
         $seconds = RateLimiter::availableIn($this->throttleKey());
 

@@ -17,6 +17,7 @@ use App\Services\ManualStockService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use App\Rules\WholeNumber;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -204,10 +205,10 @@ class ProductProfile extends Component
             'barcode' => ['nullable', 'string', 'max:64', Rule::unique('products', 'barcode')->ignore($this->productId)],
             'purchaseUnitId' => ['required', 'exists:units,id'],
             'sellingUnitId' => ['required', 'exists:units,id'],
-            'conversionQty' => ['required', 'numeric', 'gt:0'],
+            'conversionQty' => ['required', new WholeNumber(1)],
             'costPrice' => ['required', 'numeric', 'min:0', 'lt:sellingPrice'],
             'sellingPrice' => ['required', 'numeric', 'gt:0'],
-            'minStockLevel' => ['required', 'numeric', 'min:0'],
+            'minStockLevel' => ['required', new WholeNumber(0)],
             'status' => ['required', 'in:active,inactive'],
         ], [
             'sellingPrice.gt' => 'The selling price must be above 0.',
@@ -320,7 +321,7 @@ class ProductProfile extends Component
         $this->authorizeAction('inventory', 'update');
 
         $validated = $this->validate([
-            'addStockQty' => ['required', 'numeric', 'gt:0'],
+            'addStockQty' => ['required', new WholeNumber(1)],
             'addStockQtyUnit' => ['required', 'in:purchase,selling'],
             'addStockUnitCost' => ['required', 'numeric', 'min:0'],
             'addStockSellingPrice' => ['required', 'numeric', 'gt:0'],
@@ -334,10 +335,19 @@ class ProductProfile extends Component
 
         if (! $this->canEditPrices()) {
             // The product's own cost (in the unit entered) and price, not what was sent.
-            $validated['addStockUnitCost'] = $validated['addStockQtyUnit'] === 'selling'
+            $ownCost = $validated['addStockQtyUnit'] === 'selling'
                 ? (float) $product->cost_price
                 : $product->toPurchaseUnitCost((float) $product->cost_price, 'selling');
-            $validated['addStockSellingPrice'] = (float) $product->selling_price;
+            $ownPrice = (float) $product->selling_price;
+
+            if (abs((float) $validated['addStockUnitCost'] - $ownCost) > 0.005 || abs((float) $validated['addStockSellingPrice'] - $ownPrice) > 0.005) {
+                AuditLog::tamperIgnored("Add Stock cost/price for \"{$product->name}\"",
+                    ['unit_cost' => (float) $validated['addStockUnitCost'], 'selling_price' => (float) $validated['addStockSellingPrice']],
+                    ['unit_cost' => $ownCost, 'selling_price' => $ownPrice]);
+            }
+
+            $validated['addStockUnitCost'] = $ownCost;
+            $validated['addStockSellingPrice'] = $ownPrice;
         }
 
         try {
@@ -450,7 +460,7 @@ class ProductProfile extends Component
         $this->validate([
             'adjustBatchId' => ['required', 'exists:batches,id'],
             'adjustType' => ['required', 'in:correction_add,correction_remove,damaged,expired'],
-            'adjustQty' => ['required', 'numeric', 'gt:0'],
+            'adjustQty' => ['required', new WholeNumber(1)],
             'adjustReason' => ['required', 'string', 'max:255'],
         ]);
 

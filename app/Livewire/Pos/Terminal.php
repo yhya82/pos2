@@ -107,7 +107,6 @@ class Terminal extends Component
             'customers' => Customer::where('status', 'active')->orderBy('name')->get(['id', 'name', 'phone', 'credit_enabled', 'credit_limit', 'outstanding_balance']),
             'paymentMethods' => $this->paymentMethodsForClient(),
             'defaultPaymentMethodId' => $salesSettings->default_payment_method_id,
-            'maxDiscountPercentage' => (float) $salesSettings->max_discount_percentage,
             'taxEnabled' => $generalSettings->tax_enabled,
             'taxRate' => (float) $generalSettings->tax_rate,
             'currencyCode' => $generalSettings->currency_code,
@@ -125,9 +124,6 @@ class Terminal extends Component
         ?int $customerId,
         int $paymentMethodId,
         ?string $referenceNumber,
-        string $discountType,
-        float $discountValue,
-        ?string $discountReason,
         SaleService $saleService,
     ): array {
         $this->authorizeAction('sales', 'create');
@@ -138,9 +134,11 @@ class Terminal extends Component
                 $customerId,
                 $paymentMethodId,
                 $referenceNumber,
-                $discountType,
-                $discountValue,
-                $discountReason,
+                // No discounts at the till: prices are the product's (including
+                // any promotion set on the product itself), nothing more.
+                'none',
+                0.0,
+                null,
                 auth()->user(),
             );
         } catch (RuntimeException $e) {

@@ -17,6 +17,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
+use App\Rules\WholeNumber;
 use Livewire\Component;
 use Livewire\WithPagination;
 use RuntimeException;
@@ -111,7 +112,7 @@ class InventoryOverview extends Component
     {
         $user = auth()->user();
 
-        return $user->hasPermission('inventory', 'view') && ! $user->isCashier();
+        return $user->hasPermission('inventory', 'view') && $user->canSeeFinancials();
     }
 
     public function sortValuation(string $column): void
@@ -427,7 +428,7 @@ class InventoryOverview extends Component
         $this->validate([
             'adjustBatchId' => ['required', 'exists:batches,id'],
             'adjustType' => ['required', 'in:correction_add,correction_remove,damaged,expired'],
-            'adjustQty' => ['required', 'numeric', 'gt:0'],
+            'adjustQty' => ['required', new WholeNumber(1)],
             'adjustReason' => ['required', 'string', 'max:255'],
         ]);
 

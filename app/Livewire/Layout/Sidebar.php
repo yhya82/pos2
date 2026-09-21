@@ -65,7 +65,7 @@ class Sidebar extends Component
             ['label' => 'Reports', 'route' => 'reports.index', 'icon' => 'chart-bar', 'permission' => ['reports', 'view']],
             ['label' => 'Users', 'route' => 'users.index', 'icon' => 'user-circle', 'permission' => ['users', 'view']],
             ['label' => 'Roles & Permissions', 'route' => 'roles.index', 'icon' => 'shield-check', 'permission' => ['roles', 'view']],
-            ['label' => 'Audit Logs', 'route' => 'audit-logs.index', 'icon' => 'document-text', 'permission' => ['audit_logs', 'view']],
+            ['label' => 'Audit Logs', 'route' => 'audit-logs.index', 'icon' => 'document-text', 'permission' => ['audit_logs', 'view'], 'adminOnly' => true],
             ['label' => 'Notifications', 'route' => 'notifications.index', 'icon' => 'bell', 'module' => 'notifications'],
             ['label' => 'Settings', 'route' => 'settings.index', 'icon' => 'cog', 'permission' => ['settings', 'view']],
         ];
@@ -73,6 +73,10 @@ class Sidebar extends Component
 
     private function visibleTo($user, array $item): bool
     {
+        if (! empty($item['adminOnly']) && ! $user->isAdministrator()) {
+            return false;
+        }
+
         if (isset($item['permission']) && ! $user->hasPermission(...$item['permission'])) {
             return false;
         }

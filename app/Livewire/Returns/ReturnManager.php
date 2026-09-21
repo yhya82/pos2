@@ -7,6 +7,7 @@ use App\Models\Sale;
 use App\Models\SalesReturn;
 use App\Services\ReturnService;
 use Livewire\Attributes\Url;
+use App\Rules\WholeNumber;
 use Livewire\Component;
 use Livewire\WithPagination;
 use RuntimeException;
@@ -71,7 +72,7 @@ class ReturnManager extends Component
     {
         return view('livewire.returns.return-manager', [
             'returns' => $this->mode === 'list' ? $this->returnsQuery() : null,
-            'foundSale' => $this->foundSaleId ? Sale::with(['customer', 'cashier'])->find($this->foundSaleId) : null,
+            'foundSale' => $this->foundSaleId ? Sale::visibleTo(auth()->user())->with(['customer', 'cashier'])->find($this->foundSaleId) : null,
             'returnableSales' => ($this->mode === 'process' && ! $this->foundSaleId) ? $this->returnableSalesQuery() : null,
         ]);
     }
@@ -79,8 +80,9 @@ class ReturnManager extends Component
     private function returnsQuery()
     {
         return SalesReturn::with(['originalSale', 'processedBy'])
-            ->when($this->search, fn ($q) => $q->where('return_number', 'like', "%{$this->search}%")
-                ->orWhereHas('originalSale', fn ($sq) => $sq->where('receipt_number', 'like', "%{$this->search}%")))
+            ->visibleTo(auth()->user())
+            ->when($this->search, fn ($q) => $q->where(fn ($w) => $w->where('return_number', 'like', "%{$this->search}%")
+                ->orWhereHas('originalSale', fn ($sq) => $sq->where('receipt_number', 'like', "%{$this->search}%"))))
             ->orderByDesc('created_at')
             ->paginate(10);
     }
@@ -93,10 +95,13 @@ class ReturnManager extends Component
      */
     private function returnableSalesQuery()
     {
+        // Only sales this user is allowed to refund: an administrator's list is
+        // every sale, anyone else's is just their own.
         return Sale::with(['customer', 'cashier'])
             ->where('status', 'completed')
-            ->when($this->saleSearch, fn ($q) => $q->where('receipt_number', 'like', "%{$this->saleSearch}%")
-                ->orWhereHas('customer', fn ($cq) => $cq->where('name', 'like', "%{$this->saleSearch}%")))
+            ->when(! auth()->user()->isAdministrator(), fn ($q) => $q->where('cashier_id', auth()->id()))
+            ->when($this->saleSearch, fn ($q) => $q->where(fn ($w) => $w->where('receipt_number', 'like', "%{$this->saleSearch}%")
+                ->orWhereHas('customer', fn ($cq) => $cq->where('name', 'like', "%{$this->saleSearch}%"))))
             ->orderByDesc('sale_date')
             ->paginate(10, pageName: 'salesPage');
     }
@@ -131,11 +136,12 @@ class ReturnManager extends Component
         $this->foundSaleId = null;
         $this->returnLines = [];
 
-        $sale = Sale::with(['lineItems.product'])
+        $sale = Sale::visibleTo(auth()->user())->with(['lineItems.product'])
             ->where('receipt_number', trim($this->saleSearch))
             ->first();
 
-        if (! $sale) {
+        // Someone else's sale looks exactly like one that doesn't exist.
+        if (! $sale || ! auth()->user()->canRefundSale($sale)) {
             $this->saleSearchError = 'No sale found with that receipt number.';
 
             return;
@@ -146,7 +152,9 @@ class ReturnManager extends Component
 
     public function selectSale(int $saleId): void
     {
-        $sale = Sale::with(['lineItems.product'])->findOrFail($saleId);
+        $sale = Sale::visibleTo(auth()->user())->with(['lineItems.product'])->findOrFail($saleId);
+
+        abort_unless(auth()->user()->canRefundSale($sale), 403);
 
         $this->loadSaleForReturn($sale);
     }
@@ -196,14 +204,19 @@ class ReturnManager extends Component
         $this->authorizeAction('returns', 'create');
 
         $this->validate([
-            'returnLines.*.quantity' => ['nullable', 'numeric', 'min:0'],
+            'returnLines.*.quantity' => ['nullable', new WholeNumber(0)],
             'returnLines.*.condition_type' => ['required', 'in:sellable,damaged'],
+            // The returns table requires it — without this a blank reason
+            // surfaced as a raw database error.
+            'overallReason' => ['required', 'string', 'max:255'],
+        ], [
+            'overallReason.required' => 'Say why this return is being processed — it goes on the return record.',
         ]);
 
-        $sale = Sale::findOrFail($this->foundSaleId);
+        $sale = Sale::visibleTo(auth()->user())->findOrFail($this->foundSaleId);
 
         try {
-            $salesReturn = $service->processReturn($sale, $this->returnLines, $this->overallReason ?: null, auth()->user());
+            $salesReturn = $service->processReturn($sale, $this->returnLines, $this->overallReason, auth()->user());
         } catch (RuntimeException $e) {
             $this->dispatch('flash-message', message: $e->getMessage(), variant: 'error');
 

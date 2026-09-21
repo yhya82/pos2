@@ -152,12 +152,6 @@
                         @endforeach
                     </select>
                 </div>
-                <div>
-                    <x-input-label value="Max Discount Percentage" />
-                    <x-text-input wire:model="sales.max_discount_percentage" class="block mt-1 w-full" />
-                    <x-input-error :messages="$errors->get('sales.max_discount_percentage')" class="mt-2" />
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Enforced by SaleService on every checkout — a cashier can't apply more than this.</p>
-                </div>
                 <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
                     <input type="checkbox" wire:model="sales.allow_negative_stock_sale" class="rounded border-gray-300 dark:border-gray-700 dark:bg-gray-900 text-indigo-600 focus:ring-indigo-500">
                     Allow selling past available stock

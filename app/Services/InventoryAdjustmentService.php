@@ -31,6 +31,8 @@ class InventoryAdjustmentService
      */
     public function adjust(Batch $batch, string $adjustmentType, float $quantity, string $reason, User $user): void
     {
+        \App\Support\Whole::assert($quantity, 'The adjustment quantity', 1);
+
         DB::transaction(function () use ($batch, $adjustmentType, $quantity, $reason, $user) {
             $batch = Batch::whereKey($batch->id)->lockForUpdate()->firstOrFail();
 

@@ -53,6 +53,10 @@ class PurchaseReceivingService
                     throw new RuntimeException('Quantities can\'t be negative.');
                 }
 
+                // Counted in whole units, in whichever unit each was entered (a packet, a piece).
+                \App\Support\Whole::assert($qty, 'The quantity received');
+                \App\Support\Whole::assert($damaged, 'The damaged quantity');
+
                 if ($qty <= 0 && $damaged <= 0 && ! $closeShort) {
                     continue;
                 }

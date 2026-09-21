@@ -16,7 +16,6 @@
         paymentMethods: @js($paymentMethods),
         categories: @js($categories),
         defaultPaymentMethodId: @js($defaultPaymentMethodId),
-        maxDiscountPercentage: {{ $maxDiscountPercentage }},
         taxEnabled: {{ $taxEnabled ? 'true' : 'false' }},
         taxRate: {{ $taxRate }},
         currencyCode: @js($currencyCode),
@@ -138,7 +137,10 @@
                         <div class="truncate text-gray-800 dark:text-gray-100" x-text="line.name"></div>
                         <div class="text-xs text-gray-500 dark:text-gray-400" x-text="formatMoney(line.unit_price) + ' each'"></div>
                     </div>
-                    <input type="number" min="0.001" step="0.001" x-model.number="line.quantity" @change="if (line.quantity <= 0) removeFromCart(index)" class="w-16 text-sm rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100">
+                    <input type="number" min="1" step="1" inputmode="numeric" :value="line.quantity"
+                        @keydown="if (['.', ',', 'e', 'E', '+', '-'].includes($event.key)) $event.preventDefault()"
+                        @change="setQuantity(index, $event.target.value); $event.target.value = cart[index] ? cart[index].quantity : ''"
+                        class="w-16 text-sm rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100">
                     <div class="w-20 text-right tabular-nums text-gray-700 dark:text-gray-300" x-text="formatMoney(line.quantity * line.unit_price)"></div>
                     <button type="button" @click="removeFromCart(index)" class="text-red-500 hover:text-red-700">✕</button>
                 </div>
@@ -158,22 +160,6 @@
                     </template>
                 </select>
             </div>
-
-            <div class="grid grid-cols-2 gap-2">
-                <div>
-                    <label class="text-xs text-gray-500 dark:text-gray-400">Discount</label>
-                    <select x-model="discountType" class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100">
-                        <option value="none">None</option>
-                        <option value="fixed">Fixed</option>
-                        <option value="percentage">Percentage</option>
-                    </select>
-                </div>
-                <div x-show="discountType !== 'none'">
-                    <label class="text-xs text-gray-500 dark:text-gray-400" x-text="discountType === 'percentage' ? 'Percent' : 'Amount'"></label>
-                    <input type="number" min="0" step="0.01" x-model.number="discountValue" class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100">
-                </div>
-            </div>
-            <input type="text" x-show="discountType !== 'none'" x-model="discountReason" placeholder="Discount reason" class="block w-full text-sm rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100">
 
             <div>
                 <label class="text-xs text-gray-500 dark:text-gray-400">Payment Method</label>
@@ -217,9 +203,6 @@
         <div class="border-t border-gray-200 dark:border-gray-700 pt-3 space-y-1 text-sm">
             <div class="flex justify-between text-gray-600 dark:text-gray-400">
                 <span>Subtotal</span><span x-text="formatMoney(subtotal())"></span>
-            </div>
-            <div class="flex justify-between text-gray-600 dark:text-gray-400" x-show="discountAmount() > 0">
-                <span>Discount</span><span x-text="'-' + formatMoney(discountAmount())"></span>
             </div>
             <div class="flex justify-between text-gray-600 dark:text-gray-400" x-show="taxEnabled">
                 <span>Tax</span><span x-text="formatMoney(taxAmount())"></span>
@@ -279,7 +262,6 @@
             customers: config.customers,
             paymentMethods: config.paymentMethods,
             categories: config.categories,
-            maxDiscountPercentage: config.maxDiscountPercentage,
             taxEnabled: config.taxEnabled,
             taxRate: config.taxRate,
             currencyCode: config.currencyCode,
@@ -291,9 +273,6 @@
             selectedCategory: null,
             cart: [],
             customerId: null,
-            discountType: 'none',
-            discountValue: 0,
-            discountReason: '',
             // Cash always wins as the starting selection, regardless of
             // the configured default_payment_method_id setting — every
             // till opens on Cash. Only falls through to the configured
@@ -319,6 +298,24 @@
 
                     return true;
                 });
+            },
+
+            // Quantities are whole numbers: anything typed or pasted is rounded
+            // down to one, and 0 (or nothing usable) takes the line out of the cart.
+            setQuantity(index, raw) {
+                const line = this.cart[index];
+
+                if (! line) return;
+
+                const whole = Math.floor(Number(raw));
+
+                if (! Number.isFinite(whole) || whole < 1) {
+                    this.removeFromCart(index);
+
+                    return;
+                }
+
+                line.quantity = whole;
             },
 
             addToCart(product) {
@@ -394,21 +391,14 @@
                 return this.cart.reduce((sum, l) => sum + (l.quantity * l.unit_price), 0);
             },
 
-            discountAmount() {
-                if (this.discountType === 'fixed') return Math.min(this.discountValue || 0, this.subtotal());
-                if (this.discountType === 'percentage') return round2(this.subtotal() * (this.discountValue || 0) / 100);
-
-                return 0;
-            },
-
             taxAmount() {
                 if (!this.taxEnabled) return 0;
 
-                return round2((this.subtotal() - this.discountAmount()) * this.taxRate / 100);
+                return round2(this.subtotal() * this.taxRate / 100);
             },
 
             total() {
-                return round2(this.subtotal() - this.discountAmount() + this.taxAmount());
+                return round2(this.subtotal() + this.taxAmount());
             },
 
             changeDue() {
@@ -455,7 +445,7 @@
             // Patches server-truth data (stock levels, available payment
             // methods, tax config) pushed from a StockChanged/
             // ModuleSettingChanged/GeneralSettingChanged broadcast —
-            // deliberately leaves cart/customerId/discount* untouched, since
+            // deliberately leaves cart/customerId untouched, since
             // this is a background refresh, not a form reset.
             refreshLiveData(detail) {
                 this.products = detail.products;
@@ -494,9 +484,6 @@
                     this.customerId,
                     this.paymentMethodId,
                     this.paymentMethodCode() === 'cash' ? null : this.referenceNumber,
-                    this.discountType,
-                    this.discountValue || 0,
-                    this.discountReason || null,
                 );
 
                 this.processing = false;
@@ -523,9 +510,6 @@
                 this.cart = [];
                 this.priceNotices = [];
                 this.customerId = null;
-                this.discountType = 'none';
-                this.discountValue = 0;
-                this.discountReason = '';
                 this.referenceNumber = '';
                 this.tenderedAmount = '';
             },

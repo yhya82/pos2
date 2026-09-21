@@ -39,6 +39,8 @@ class ManualStockService
         User $user,
         ?float $sellingPrice = null,
     ): Batch {
+        \App\Support\Whole::assert($quantity, 'The quantity received', 1);
+
         if ($sellingPrice !== null && $sellingPrice <= 0) {
             throw new RuntimeException('The selling price must be above 0.');
         }

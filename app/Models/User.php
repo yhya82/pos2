@@ -91,6 +91,35 @@ class User extends Authenticatable
     }
 
     /**
+     * Costs, profit, and store-wide takings are the shop's finances, not
+     * everyday operations: a cashier runs sales but doesn't see them. One
+     * place to say who that is, so screens and reports can't disagree.
+     */
+    public function canSeeFinancials(): bool
+    {
+        return ! $this->isCashier();
+    }
+
+    /**
+     * The Administrator role sees and can do everything in the system —
+     * including what no permission grid entry is allowed to hand to anyone
+     * else (the audit log, refunding other people's sales).
+     */
+    public function isAdministrator(): bool
+    {
+        return $this->role?->name === 'Administrator';
+    }
+
+    /**
+     * Only an administrator can refund any sale; everyone else can refund
+     * (when their role allows returns at all) only sales they made.
+     */
+    public function canRefundSale(Sale $sale): bool
+    {
+        return $this->isAdministrator() || (int) $sale->cashier_id === (int) $this->id;
+    }
+
+    /**
      * True if this user's role has been granted the given module/action
      * permission. Backs the permission-aware sidebar; the full role and
      * permission management screens are built out in the next phase.

@@ -174,7 +174,7 @@ class ReportViewer extends Component
             // Same audience as the dashboard's revenue/profit tiles — a
             // cashier can process sales but doesn't see store-wide profit.
             'realized_profit' => [
-                'label' => 'Profit Report', 'group' => 'Sales', 'visible' => $user->hasPermission('sales', 'view') && ! $user->isCashier(),
+                'label' => 'Profit Report', 'group' => 'Sales', 'visible' => $user->hasPermission('sales', 'view') && $user->canSeeFinancials(),
                 'columns' => [
                     ['key' => 'product_name', 'label' => 'Product'],
                     ['key' => 'quantity_sold', 'label' => 'Qty Sold', 'align' => 'right'],

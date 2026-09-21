@@ -10,6 +10,7 @@ class ReturnReceiptController extends Controller
     public function show(SalesReturn $salesReturn): View
     {
         abort_unless(auth()->user()->hasPermission('returns', 'view'), 403);
+        abort_unless(SalesReturn::visibleTo(auth()->user())->whereKey($salesReturn->id)->exists(), 403);
 
         $receipt = $salesReturn->receipt()->firstOrFail();
 

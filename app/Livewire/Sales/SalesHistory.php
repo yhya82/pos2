@@ -41,7 +41,7 @@ class SalesHistory extends Component
     {
         return view('livewire.sales.sales-history', [
             'sales' => Sale::with(['cashier', 'customer', 'payment.paymentMethod'])
-                ->when(auth()->user()->isCashier(), fn ($q) => $q->where('cashier_id', auth()->id()))
+                ->visibleTo(auth()->user())
                 ->when($this->search, fn ($q) => $q->where(function ($query) {
                     $query->where('receipt_number', 'like', "%{$this->search}%")
                         ->orWhereHas('customer', fn ($cq) => $cq->where('name', 'like', "%{$this->search}%"));
@@ -69,7 +69,7 @@ class SalesHistory extends Component
 
         $this->validate(['voidReason' => ['required', 'string', 'max:255']]);
 
-        $sale = Sale::findOrFail($this->saleIdPendingVoid);
+        $sale = Sale::visibleTo(auth()->user())->findOrFail($this->saleIdPendingVoid);
 
         try {
             $saleService->voidSale($sale, $this->voidReason, auth()->user());

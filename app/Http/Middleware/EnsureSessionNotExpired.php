@@ -21,6 +21,8 @@ class EnsureSessionNotExpired
             $session = LoginSession::findActiveBySessionId($request->session()->getId());
 
             if (! $session || $session->expires_at->isPast()) {
+                \App\Models\AuditLog::security('session_expired', Auth::id(), ['had_session_record' => (bool) $session], 'User');
+
                 Auth::guard('web')->logout();
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();

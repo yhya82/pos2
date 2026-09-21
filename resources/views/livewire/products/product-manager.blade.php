@@ -12,6 +12,7 @@
     </div>
 
     <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 overflow-x-auto">
+        @php $showActions = auth()->user()->hasPermission('products', 'update') || auth()->user()->hasPermission('products', 'delete'); @endphp
         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead class="bg-gray-50 dark:bg-gray-900/40">
                 <tr>
@@ -26,7 +27,9 @@
                     <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Price</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nearest Expiry</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                    @if ($showActions)
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                    @endif
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
@@ -61,6 +64,7 @@
                                 {{ ucfirst($product->status) }}
                             </span>
                         </td>
+                        @if ($showActions)
                         <td class="px-4 py-3 text-sm text-right space-x-3 whitespace-nowrap">
                             @if (auth()->user()->hasPermission('products', 'update'))
                                 <button wire:click="edit({{ $product->id }})" class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium">
@@ -73,10 +77,11 @@
                                 </button>
                             @endif
                         </td>
+                        @endif
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="12" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                        <td colspan="{{ $showActions ? 12 : 11 }}" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
                             No products found.
                         </td>
                     </tr>

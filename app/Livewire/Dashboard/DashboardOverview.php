@@ -89,12 +89,12 @@ class DashboardOverview extends Component
         // Store-wide revenue, the trend chart, and Top Products are a
         // manager-level view of the business — a Cashier can still process
         // sales (sales,create) and see their own history, but not this.
-        $canViewRevenue = $user->hasPermission('sales', 'view') && ! $user->isCashier();
+        $canViewRevenue = $user->hasPermission('sales', 'view') && $user->canSeeFinancials();
 
         // Same reasoning as revenue — the total money value of stock on
         // hand is a financial figure, not an operational one. Low Stock and
         // Batches Expiring Soon stay visible to a Cashier; this doesn't.
-        $canViewInventoryValue = $canViewInventory && ! $user->isCashier();
+        $canViewInventoryValue = $canViewInventory && $user->canSeeFinancials();
 
         $canViewReturns = ModuleSetting::enabled('return_management') && $user->hasPermission('returns', 'view');
         $canViewPurchaseOrders = ModuleSetting::enabled('purchase_management') && $user->hasPermission('purchase_orders', 'view');
@@ -135,7 +135,7 @@ class DashboardOverview extends Component
                 ? DB::table('v_credit_outstanding_balances')->orderByDesc('outstanding_balance')->limit(3)->pluck('customer_name')
                 : collect(),
             'pendingPurchaseOrders' => $canViewPurchaseOrders ? PurchaseOrder::whereIn('status', ['draft', 'ordered', 'partially_received'])->count() : null,
-            'refundsTotal' => $canViewReturns ? (float) DB::table('v_refund_report')->whereBetween('created_at', [$from, $to])->sum('refund_amount') : null,
+            'refundsTotal' => $canViewReturns ? $this->refundsTotal($user, $from, $to) : null,
             'salesTrend' => $canViewRevenue ? $this->salesTrend($from, $to) : [],
             'topProducts' => $canViewRevenue ? $this->topProducts($from, $to) : collect(),
             'paymentMethodBreakdown' => $canViewRevenue ? $this->paymentMethodBreakdown($from, $to) : collect(),
@@ -164,6 +164,19 @@ class DashboardOverview extends Component
             ],
             default => [$now->copy()->startOfDay(), $now->copy()->endOfDay()],
         };
+    }
+
+    /** Store-wide refunds — but a cashier only ever sees refunds on their own sales. */
+    private function refundsTotal($user, Carbon $from, Carbon $to): float
+    {
+        $query = DB::table('sales_returns as sr')
+            ->whereBetween('sr.created_at', [$from, $to]);
+
+        if ($user->isCashier()) {
+            $query->join('sales as s', 's.id', '=', 'sr.original_sale_id')->where('s.cashier_id', $user->id);
+        }
+
+        return (float) $query->sum('sr.refund_amount');
     }
 
     private function periodSales(Carbon $from, Carbon $to): object

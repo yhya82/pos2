@@ -37,11 +37,20 @@ class ReturnService
      */
     public function processReturn(Sale $originalSale, array $lines, ?string $overallReason, User $processedBy): SalesReturn
     {
+        // The last line of defence, whichever screen or caller got here.
+        if (! $processedBy->canRefundSale($originalSale)) {
+            throw new RuntimeException('Only an administrator can refund a sale made by someone else.');
+        }
+
         if ($originalSale->status !== 'completed') {
             throw new RuntimeException('Only completed sales can have a return processed against them.');
         }
 
         $lines = array_values(array_filter($lines, fn ($l) => (float) ($l['quantity'] ?? 0) > 0));
+
+        foreach ($lines as $l) {
+            \App\Support\Whole::assert($l['quantity'], 'A returned quantity', 1);
+        }
 
         if (empty($lines)) {
             throw new RuntimeException('Select at least one item to return.');

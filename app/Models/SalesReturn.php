@@ -9,6 +9,14 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class SalesReturn extends Model
 {
+    /** A cashier sees only returns against their own sales. */
+    public function scopeVisibleTo($query, User $user)
+    {
+        return $user->isCashier()
+            ? $query->whereHas('originalSale', fn ($q) => $q->where('cashier_id', $user->id))
+            : $query;
+    }
+
     const UPDATED_AT = null;
 
     protected $fillable = [

@@ -596,8 +596,8 @@
         @endphp
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             @foreach ([
-                'Cost Price' => number_format($product->cost_price, 2).' per '.$product->sellingUnit->name,
-                ...($overviewHasDistinctUnits ? ['≈ Cost per '.$product->purchaseUnit->name => number_format($product->toPurchaseUnitCost((float) $product->cost_price, 'selling'), 2)] : []),
+                ...(auth()->user()->canSeeFinancials() ? ['Cost Price' => number_format($product->cost_price, 2).' per '.$product->sellingUnit->name] : []),
+                ...(auth()->user()->canSeeFinancials() && $overviewHasDistinctUnits ? ['≈ Cost per '.$product->purchaseUnit->name => number_format($product->toPurchaseUnitCost((float) $product->cost_price, 'selling'), 2)] : []),
                 'Purchase Unit' => $product->purchaseUnit->name,
                 'Selling Unit' => $product->sellingUnit->name,
                 'Conversion' => '1 '.$product->purchaseUnit->name.' = '.rtrim(rtrim(number_format($product->conversion_qty, 3), '0'), '.').' '.$product->sellingUnit->name,
@@ -616,12 +616,16 @@
     @endif
 
     @if ($activeTab === 'inventory')
-        @if ($product->batches()->where('status', 'active')->where('qty_remaining', '>', 0)->where('unit_cost', '>=', $product->effectiveSellingPrice())->exists())
+        @php
+            $seeFinancials = auth()->user()->canSeeFinancials();
+            $batchActions = auth()->user()->hasPermission('inventory', 'update') && $canEditPrices;
+        @endphp
+        @if ($seeFinancials && $product->batches()->where('status', 'active')->where('qty_remaining', '>', 0)->where('unit_cost', '>=', $product->effectiveSellingPrice())->exists())
             <div class="mb-3 rounded-md border border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-900/30 px-3 py-2 text-sm text-red-800 dark:text-red-200">
                 Some stock here cost as much as or more than it sells for ({{ number_format($product->effectiveSellingPrice(), 2) }}). If a batch cost was entered wrongly, use <strong>Correct cost</strong> on that batch; otherwise reprice the product.
             </div>
         @endif
-        @if ($product->hasActivePromo())
+        @if ($seeFinancials && $product->hasActivePromo())
             <p class="text-xs text-emerald-700 dark:text-emerald-400 mb-2">
                 Profit is calculated at the promotional price ({{ number_format($product->effectiveSellingPrice(), 2) }}), not the list price ({{ number_format($product->selling_price, 2) }}).
             </p>
@@ -633,13 +637,17 @@
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Batch</th>
                         <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Received ({{ $product->sellingUnit->name }})</th>
                         <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Remaining ({{ $product->sellingUnit->name }})</th>
+                        @if ($seeFinancials)
                         <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Unit Cost (per {{ $product->sellingUnit->name }})</th>
                         <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Profit (per {{ $product->sellingUnit->name }})</th>
                         <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Est. Profit (remaining)</th>
+                        @endif
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Received Date</th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Expiry</th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                        @if ($batchActions)
+                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                        @endif
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
@@ -648,7 +656,7 @@
                             <td class="px-4 py-3 text-sm font-mono text-gray-700 dark:text-gray-300 whitespace-nowrap">
                                 {{ $batch->batch_code ?? '#'.$batch->id }}
                                 @php $batchCorrections = $corrections[$batch->id] ?? collect(); $last = $batchCorrections->first(); @endphp
-                                @if ($last)
+                                @if ($last && $seeFinancials)
                                     <span
                                         class="ml-1 inline-flex px-1.5 py-0.5 rounded text-[10px] font-sans font-medium bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 cursor-help"
                                         title="Cost corrected {{ $batchCorrections->count() > 1 ? $batchCorrections->count().' times. Last: ' : ': ' }}{{ number_format($last->previous_value['unit_cost'], 2) }} → {{ number_format($last->new_value['unit_cost'], 2) }} on {{ $last->created_at->format('Y-m-d') }} by {{ $last->user?->name ?? 'System' }}{{ ! empty($last->new_value['reason']) ? ' — '.$last->new_value['reason'] : '' }}"
@@ -657,10 +665,12 @@
                             </td>
                             <td class="px-4 py-3 text-sm text-right tabular-nums text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ rtrim(rtrim(number_format($batch->qty_received, 3), '0'), '.') }}</td>
                             <td class="px-4 py-3 text-sm text-right tabular-nums text-gray-900 dark:text-gray-100 whitespace-nowrap">{{ rtrim(rtrim(number_format($batch->qty_remaining, 3), '0'), '.') ?: '0' }}</td>
+                            @if ($seeFinancials)
                             <td class="px-4 py-3 text-sm text-right tabular-nums text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ number_format($batch->unit_cost, 2) }}</td>
                             @php $unitProfit = $product->effectiveSellingPrice() - (float) $batch->unit_cost; @endphp
                             <td @class(['px-4 py-3 text-sm text-right tabular-nums whitespace-nowrap', 'text-emerald-600 dark:text-emerald-400' => $unitProfit >= 0, 'text-red-600 dark:text-red-400' => $unitProfit < 0])>{{ number_format($unitProfit, 2) }}</td>
                             <td @class(['px-4 py-3 text-sm text-right tabular-nums whitespace-nowrap', 'text-gray-900 dark:text-gray-100' => $unitProfit >= 0, 'text-red-600 dark:text-red-400' => $unitProfit < 0])>{{ $batch->status === 'active' ? number_format((float) $batch->qty_remaining * $unitProfit, 2) : '—' }}</td>
+                            @endif
                             <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ $batch->received_date->format('Y-m-d') }}</td>
                             <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ $batch->expiry_date?->format('Y-m-d') ?? '—' }}</td>
                             <td class="px-4 py-3 text-sm whitespace-nowrap">
@@ -672,14 +682,16 @@
                                     'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300' => $batch->status === 'written_off',
                                 ])>{{ ucfirst(str_replace('_', ' ', $batch->status)) }}</span>
                             </td>
+                            @if ($batchActions)
                             <td class="px-4 py-3 text-sm text-right whitespace-nowrap">
                                 @if (auth()->user()->hasPermission('inventory', 'update') && $canEditPrices)
                                     <button type="button" wire:click="openCostCorrection({{ $batch->id }})" class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium">Correct cost</button>
                                 @endif
                             </td>
+                            @endif
                         </tr>
                     @empty
-                        <tr><td colspan="10" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No batches received yet.</td></tr>
+                        <tr><td colspan="{{ 6 + ($seeFinancials ? 3 : 0) + ($batchActions ? 1 : 0) }}" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No batches received yet.</td></tr>
                     @endforelse
                 </tbody>
             </table>

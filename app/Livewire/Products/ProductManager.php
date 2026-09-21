@@ -10,6 +10,7 @@ use App\Models\Supplier;
 use App\Models\Unit;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use App\Rules\WholeNumber;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
@@ -125,10 +126,10 @@ class ProductManager extends Component
             'barcode' => ['nullable', 'string', 'max:64', Rule::unique('products', 'barcode')->ignore($this->editingProductId)],
             'purchaseUnitId' => ['required', 'exists:units,id'],
             'sellingUnitId' => ['required', 'exists:units,id'],
-            'conversionQty' => ['required', 'numeric', 'gt:0'],
+            'conversionQty' => ['required', new WholeNumber(1)],
             'costPrice' => ['required', 'numeric', 'min:0', 'lt:sellingPrice'],
             'sellingPrice' => ['required', 'numeric', 'gt:0'],
-            'minStockLevel' => ['required', 'numeric', 'min:0'],
+            'minStockLevel' => ['required', new WholeNumber(0)],
             'status' => ['required', 'in:active,inactive'],
         ];
     }

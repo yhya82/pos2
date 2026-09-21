@@ -34,7 +34,7 @@ class SaleService
     /**
      * @param  array<int, array{product_id: int, quantity: float|string}>  $cartLines  Any unit_price on a line is ignored — see buildLines().
      *
-     * @throws RuntimeException on empty cart, insufficient stock, disabled/missing customer credit, or a discount over the configured cap
+     * @throws RuntimeException on empty cart, a non-whole quantity, insufficient stock, disabled/missing customer credit, or any discount
      */
     public function completeSale(
         array $cartLines,
@@ -73,25 +73,24 @@ class SaleService
             $salesSettings = SalesSetting::current();
             $generalSettings = GeneralSetting::current();
 
+            $this->assertWholeQuantities($cartLines);
+
             [$lineData, $subtotal] = $this->buildLines($cartLines, $salesSettings);
 
-            $discountType = $discountType === 'none' ? 'none' : $discountType;
-            $discountValue = $discountType === 'none' ? 0.0 : $discountValue;
-
-            $discountAmount = match ($discountType) {
-                'fixed' => $discountValue,
-                'percentage' => round($subtotal * $discountValue / 100, 2),
-                default => 0.0,
-            };
-
-            $effectivePercentage = $subtotal > 0 ? ($discountAmount / $subtotal * 100) : 0;
-
-            if ($effectivePercentage > (float) $salesSettings->max_discount_percentage) {
-                throw new RuntimeException("Discount exceeds the maximum allowed ({$salesSettings->max_discount_percentage}%).");
+            // No discounts on a sale: the price is the product's (a promotion set on
+            // the product is part of that price). The parameters remain only so
+            // older callers still compile — anything but 'none' is refused. Sales
+            // that already carry a discount are history and are left exactly as
+            // they were.
+            if ($discountType !== 'none' || (float) $discountValue > 0) {
+                throw new RuntimeException("Discounts can't be applied to a sale.");
             }
 
-            $discountAmount = min($discountAmount, $subtotal);
+            $discountType = 'none';
+            $discountValue = 0.0;
+            $discountAmount = 0.0;
 
+            // A product promotion can still price a line under what its batch cost.
             $this->assertNoDiscountedLineBelowCost($lineData, $subtotal, $discountAmount);
 
             $taxableAmount = $subtotal - $discountAmount;
@@ -272,6 +271,26 @@ class SaleService
         }
 
         return [$lineData, $subtotal];
+    }
+
+    /**
+     * Things are sold by the whole unit: 1, 2, 3 — never 2.5 or 0.001. The
+     * till only offers whole numbers, but this is the rule, whatever sent the
+     * cart.
+     *
+     * @param  array<int, array{product_id: int, quantity: float|string}>  $cartLines
+     */
+    private function assertWholeQuantities(array $cartLines): void
+    {
+        foreach ($cartLines as $line) {
+            $quantity = $line['quantity'] ?? null;
+
+            if (! is_numeric($quantity) || (float) $quantity < 1 || (float) $quantity !== floor((float) $quantity)) {
+                $name = Product::whereKey($line['product_id'] ?? 0)->value('name') ?? 'an item';
+
+                throw new RuntimeException("Quantities must be whole numbers (1, 2, 3…) — \"{$name}\" was ".(is_scalar($quantity) ? $quantity : '?').'.');
+            }
+        }
     }
 
     /**

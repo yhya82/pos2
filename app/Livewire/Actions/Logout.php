@@ -13,6 +13,8 @@ class Logout
      */
     public function __invoke(): void
     {
+        \App\Models\AuditLog::security('logout', auth()->id(), null, 'User');
+
         LoginSession::revokeBySessionId(session()->getId());
 
         Auth::guard('web')->logout();

@@ -11,6 +11,7 @@ use App\Models\Category;
 use App\Models\PaymentMethod;
 use App\Models\Product;
 use App\Models\PurchaseOrder;
+use App\Models\Sale;
 use App\Models\SalesSetting;
 use App\Models\Supplier;
 use App\Models\Unit;
@@ -222,26 +223,22 @@ class PriceRulesTest extends TestCase
         );
     }
 
-    public function test_a_cashier_discount_below_the_batch_cost_is_refused(): void
+    public function test_no_cashier_discount_is_accepted_at_any_size(): void
     {
         $product = $this->product();
-        Batch::factory()->for($product)->remaining(50)->create(['unit_cost' => 8]);
+        Batch::factory()->for($product)->remaining(50)->create(['unit_cost' => 1]);
 
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('below its cost');
+        foreach ([['fixed', 1], ['fixed', 10], ['percentage', 5]] as [$type, $value]) {
+            try {
+                $this->sell($product, 5, $type, $value);
+                $this->fail("a {$type} discount of {$value} should have been refused");
+            } catch (RuntimeException $e) {
+                $this->assertStringContainsString("Discounts can't be applied to a sale", $e->getMessage());
+            }
+        }
 
-        // 5 units = 50.00; 15.00 off -> 7.00 each < 8.00 cost.
-        $this->sell($product, 5, 'fixed', 15);
-    }
-
-    public function test_a_cashier_discount_that_stays_at_or_above_cost_is_allowed(): void
-    {
-        $product = $this->product();
-        Batch::factory()->for($product)->remaining(50)->create(['unit_cost' => 8]);
-
-        $sale = $this->sell($product, 5, 'fixed', 10);   // 8.00 each = exactly cost
-
-        $this->assertSame('completed', $sale->status);
+        $this->assertSame(0, Sale::count());
+        $this->assertEquals(50, Batch::where('product_id', $product->id)->value('qty_remaining'), 'no stock was taken');
     }
 
     public function test_a_promo_line_priced_below_a_dear_batch_is_refused_at_the_till(): void

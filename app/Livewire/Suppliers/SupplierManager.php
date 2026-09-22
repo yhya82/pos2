@@ -20,6 +20,9 @@ class SupplierManager extends Component
 
     public string $phone = '';
 
+    /** An old number on file that isn't in the +220 + 9 digits form, shown as a hint while editing. */
+    public string $legacyPhone = '';
+
     public string $email = '';
 
     public string $address = '';
@@ -39,9 +42,13 @@ class SupplierManager extends Component
     {
         return view('livewire.suppliers.supplier-manager', [
             'suppliers' => Supplier::withCount('products')
-                ->when($this->search, fn ($query) => $query->where('name', 'like', "%{$this->search}%"))
+                ->when($this->search, fn ($query) => $query->where(fn ($w) => $w
+                    ->where('name', 'like', "%{$this->search}%")
+                    ->orWhere('phone', 'like', "%{$this->search}%")))
                 ->orderBy('name')
                 ->paginate(10),
+            // Suppliers whose number isn't +220 and 9 digits (old 7-digit ones, or none).
+            'phonesToFix' => Supplier::where(fn ($q) => $q->whereNull('phone')->orWhereRaw('phone NOT REGEXP ?', ['^\+220[0-9]{9}$']))->count(),
         ]);
     }
 
@@ -49,7 +56,7 @@ class SupplierManager extends Component
     {
         return [
             'name' => ['required', 'string', 'max:150'],
-            'phone' => ['nullable', 'string', 'max:30'],
+            'phone' => ['required', 'digits:9'],
             'email' => ['nullable', 'string', 'email', 'max:150'],
             'address' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string'],
@@ -57,11 +64,19 @@ class SupplierManager extends Component
         ];
     }
 
+    protected function messages(): array
+    {
+        return [
+            'phone.required' => 'A phone number is required (9 digits — the +220 prefix is added automatically).',
+            'phone.digits' => 'Phone number must be exactly 9 digits (the +220 prefix is added automatically).',
+        ];
+    }
+
     public function create(): void
     {
         $this->authorizeAction('suppliers', 'create');
 
-        $this->reset(['editingSupplierId', 'name', 'phone', 'email', 'address', 'notes']);
+        $this->reset(['editingSupplierId', 'name', 'phone', 'legacyPhone', 'email', 'address', 'notes']);
         $this->status = 'active';
         $this->resetValidation();
 
@@ -76,7 +91,10 @@ class SupplierManager extends Component
 
         $this->editingSupplierId = $supplier->id;
         $this->name = $supplier->name;
-        $this->phone = (string) $supplier->phone;
+        // A valid stored number shows without its +220; an old one can't be
+        // trusted, so the box starts empty and the old value is shown as a hint.
+        $this->phone = $supplier->hasValidPhone() ? substr($supplier->phone, 4) : '';
+        $this->legacyPhone = $supplier->hasValidPhone() ? '' : (string) $supplier->phone;
         $this->email = (string) $supplier->email;
         $this->address = (string) $supplier->address;
         $this->notes = (string) $supplier->notes;
@@ -92,6 +110,20 @@ class SupplierManager extends Component
         $this->authorizeAction('suppliers', $isCreating ? 'create' : 'update');
 
         $validated = $this->validate();
+
+        // Uniqueness is checked against the full +220-prefixed value actually
+        // stored, as for customers and users.
+        $validated['phone'] = '+220'.$validated['phone'];
+
+        $phoneTaken = Supplier::where('phone', $validated['phone'])
+            ->when($this->editingSupplierId, fn ($q) => $q->where('id', '!=', $this->editingSupplierId))
+            ->exists();
+
+        if ($phoneTaken) {
+            $this->addError('phone', 'This phone number is already used by another supplier.');
+
+            return;
+        }
 
         $previous = null;
 

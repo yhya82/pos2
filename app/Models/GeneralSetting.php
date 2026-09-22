@@ -37,4 +37,23 @@ class GeneralSetting extends Model
     {
         return $this->business_logo_url ? Storage::disk('public')->url($this->business_logo_url) : null;
     }
+
+    /**
+     * The store's own number is held to the same form as customers', users'
+     * and suppliers': +220 and nine digits.
+     */
+    public function hasValidContactPhone(): bool
+    {
+        return (bool) preg_match('/^\+220\d{9}$/', (string) $this->contact_phone);
+    }
+
+    /** As printed on receipts: +220 831234567. Whatever is on file if it isn't a valid number. */
+    public function contactPhoneDisplay(): ?string
+    {
+        if ($this->hasValidContactPhone()) {
+            return substr($this->contact_phone, 0, 4).' '.substr($this->contact_phone, 4);
+        }
+
+        return $this->contact_phone ?: null;
+    }
 }

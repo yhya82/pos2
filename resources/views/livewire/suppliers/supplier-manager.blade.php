@@ -1,7 +1,7 @@
 <div>
     <div class="flex items-center justify-between gap-4 mb-4">
         <div class="w-full max-w-xs">
-            <x-text-input wire:model.live.debounce.300ms="search" type="search" placeholder="Search suppliers..." class="w-full" />
+            <x-text-input wire:model.live.debounce.300ms="search" type="search" placeholder="Search name or phone..." class="w-full" />
         </div>
 
         @if (auth()->user()->hasPermission('suppliers', 'create'))
@@ -10,6 +10,12 @@
             </x-primary-button>
         @endif
     </div>
+
+    @if ($phonesToFix > 0)
+        <div class="mb-4 rounded-md border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/30 px-3 py-2 text-sm text-amber-900 dark:text-amber-200">
+            <strong>{{ $phonesToFix }}</strong> {{ $phonesToFix === 1 ? 'supplier has' : 'suppliers have' }} a phone number that needs updating — a valid number is +220 followed by 9 digits.
+        </div>
+    @endif
 
     <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 overflow-hidden">
         @php $showActions = auth()->user()->hasPermission('suppliers', 'update') || auth()->user()->hasPermission('suppliers', 'delete'); @endphp
@@ -30,7 +36,16 @@
                 @forelse ($suppliers as $supplier)
                     <tr wire:key="supplier-{{ $supplier->id }}">
                         <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{{ $supplier->name }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ $supplier->phone }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                            @if ($supplier->hasValidPhone())
+                                {{ $supplier->formattedPhone() }}
+                            @else
+                                <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300" title="Not in the +220 + 9 digits form">Needs updating</span>
+                                @if ($supplier->phone)
+                                    <span class="ml-1 text-xs text-gray-400">{{ $supplier->phone }}</span>
+                                @endif
+                            @endif
+                        </td>
                         <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ $supplier->email }}</td>
                         <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ $supplier->products_count }}</td>
                         <td class="px-4 py-3 text-sm">
@@ -82,7 +97,13 @@
 
             <div>
                 <x-input-label for="supplier_phone" value="Phone" />
-                <x-text-input wire:model="phone" id="supplier_phone" class="block mt-1 w-full" />
+                <div class="mt-1 flex items-center gap-2">
+                    <span class="text-sm text-gray-500 dark:text-gray-400">+220</span>
+                    <x-text-input wire:model="phone" id="supplier_phone" placeholder="831234567" maxlength="9" inputmode="numeric" class="block w-full" />
+                </div>
+                @if ($legacyPhone !== '')
+                    <p class="mt-1 text-xs text-amber-700 dark:text-amber-300">On file: {{ $legacyPhone }} — that isn't a full number. Enter the 9 digits.</p>
+                @endif
                 <x-input-error :messages="$errors->get('phone')" class="mt-2" />
             </div>
 

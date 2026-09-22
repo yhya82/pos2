@@ -387,7 +387,7 @@ class SaleService
             'business_snapshot' => [
                 'business_name' => $generalSettings->business_name,
                 'address' => $generalSettings->address,
-                'contact_phone' => $generalSettings->contact_phone,
+                'contact_phone' => $generalSettings->contactPhoneDisplay(),
                 'contact_email' => $generalSettings->contact_email,
                 'currency_code' => $generalSettings->currency_code,
                 'receipt_business_info' => $storeSettings?->receipt_business_info,

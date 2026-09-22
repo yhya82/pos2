@@ -67,7 +67,20 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <x-input-label value="Contact Phone" />
-                        <x-text-input wire:model="general.contact_phone" class="block mt-1 w-full" />
+                        <div class="mt-1 flex items-center gap-2">
+                            <span class="text-sm text-gray-500 dark:text-gray-400">+220</span>
+                            <x-text-input wire:model="general.contact_phone" placeholder="831234567" maxlength="9" inputmode="numeric" class="block w-full" />
+                        </div>
+                        @if ($contactPhoneNeedsUpdate)
+                            <p class="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                                @if ($legacyContactPhone !== '')
+                                    On file: {{ $legacyContactPhone }} — that isn't a full number. Enter the 9 digits.
+                                @else
+                                    No store phone number is set yet. It's printed on receipts.
+                                @endif
+                            </p>
+                        @endif
+                        <x-input-error :messages="$errors->get('general.contact_phone')" class="mt-2" />
                     </div>
                     <div>
                         <x-input-label value="Contact Email" />

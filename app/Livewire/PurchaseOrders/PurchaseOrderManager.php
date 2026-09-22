@@ -82,18 +82,18 @@ class PurchaseOrderManager extends Component
 
     /**
      * Closing a line short and settling or waiving a supplier claim write
-     * money off, so they're for people who may edit products, not everyone
-     * who can receive stock. Anyone can *report* damaged goods.
+     * money off, so they need their own permission — not everyone who can
+     * receive stock. Anyone can *report* damaged goods.
      */
     private function canWriteOff(): bool
     {
-        return auth()->user()->hasPermission('products', 'update');
+        return auth()->user()->hasPermission('supplier_claims', 'update');
     }
 
     public function openResolve(int $issueId): void
     {
         $this->authorizeAction('purchase_orders', 'update');
-        $this->authorizeAction('products', 'update');
+        $this->authorizeAction('supplier_claims', 'update');
 
         $issue = ReceivingIssue::findOrFail($issueId);
 
@@ -115,7 +115,7 @@ class PurchaseOrderManager extends Component
     public function submitResolve(SupplierClaimService $service): void
     {
         $this->authorizeAction('purchase_orders', 'update');
-        $this->authorizeAction('products', 'update');
+        $this->authorizeAction('supplier_claims', 'update');
 
         $this->validate([
             'resolveAction' => ['required', 'in:credited,waived'],

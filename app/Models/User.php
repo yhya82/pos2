@@ -92,12 +92,14 @@ class User extends Authenticatable
 
     /**
      * Costs, profit, and store-wide takings are the shop's finances, not
-     * everyday operations: a cashier runs sales but doesn't see them. One
-     * place to say who that is, so screens and reports can't disagree.
+     * everyday operations. A real permission (not a role-name check) so it
+     * can be granted or withheld from the Roles screen like anything else —
+     * every screen and report that hides these figures reads this one
+     * method, so they can't disagree with each other.
      */
     public function canSeeFinancials(): bool
     {
-        return ! $this->isCashier();
+        return $this->hasPermission('financials', 'view');
     }
 
     /**
@@ -111,12 +113,15 @@ class User extends Authenticatable
     }
 
     /**
-     * Only an administrator can refund any sale; everyone else can refund
-     * (when their role allows returns at all) only sales they made.
+     * Refunding a sale someone else made needs the returns.update
+     * permission; refunding one's own sale only ever needed the base
+     * returns.create right to process a return at all (checked separately,
+     * where the return is submitted) — this only widens *which* sales are
+     * eligible, it doesn't grant the ability to process one by itself.
      */
     public function canRefundSale(Sale $sale): bool
     {
-        return $this->isAdministrator() || (int) $sale->cashier_id === (int) $this->id;
+        return $this->hasPermission('returns', 'update') || (int) $sale->cashier_id === (int) $this->id;
     }
 
     /**

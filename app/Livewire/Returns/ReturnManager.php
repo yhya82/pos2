@@ -95,11 +95,11 @@ class ReturnManager extends Component
      */
     private function returnableSalesQuery()
     {
-        // Only sales this user is allowed to refund: an administrator's list is
-        // every sale, anyone else's is just their own.
+        // Only sales this user is allowed to refund: someone with returns.update
+        // sees every sale, anyone else's list is just their own.
         return Sale::with(['customer', 'cashier'])
             ->where('status', 'completed')
-            ->when(! auth()->user()->isAdministrator(), fn ($q) => $q->where('cashier_id', auth()->id()))
+            ->when(! auth()->user()->hasPermission('returns', 'update'), fn ($q) => $q->where('cashier_id', auth()->id()))
             ->when($this->saleSearch, fn ($q) => $q->where(fn ($w) => $w->where('receipt_number', 'like', "%{$this->saleSearch}%")
                 ->orWhereHas('customer', fn ($cq) => $cq->where('name', 'like', "%{$this->saleSearch}%"))))
             ->orderByDesc('sale_date')

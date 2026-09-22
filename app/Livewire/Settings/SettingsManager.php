@@ -61,6 +61,11 @@ class SettingsManager extends Component
 
     public string $theme = 'system';
 
+    /** The store phone on file when it isn't +220 + 9 digits (an old or empty one) — a hint while editing. */
+    public string $legacyContactPhone = '';
+
+    public bool $contactPhoneNeedsUpdate = false;
+
     public function mount(): void
     {
         $this->authorizeAction('settings', 'view');
@@ -70,10 +75,13 @@ class SettingsManager extends Component
     private function loadAll(): void
     {
         $g = GeneralSetting::current();
+        $this->contactPhoneNeedsUpdate = ! $g->hasValidContactPhone();
+        $this->legacyContactPhone = $g->hasValidContactPhone() ? '' : (string) $g->contact_phone;
         $this->general = [
             'business_name' => $g->business_name,
             'business_logo_url' => (string) $g->business_logo_url,
-            'contact_phone' => (string) $g->contact_phone,
+            // The box holds the 9 digits; +220 is added on save.
+            'contact_phone' => $g->hasValidContactPhone() ? substr($g->contact_phone, 4) : '',
             'contact_email' => (string) $g->contact_email,
             'address' => (string) $g->address,
             'currency_code' => $g->currency_code,
@@ -138,7 +146,7 @@ class SettingsManager extends Component
 
         $validated = $this->validate([
             'general.business_name' => ['required', 'string', 'max:150'],
-            'general.contact_phone' => ['nullable', 'string', 'max:30'],
+            'general.contact_phone' => ['required', 'digits:9'],
             'general.contact_email' => ['nullable', 'email', 'max:150'],
             'general.address' => ['nullable', 'string', 'max:255'],
             'general.currency_code' => ['required', 'string', 'size:3'],
@@ -147,7 +155,12 @@ class SettingsManager extends Component
             'general.tax_enabled' => ['boolean'],
             'general.tax_rate' => ['required', 'numeric', 'min:0', 'max:100'],
             'logo' => ['nullable', 'image', 'max:2048'],
+        ], [
+            'general.contact_phone.required' => 'A store phone number is required (9 digits — the +220 prefix is added automatically).',
+            'general.contact_phone.digits' => 'Phone number must be exactly 9 digits (the +220 prefix is added automatically).',
         ])['general'];
+
+        $validated['contact_phone'] = '+220'.$validated['contact_phone'];
 
         $general = GeneralSetting::current();
         $logoPath = $general->business_logo_url;
@@ -163,6 +176,8 @@ class SettingsManager extends Component
 
         $this->logo = null;
         $this->general['business_logo_url'] = (string) $logoPath;
+        $this->contactPhoneNeedsUpdate = false;
+        $this->legacyContactPhone = '';
 
         event(new GeneralSettingChanged);
 

@@ -61,7 +61,7 @@
             <h1>{{ $general->business_name }}</h1>
             <div class="meta">
                 @if ($general->address) {{ $general->address }}<br> @endif
-                @if ($general->contact_phone) Tel: {{ $general->contact_phone }} @endif
+                @if ($general->contactPhoneDisplay()) Tel: {{ $general->contactPhoneDisplay() }} @endif
                 @if ($general->contact_email) &middot; {{ $general->contact_email }} @endif
             </div>
 
@@ -84,7 +84,7 @@
             <div class="center">
                 <strong>{{ $general->business_name }}</strong><br>
                 @if ($general->address) {{ $general->address }}<br> @endif
-                @if ($general->contact_phone) {{ $general->contact_phone }}<br> @endif
+                @if ($general->contactPhoneDisplay()) {{ $general->contactPhoneDisplay() }}<br> @endif
             </div>
             <hr>
             <div class="center"><strong>*** TEST PRINT ***</strong></div>

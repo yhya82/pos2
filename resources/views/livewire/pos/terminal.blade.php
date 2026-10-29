@@ -21,6 +21,7 @@
         currencyCode: @js($currencyCode),
         autoPrintReceipt: {{ $autoPrintReceipt ? 'true' : 'false' }},
         barcodeScannerEnabled: {{ $barcodeScannerEnabled ? 'true' : 'false' }},
+        allowNegativeStockSale: {{ $allowNegativeStockSale ? 'true' : 'false' }},
     })"
     x-on:pos-live-update.window="refreshLiveData($event.detail)"
     class="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start"
@@ -67,31 +68,45 @@
 
         <div class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
             <template x-for="product in filteredProducts()" :key="product.id">
-                <button
-                    type="button"
-                    @click="addToCart(product)"
-                    class="flex flex-col h-24 text-left bg-white dark:bg-gray-800 shadow-sm rounded-lg ring-1 ring-gray-900/5 dark:ring-white/10 overflow-hidden hover:ring-2 hover:ring-indigo-500 transition"
-                >
-                    <div class="flex-1 w-full min-h-0 bg-gray-100 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
-                        <img x-show="product.image_url" :src="product.image_url" class="block h-full w-full object-cover" x-cloak>
-                        <svg x-show="!product.image_url" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3.5 w-3.5 text-gray-400 dark:text-gray-500 shrink-0">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" />
-                        </svg>
-                    </div>
-                    <div class="flex-1 min-h-0 p-1 flex flex-col justify-center overflow-hidden">
-                        <div class="text-xs font-medium text-gray-900 dark:text-gray-100 truncate" x-text="product.name"></div>
-                        <template x-if="product.has_promo">
-                            <div class="text-[10px] leading-tight mt-0.5 flex items-center gap-1 flex-wrap">
-                                <span class="text-gray-400 dark:text-gray-500 line-through" x-text="formatMoney(product.selling_price)"></span>
-                                <span class="text-emerald-600 dark:text-emerald-400 font-medium" x-text="formatMoney(product.effective_price) + ' / ' + product.selling_unit"></span>
-                            </div>
-                        </template>
-                        <template x-if="!product.has_promo">
-                            <div class="text-[10px] leading-tight text-gray-500 dark:text-gray-400 mt-0.5" x-text="formatMoney(product.selling_price) + ' / ' + product.selling_unit"></div>
-                        </template>
-                        <div class="text-[10px] leading-tight mt-0.5" :class="product.stock_quantity <= 0 ? 'text-red-500 dark:text-red-400' : 'text-gray-400 dark:text-gray-500'" x-text="'Stock: ' + trimQty(product.stock_quantity)"></div>
-                    </div>
-                </button>
+                <div class="relative">
+                    {{-- Floats directly over this tile — not the shared error bar
+                         down by checkout, which is easy to miss while tapping
+                         through the grid — and clears itself a couple seconds
+                         after showOosNotice() sets it. --}}
+                    <div
+                        x-show="oosProductId === product.id"
+                        x-transition.opacity
+                        x-cloak
+                        class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-20 w-max max-w-[9rem] text-center text-[10px] font-medium leading-tight text-white bg-red-600 rounded-md shadow-lg px-2 py-1"
+                        x-text="oosMessage"
+                    ></div>
+                    <button
+                        type="button"
+                        @click="addToCart(product)"
+                        :class="isOutOfStock(product) ? 'opacity-50' : 'hover:ring-2 hover:ring-indigo-500'"
+                        class="flex flex-col h-24 w-full text-left bg-white dark:bg-gray-800 shadow-sm rounded-lg ring-1 ring-gray-900/5 dark:ring-white/10 overflow-hidden transition"
+                    >
+                        <div class="flex-1 w-full min-h-0 bg-gray-100 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
+                            <img x-show="product.image_url" :src="product.image_url" class="block h-full w-full object-cover" x-cloak>
+                            <svg x-show="!product.image_url" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3.5 w-3.5 text-gray-400 dark:text-gray-500 shrink-0">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" />
+                            </svg>
+                        </div>
+                        <div class="flex-1 min-h-0 p-1 flex flex-col justify-center overflow-hidden">
+                            <div class="text-xs font-medium text-gray-900 dark:text-gray-100 truncate" x-text="product.name"></div>
+                            <template x-if="product.has_promo">
+                                <div class="text-[10px] leading-tight mt-0.5 flex items-center gap-1 flex-wrap">
+                                    <span class="text-gray-400 dark:text-gray-500 line-through" x-text="formatMoney(product.selling_price)"></span>
+                                    <span class="text-emerald-600 dark:text-emerald-400 font-medium" x-text="formatMoney(product.effective_price) + ' / ' + product.selling_unit"></span>
+                                </div>
+                            </template>
+                            <template x-if="!product.has_promo">
+                                <div class="text-[10px] leading-tight text-gray-500 dark:text-gray-400 mt-0.5" x-text="formatMoney(product.selling_price) + ' / ' + product.selling_unit"></div>
+                            </template>
+                            <div class="text-[10px] leading-tight mt-0.5" :class="product.stock_quantity <= 0 ? 'text-red-500 dark:text-red-400' : 'text-gray-400 dark:text-gray-500'" x-text="'Stock: ' + trimQty(product.stock_quantity)"></div>
+                        </div>
+                    </button>
+                </div>
             </template>
             <template x-if="filteredProducts().length === 0">
                 <p class="col-span-full text-sm text-gray-500 dark:text-gray-400 py-6 text-center">No products match.</p>
@@ -115,7 +130,7 @@
 
         <div x-show="priceNotices.length > 0" x-cloak class="rounded-md border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/30 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
             <div class="flex items-start justify-between gap-2">
-                <div class="font-semibold">Prices updated — your cart total has changed</div>
+                <div class="font-semibold">Prices updated,your cart total has changed</div>
                 <button type="button" @click="priceNotices = []" class="text-amber-700 hover:text-amber-900 dark:text-amber-300" aria-label="Dismiss">✕</button>
             </div>
             <ul class="mt-1 space-y-0.5">
@@ -232,7 +247,7 @@
     >
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 max-w-sm w-full text-center space-y-4">
             <div class="text-emerald-600 text-4xl">✓</div>
-            <p class="text-gray-800 dark:text-gray-100 font-medium">Sale complete — <span x-text="lastReceiptNumber"></span></p>
+            <p class="text-gray-800 dark:text-gray-100 font-medium">Sale complete  <span x-text="lastReceiptNumber"></span></p>
             <div class="flex gap-3 justify-center">
                 <a :href="'/sales/' + lastSaleId + '/receipt'" target="_blank" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-500">
                     View Receipt
@@ -267,6 +282,7 @@
             currencyCode: config.currencyCode,
             autoPrintReceipt: config.autoPrintReceipt,
             barcodeScannerEnabled: config.barcodeScannerEnabled,
+            allowNegativeStockSale: config.allowNegativeStockSale,
 
             search: '',
             barcodeInput: '',
@@ -285,6 +301,13 @@
             tenderedAmount: '',
             processing: false,
             errorMessage: '',
+            // The out-of-stock notice floats over the clicked tile itself,
+            // not the shared errorMessage bar (that's over by checkout, easy
+            // to miss) — productId it belongs to, its text, and the timer
+            // that clears it so it doesn't linger.
+            oosProductId: null,
+            oosMessage: '',
+            oosTimer: null,
             priceNotices: [],
             lastReceiptNumber: null,
             lastSaleId: null,
@@ -318,8 +341,34 @@
                 line.quantity = whole;
             },
 
+            // Whole-tile out-of-stock check: < 1 full unit left, and nothing
+            // bends that (allowNegativeStockSale is an explicit "oversell
+            // knowingly" override, so it skips this entirely).
+            isOutOfStock(product) {
+                return !this.allowNegativeStockSale && product.stock_quantity < 1;
+            },
+
+            // Shown as a bubble over the tile just clicked (see showOosNotice)
+            // rather than the shared errorMessage bar, so it's seen without
+            // looking away from the grid — and clears itself after a beat.
+            showOosNotice(product, text) {
+                clearTimeout(this.oosTimer);
+                this.oosProductId = product.id;
+                this.oosMessage = text;
+                this.oosTimer = setTimeout(() => { this.oosProductId = null; }, 2500);
+            },
+
             addToCart(product) {
                 const existing = this.cart.find(l => l.product_id === product.id);
+                const alreadyInCart = existing ? existing.quantity : 0;
+
+                if (!this.allowNegativeStockSale && alreadyInCart + 1 > product.stock_quantity) {
+                    this.showOosNotice(product, alreadyInCart > 0
+                        ? `Only ${this.trimQty(product.stock_quantity)} ${product.selling_unit} in stock — all of it's in the cart.`
+                        : 'Out of stock.');
+
+                    return;
+                }
 
                 if (existing) {
                     existing.quantity += 1;
@@ -333,6 +382,10 @@
                 }
 
                 this.errorMessage = '';
+                if (this.oosProductId === product.id) {
+                    clearTimeout(this.oosTimer);
+                    this.oosProductId = null;
+                }
             },
 
             scanBarcode() {
@@ -456,6 +509,7 @@
                 this.currencyCode = detail.currencyCode;
                 this.barcodeScannerEnabled = detail.barcodeScannerEnabled;
                 this.autoPrintReceipt = detail.autoPrintReceipt;
+                this.allowNegativeStockSale = detail.allowNegativeStockSale;
 
                 if (!this.paymentMethods.some(m => m.id === this.paymentMethodId)) {
                     this.paymentMethodId = this.paymentMethods.find(m => m.code === 'cash')?.id ?? this.paymentMethods[0]?.id ?? null;

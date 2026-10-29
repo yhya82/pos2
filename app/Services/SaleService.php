@@ -232,8 +232,10 @@ class SaleService
 
             $available = (float) $batches->sum('qty_remaining');
 
-            if ($available < $quantity && ! $salesSettings->allow_negative_stock_sale) {
-                throw new RuntimeException("Not enough stock for \"{$product->name}\" — only {$available} available.");
+          if ($available < $quantity) {
+                     throw new RuntimeException(
+                     "Insufficient stock for \"{$product->name}\". Available: {$available}, Requested: {$quantity}."
+                    );
             }
 
             $remaining = $quantity;

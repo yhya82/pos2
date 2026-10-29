@@ -61,6 +61,7 @@ class Terminal extends Component
             currencyCode: $generalSettings->currency_code,
             barcodeScannerEnabled: (bool) $hardwareSettings?->barcode_scanner_enabled,
             autoPrintReceipt: (bool) $hardwareSettings?->auto_print_receipt,
+            allowNegativeStockSale: (bool) SalesSetting::current()->allow_negative_stock_sale,
         );
     }
 
@@ -112,6 +113,7 @@ class Terminal extends Component
             'currencyCode' => $generalSettings->currency_code,
             'autoPrintReceipt' => (bool) HardwareSetting::current()?->auto_print_receipt,
             'barcodeScannerEnabled' => (bool) HardwareSetting::current()?->barcode_scanner_enabled,
+            'allowNegativeStockSale' => (bool) $salesSettings->allow_negative_stock_sale,
         ]);
     }
 

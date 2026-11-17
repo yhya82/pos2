@@ -1,0 +1,234 @@
+/*
+ * Dashboard redesign — scoped entirely under .dash-skin so none of this
+ * (palette, resets) ever leaks onto any other page. Dark mode follows the
+ * app's real mechanism (the `dark` class Laravel's own layout toggles on
+ * <html>), not the mockup's own theme system. Ported from the approved
+ * mockup; the mockup's own top bar (brand/nav links/user chip) is dropped
+ * entirely — this page reuses the real shared header (recoloured, same as
+ * the POS page) rather than building a second navigation bar, same reason
+ * the POS redesign didn't duplicate the real notification bell.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+.dash-skin,
+.dash-skin *,
+.dash-skin *::before,
+.dash-skin *::after {
+    box-sizing: border-box;
+}
+
+/* Same palette values as pos-terminal.css — each page declares its own
+   copy since each stylesheet only ever loads on its own page. */
+body {
+    --bg: #f6f6f4;
+    --surf: #fff;
+    --ink: #1a1a1c;
+    --mut: #55555b;
+    --line: #e3e3df;
+    --soft: #efefeb;
+    --acc: #a81c26;
+    --acc-ink: #fff;
+    --acc-soft: #f9e9e9;
+    --ok: #1f7a52;
+    --warn: #8a5a00;
+}
+
+html.dark body {
+    --bg: #0f0f11;
+    --surf: #18181b;
+    --ink: #f3f3f4;
+    --mut: #aeaeb6;
+    --line: #2a2a2f;
+    --soft: #222226;
+    --acc: #c93840;
+    --acc-ink: #fff;
+    --acc-soft: #3a1c1d;
+    --ok: #3cc088;
+    --warn: #e0a93a;
+}
+
+.dash-skin {
+    color-scheme: light;
+}
+
+html.dark .dash-skin {
+    color-scheme: dark;
+}
+
+/* The real shared header bar, recoloured on this page only — same
+   mechanism as the POS page (#app-header lives in the shared layout, this
+   stylesheet only ever loads here). */
+#app-header {
+    background: var(--acc);
+    border-color: var(--acc);
+}
+
+#app-header,
+#app-header *:not(.absolute, .absolute *) {
+    color: var(--acc-ink);
+}
+
+#app-header button:hover:not(.absolute button) {
+    background: rgba(255, 255, 255, .16);
+}
+
+.dash-skin {
+    background: var(--bg);
+    color: var(--ink);
+    font: 400 14.5px/1.45 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    font-variant-numeric: tabular-nums;
+    max-width: 1500px;
+    margin: 0 auto;
+    /* The .g grid's column count and the switch to a single column (below)
+       have to track this page's own rendered width, not the viewport's —
+       the shared sidebar's collapsed/expanded state changes that width
+       without changing the viewport at all (same reasoning as the POS
+       page's own layout breakpoints). */
+    container-type: inline-size;
+}
+
+.dash-skin button,
+.dash-skin a {
+    font: inherit;
+    color: inherit;
+}
+
+.dash-skin button {
+    cursor: pointer;
+    border: 0;
+    background: none;
+    padding: 0;
+}
+
+.dash-skin a {
+    text-decoration: none;
+}
+
+.dash-skin :focus-visible {
+    outline: 2px solid var(--acc);
+    outline-offset: 2px;
+}
+
+.dash-skin svg {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* ---------------------------------------------------------------- top bar */
+.dash-skin .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.dash-skin .top > div:first-child { border-left: 4px solid var(--acc); padding-left: 14px; }
+.dash-skin .top h1 { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -.02em; line-height: 1.2; }
+.dash-skin .top p { margin: 2px 0 0; color: var(--mut); font-size: 13.5px; }
+.dash-skin .date { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--surf); padding: 9px 16px; font-weight: 500; flex-shrink: 0; }
+.dash-skin .date svg { width: 17px; height: 17px; }
+
+/* -------------------------------------------------------------- the grid */
+.dash-skin .g {
+    display: grid;
+    gap: 14px;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-areas:
+        "rev rev prof top"
+        "rev rev ref top"
+        "rev rev cred top"
+        "inv gp gp top";
+    margin-bottom: 14px;
+}
+.dash-skin .g > .rev { grid-area: rev; }
+.dash-skin .g > .prof { grid-area: prof; }
+.dash-skin .g > .ref { grid-area: ref; }
+.dash-skin .g > .cred { grid-area: cred; }
+.dash-skin .g > .inv { grid-area: inv; }
+.dash-skin .g > .gp { grid-area: gp; }
+.dash-skin .g > .top-p { grid-area: top; }
+.dash-skin .g4 { display: grid; gap: 14px; grid-template-columns: repeat(4, 1fr); }
+
+.dash-skin .card { background: var(--surf); border: 1px solid var(--line); padding: 20px; min-width: 0; }
+.dash-skin .g > .card, .dash-skin .g4 > .card { border-top: 3px solid var(--acc); }
+
+.dash-skin .hd { display: flex; align-items: center; gap: 12px; }
+.dash-skin .hd > div:first-child { display: flex; align-items: center; gap: 12px; }
+.dash-skin .ic { flex: none; width: 34px; height: 34px; background: var(--acc-soft); color: var(--acc); border: 1px solid color-mix(in srgb, var(--acc) 28%, transparent); display: grid; place-items: center; }
+.dash-skin .ic svg { width: 18px; height: 18px; }
+.dash-skin .lbl { color: var(--mut); font-weight: 600; font-size: 12px; letter-spacing: .07em; text-transform: uppercase; }
+.dash-skin .big { font-size: 36px; font-weight: 800; letter-spacing: -.02em; line-height: 1.15; margin-top: 10px; }
+.dash-skin .mid { font-size: 28px; font-weight: 800; letter-spacing: -.02em; line-height: 1.15; margin-top: 10px; }
+.dash-skin .mid.neg { color: var(--acc); }
+
+.dash-skin .rev { display: flex; flex-direction: column; }
+.dash-skin .rev .hd { justify-content: space-between; }
+.dash-skin .seg { display: flex; border: 1px solid var(--line); flex-wrap: wrap; }
+.dash-skin .seg button { padding: 6px 14px; font-weight: 500; font-size: 13px; color: var(--mut); }
+.dash-skin .seg button:hover { color: var(--ink); }
+.dash-skin .seg button[aria-pressed=true] { background: var(--acc); color: var(--acc-ink); }
+.dash-skin .f { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.dash-skin .f input[type=date] { border: 1px solid var(--line); background: var(--bg); color: var(--ink); padding: 6px 10px; font: inherit; }
+.dash-skin .f span { color: var(--mut); font-size: 13px; }
+
+.dash-skin .pill { display: inline-block; font-size: 12.5px; font-weight: 600; padding: 2px 10px; background: var(--acc-soft); color: var(--acc); margin-left: 10px; vertical-align: middle; }
+.dash-skin .pill.ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
+
+.dash-skin .chart { flex: 1; min-height: 230px; display: flex; align-items: flex-end; gap: 12px; margin-top: 20px; border-bottom: 1px solid var(--mut); background: repeating-linear-gradient(to top, var(--line) 0, var(--line) 1px, transparent 1px, transparent 25%); }
+.dash-skin .chart i { flex: 1; background: var(--acc-soft); border: 1px solid var(--line); border-bottom: 0; transition: background .12s; position: relative; transform-origin: bottom; animation: dash-grow .5s cubic-bezier(.2, .8, .2, 1) both; }
+.dash-skin .chart i:nth-child(2n) { animation-delay: .04s; }
+.dash-skin .chart i:nth-child(3n) { animation-delay: .08s; }
+@keyframes dash-grow { from { transform: scaleY(.05); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .dash-skin .chart i { animation: none; } }
+.dash-skin .chart i:hover { background: color-mix(in srgb, var(--acc) 35%, var(--surf)); }
+.dash-skin .chart i.cur { background: var(--acc); border-color: var(--acc); }
+.dash-skin .axis { display: flex; gap: 12px; margin-top: 8px; color: var(--mut); font-size: 12.5px; }
+.dash-skin .axis span { flex: 1; text-align: center; }
+.dash-skin .axis span.cur { color: var(--ink); font-weight: 700; }
+
+.dash-skin .cnt { font-size: 12px; font-weight: 700; min-width: 24px; height: 22px; padding: 0 7px; display: inline-grid; place-items: center; margin-left: 6px; background: var(--acc-soft); color: var(--acc); }
+.dash-skin .dl { font-size: 12.5px; font-weight: 500; margin-top: 1px; color: var(--mut); }
+.dash-skin .up { color: var(--acc); }
+.dash-skin .dn { color: var(--ok); }
+.dash-skin .va { color: var(--acc); font-weight: 600; font-size: 13.5px; white-space: nowrap; }
+.dash-skin .va:hover { text-decoration: underline; }
+
+.dash-skin .bh { display: flex; align-items: flex-start; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line); margin-bottom: 0; }
+.dash-skin .bh .t { flex: 1; min-width: 0; }
+.dash-skin .bh .t b { font-weight: 600; font-size: 15px; }
+
+.dash-skin .ln { display: flex; align-items: center; gap: 12px; padding: 12px 10px; margin: 0 -10px; border-bottom: 1px solid var(--line); transition: background .12s; }
+.dash-skin .ln:hover { background: var(--soft); }
+.dash-skin .ln:last-child { border-bottom: 0; }
+.dash-skin .ln .m { flex: 1; min-width: 0; }
+.dash-skin .ln .n { font-weight: 600; font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dash-skin .ln .s { color: var(--mut); font-size: 12.5px; }
+.dash-skin .ln .s.w { color: var(--warn); font-weight: 600; }
+.dash-skin .ln .s.r { color: var(--acc); font-weight: 600; }
+.dash-skin .ln .a { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+.dash-skin .th { flex: none; width: 44px; height: 44px; background: var(--acc); color: rgba(255, 255, 255, .9); display: grid; place-items: center; overflow: hidden; }
+.dash-skin .th svg { width: 22px; height: 22px; stroke-width: 1.5; }
+.dash-skin .th img { height: 100%; width: 100%; object-fit: cover; }
+
+.dash-skin .btn { min-width: 0; text-align: center; border: 1px solid var(--line); padding: 4px 10px; font-weight: 600; font-size: 12.5px; white-space: nowrap; background: var(--surf); }
+.dash-skin .btn:hover { border-color: var(--mut); }
+.dash-skin .btn.p { background: var(--acc); color: var(--acc-ink); border-color: var(--acc); }
+.dash-skin .btn.p:hover { filter: brightness(1.1); }
+
+.dash-skin .av { flex: none; width: 36px; height: 36px; border-radius: 50%; background: var(--soft); display: grid; place-items: center; font-weight: 600; font-size: 12.5px; position: relative; }
+.dash-skin .av::after { content: ""; position: absolute; right: -1px; bottom: -1px; width: 10px; height: 10px; border-radius: 50%; background: var(--ok); border: 2px solid var(--surf); }
+.dash-skin .st { font-size: 12.5px; font-weight: 600; padding: 3px 12px; color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
+
+.dash-skin .top-p .hd { margin-bottom: 6px; }
+.dash-skin .top-p .ln { padding: 17px 10px; }
+
+.dash-skin .none { color: var(--mut); font-size: 13.5px; padding: 8px 0; }
+
+/* -------------------------------------------------------------- mobile */
+@container (max-width: 1150px) {
+    .dash-skin .g { grid-template-columns: repeat(2, 1fr); grid-template-areas: "rev rev" "prof ref" "cred cred" "inv gp" "top top"; }
+    .dash-skin .g4 { grid-template-columns: repeat(2, 1fr); }
+}
+@container (max-width: 700px) {
+    .dash-skin .g, .dash-skin .g4 { grid-template-columns: 1fr; grid-template-areas: "rev" "prof" "ref" "cred" "inv" "gp" "top"; }
+    .dash-skin .chart, .dash-skin .axis { gap: 5px; }
+    .dash-skin .rev .hd { flex-wrap: wrap; }
+}

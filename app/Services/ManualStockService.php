@@ -27,18 +27,7 @@ class ManualStockService
      *                                unit terms via Product::toSellingQty()/
      *                                toSellingUnitCost() before writing.
      */
-    public function receive(
-        Product $product,
-        float $quantity,
-        string $quantityUnit,
-        float $unitCost,
-        string $receivedDate,
-        ?string $expiryDate,
-        ?string $batchCode,
-        ?string $reason,
-        User $user,
-        ?float $sellingPrice = null,
-    ): Batch {
+    public function receive( Product $product,float $quantity,string $quantityUnit,float $unitCost, string $receivedDate,?string $expiryDate,?string $batchCode, ?string $reason, User $user, ?float $sellingPrice = null,): Batch {
         \App\Support\Whole::assert($quantity, 'The quantity received', 1);
 
         if ($sellingPrice !== null && $sellingPrice <= 0) {

@@ -143,7 +143,7 @@ class SaleServiceTest extends TestCase
         Batch::factory()->for($product)->remaining(2)->create();
 
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Not enough stock');
+        $this->expectExceptionMessage('Insufficient stock');
 
         $this->service->completeSale(
             cartLines: [['product_id' => $product->id, 'quantity' => 5]],

@@ -1,0 +1,381 @@
+/*
+ * POS terminal redesign — scoped entirely under .pos-skin so none of this
+ * (palette, resets, the native <button>/<input> reset) ever leaks onto any
+ * other page. Dark mode follows the app's real mechanism (the `dark` class
+ * Laravel's own layout toggles on <html>), not a separate theme system of
+ * its own. Ported from the approved mockup; the only behavioural deviation
+ * from it is the print rule, adapted to this app's actual DOM (see below)
+ * and to the real configured paper size instead of a fixed 80mm.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+.pos-skin,
+.pos-skin *,
+.pos-skin *::before,
+.pos-skin *::after {
+    box-sizing: border-box;
+}
+
+/*
+ * The palette lives on <body> — this stylesheet is only ever loaded on the
+ * POS page (pushed from pos/index.blade.php), so that's still fully
+ * scoped to this one page, not a global change — and it has to be an
+ * ancestor of #app-header below as well as of .pos-skin's own content,
+ * which a class declared only on one or the other couldn't be.
+ */
+body {
+    --bg: #f6f6f4;
+    --surf: #fff;
+    --ink: #1a1a1c;
+    --mut: #55555b;
+    --line: #e3e3df;
+    --soft: #efefeb;
+    --acc: #a81c26;
+    --acc-ink: #fff;
+    --acc-soft: #f9e9e9;
+}
+
+html.dark body {
+    --bg: #0f0f11;
+    --surf: #18181b;
+    --ink: #f3f3f4;
+    --mut: #aeaeb6;
+    --line: #2a2a2f;
+    --soft: #222226;
+    --acc: #c93840;
+    --acc-ink: #fff;
+    --acc-soft: #3a1c1d;
+}
+
+.pos-skin {
+    color-scheme: light;
+}
+
+html.dark .pos-skin {
+    color-scheme: dark;
+}
+
+/*
+ * The real shared header bar (every page has one) — turned into the
+ * mockup's own red top bar on this page only (this stylesheet never loads
+ * elsewhere), with the chrome that already lives in it — sidebar
+ * toggles, theme toggle, the real notification bell, the account menu —
+ * recoloured to stay legible on it, rather than built again. Its own
+ * floating dropdown panel (.absolute) is deliberately excluded: that's a
+ * normal light popover regardless of what it opens from, not part of the
+ * bar itself.
+ */
+#app-header {
+    background: var(--acc);
+    border-color: var(--acc);
+}
+
+#app-header,
+#app-header *:not(.absolute, .absolute *) {
+    color: var(--acc-ink);
+}
+
+#app-header button:hover:not(.absolute button) {
+    background: rgba(255, 255, 255, .16);
+}
+
+.pos-skin {
+    background: var(--bg);
+    color: var(--ink);
+    font: 400 14.5px/1.45 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    font-variant-numeric: tabular-nums;
+    /*
+     * The layout breakpoints below (the product grid's column count, and
+     * the switch to the mobile stacked/drawer cart) query THIS element's
+     * own rendered width, not the viewport's. They have to: the shared
+     * sidebar's collapsed/expanded state changes how much width this page
+     * actually gets without changing the viewport at all, and a plain
+     * @media (min/max-width) query can't see that — it only ever sees the
+     * viewport, so it kept forcing the same column count/desktop cart
+     * layout even when the expanded sidebar had squeezed this page down
+     * to something that layout no longer fit.
+     */
+    container-type: inline-size;
+}
+
+.pos-skin button,
+.pos-skin input,
+.pos-skin select {
+    font: inherit;
+    color: inherit;
+}
+
+.pos-skin button {
+    cursor: pointer;
+    border: 0;
+    background: none;
+    padding: 0;
+}
+
+.pos-skin :focus-visible {
+    outline: 2px solid var(--acc);
+    outline-offset: 2px;
+}
+
+/*
+ * The header-slot widgets (TillHeader) — a separate component rendered in
+ * a different part of the page (the shared layout's own header slot, not
+ * nested inside the big Terminal below). The bar itself is red now
+ * (#app-header above), so this just sits on it — exactly the mockup's own
+ * colours (white text, a translucent-black "today" pill), which were
+ * always designed against a red backdrop.
+ */
+.header-widgets { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif; }
+.header-widgets .brand { font-weight: 700; font-size: 15px; }
+.header-widgets .link { color: #fff; font-weight: 600; font-size: 13.5px; padding: 6px 14px; border: 1px solid rgba(255, 255, 255, .4); background: transparent; }
+.header-widgets .link:hover { background: rgba(255, 255, 255, .16); }
+.header-widgets .today { background: rgba(0, 0, 0, .18); color: #fff; padding: 6px 14px; font-size: 13px; }
+.header-widgets .today b { font-weight: 700; }
+
+/* ---------------------------------------------------------------- layout */
+.pos-skin .app { display: grid; grid-template-columns: 1fr 400px; gap: 20px; padding: 20px; align-items: start; }
+.pos-skin main { min-width: 0; }
+
+.pos-skin .filters { background: var(--surf); border: 1px solid var(--line); padding: 16px; margin-bottom: 16px; }
+.pos-skin .sr { display: flex; gap: 10px; margin-bottom: 12px; }
+.pos-skin .search { position: relative; flex: 1; }
+.pos-skin .scan { width: 44px; height: 44px; border: 1px solid var(--line); display: grid; place-items: center; color: var(--acc); background: var(--acc-soft); flex-shrink: 0; }
+.pos-skin .scan svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.pos-skin .search svg { position: absolute; left: 14px; top: 13px; width: 18px; height: 18px; stroke: var(--mut); fill: none; stroke-width: 1.8; stroke-linecap: round; }
+.pos-skin .search input { width: 100%; height: 44px; border: 1px solid var(--line); background: var(--bg); padding: 0 44px 0 42px; font-size: 15px; }
+.pos-skin .search input:focus { outline: none; border-color: var(--acc); background: var(--surf); box-shadow: 0 0 0 3px var(--acc-soft); }
+.pos-skin .search kbd { position: absolute; right: 12px; top: 11px; font: 500 12px 'Inter', sans-serif; color: var(--mut); border: 1px solid var(--line); padding: 1px 8px; background: var(--surf); }
+
+.pos-skin .cats { display: flex; gap: 6px; flex-wrap: wrap; }
+.pos-skin .cat { padding: 7px 14px; font-weight: 500; font-size: 13.5px; color: var(--mut); border: 1px solid var(--line); }
+.pos-skin .cat:hover { color: var(--ink); border-color: var(--mut); }
+.pos-skin .cat[aria-pressed=true] { background: var(--acc); color: var(--acc-ink); border-color: var(--acc); }
+.pos-skin .cat small { margin-left: 6px; opacity: .6; }
+
+.pos-skin .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 14px; }
+@container (min-width: 640px) { .pos-skin .grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); } }
+/*
+ * Past 961px this used to force exactly 4 columns (repeat(4, ...)) rather
+ * than keep auto-fill — fine with the sidebar collapsed, but with it
+ * expanded this page's actual width can drop well below what 4 real
+ * columns need, and a bare repeat(4, ...) with no per-column minimum has
+ * nothing to refuse that: it happily squeezed every tile down to
+ * whatever sliver was left.
+ * auto-fill with its own minmax floor just shows fewer, properly-sized
+ * columns instead, the same way the two rules above it already do.
+ */
+@container (min-width: 961px) { .pos-skin .grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); } }
+
+.pos-skin .p { container-type: inline-size; min-width: 0; position: relative; text-align: left; background: var(--surf); border: 1px solid var(--acc); padding: 8px 8px 14px; display: flex; flex-direction: column; transition: border-color .12s, transform .12s, box-shadow .12s; width: 100%; }
+.pos-skin .p:hover:not(:disabled) { box-shadow: 0 0 0 1px var(--acc); }
+.pos-skin .p:active:not(:disabled) { transform: scale(.98); }
+.pos-skin .p.in { border-color: var(--acc); background: var(--acc-soft); }
+/* A light, neutral border instead of the normal accent-red one — a solid
+   red border reads as active/selected, the opposite of "can't be added" —
+   plus the same dimming the mockup used on everything but the "Out of
+   stock" label itself, which stays full-strength so it's still legible. */
+.pos-skin .p:disabled { cursor: not-allowed; border-color: var(--line); }
+.pos-skin .p:disabled .cube, .pos-skin .p:disabled .n, .pos-skin .p:disabled .sku, .pos-skin .p:disabled .pc { opacity: .45; }
+.pos-skin .p:disabled .cube { background: var(--soft); color: var(--mut); }
+
+.pos-skin .cube { height: 112px; background: var(--acc); display: grid; place-items: center; color: rgba(255, 255, 255, .85); margin-bottom: 12px; position: relative; overflow: hidden; }
+.pos-skin .cube img { height: 100%; width: 100%; object-fit: cover; }
+.pos-skin .cube svg { width: 56px; height: 56px; stroke-width: 1.3; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; }
+
+.pos-skin .p .n, .pos-skin .p .sku, .pos-skin .p .row { padding: 0; }
+.pos-skin .p .n { font-weight: 600; font-size: clamp(12.5px, 6.4cqw, 14.5px); line-height: 1.25; overflow-wrap: anywhere; }
+.pos-skin .p .sku { color: var(--mut); font-size: 11.5px; letter-spacing: .02em; margin-top: 2px; }
+/* Always one line: price never wraps away from it, the stock label (the
+   less critical figure of the two) yields space and ellipsizes rather
+   than ever pushing the price onto its own line. */
+.pos-skin .p .row { display: flex; flex-wrap: nowrap; align-items: baseline; justify-content: space-between; gap: 6px; margin-top: auto; padding-top: 14px; }
+.pos-skin .p .pc { flex-shrink: 0; font-weight: 700; font-size: clamp(12.5px, 7cqw, 15px); white-space: nowrap; }
+.pos-skin .p .pc del { font-weight: 500; color: var(--mut); text-decoration: line-through; margin-right: 3px; }
+.pos-skin .p .pc small { font-weight: 500; color: var(--mut); font-size: 11.5px; }
+.pos-skin .p .s { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: right; font-size: clamp(10.5px, 5cqw, 11.5px); color: var(--mut); white-space: nowrap; }
+.pos-skin .p .s.low { color: var(--ink); font-weight: 600; }
+.pos-skin .p .s.oos { color: var(--acc); font-weight: 600; }
+.pos-skin .badge { position: absolute; top: 8px; right: 8px; min-width: 24px; height: 24px; background: #fff; color: var(--acc); font-weight: 700; font-size: 12.5px; display: grid; place-items: center; padding: 0 7px; box-shadow: 0 1px 3px rgba(0, 0, 0, .2); }
+.pos-skin .none { grid-column: 1/-1; text-align: center; color: var(--mut); padding: 48px 0; }
+
+/* The one message the mockup's own add-to-cart interaction produces: a
+   plain bottom-centre toast, used only when some stock exists but all of
+   it is already in the cart (true zero stock is just a disabled tile —
+   nothing to say). */
+.pos-skin .toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 24px); opacity: 0; background: var(--ink); color: var(--surf); padding: 12px 18px; border-radius: 12px; font-weight: 500; pointer-events: none; transition: .25s; z-index: 60; }
+.pos-skin .toast.on { transform: translate(-50%, 0); opacity: 1; }
+
+/* ------------------------------------------------------------- cart aside */
+/* The whole panel scrolls as one unit once it runs past the available
+   height — not a split layout with its own inner scrolling lane while a
+   header/footer stay pinned. Same on the mobile full-screen sheet, via its
+   own height:100% below. */
+.pos-skin aside { background: var(--surf); border: 1px solid var(--line); padding: 20px; display: flex; flex-direction: column; position: sticky; top: 76px; max-height: calc(100vh - 96px); overflow-y: auto; }
+.pos-skin aside > * { flex-shrink: 0; }
+.pos-skin .body { display: flex; flex-direction: column; }
+.pos-skin .ch { display: flex; align-items: center; justify-content: space-between; margin: 0 0 14px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.pos-skin .ch h2 { margin: 0; font-size: 19px; font-weight: 800; letter-spacing: -.01em; }
+.pos-skin .status { margin: 3px 0 0; color: var(--mut); font-size: 13.5px; }
+.pos-skin .clear { color: var(--acc); width: 38px; height: 38px; display: grid; place-items: center; flex-shrink: 0; }
+.pos-skin .clear svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.pos-skin .clear:hover:not(:disabled) { background: var(--acc-soft); }
+.pos-skin .clear:disabled { opacity: .35; cursor: default; }
+.pos-skin .lines { flex: 1 0 auto; min-height: 80px; border-bottom: 1px solid var(--line); }
+/* Not :empty — Alpine's x-for keeps its own <template> tag sitting inside
+   .lines as a permanent anchor, so it's never structurally empty even with
+   zero cart lines; cart.length is what actually decides this. */
+.pos-skin .lines.lines-empty { min-height: 0; border: 0; }
+
+.pos-skin .l { display: grid; grid-template-columns: 44px 1fr auto; gap: 2px 12px; padding: 13px 0; border-bottom: 1px solid var(--line); }
+.pos-skin .l:last-child { border-bottom: 0; }
+.pos-skin .l .th { grid-row: 1/3; width: 44px; height: 44px; background: var(--acc); color: rgba(255, 255, 255, .9); display: grid; place-items: center; overflow: hidden; }
+.pos-skin .l .th img { height: 100%; width: 100%; object-fit: cover; }
+.pos-skin .l .th svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.pos-skin .l .nm { font-weight: 600; font-size: 15px; }
+.pos-skin .l .un { color: var(--mut); font-size: 13px; }
+.pos-skin .l .lt { font-weight: 700; text-align: right; }
+.pos-skin .q { display: inline-flex; align-items: center; border: 1px solid var(--line); margin-top: 6px; grid-column: 2; justify-self: start; }
+.pos-skin .q button { width: 30px; height: 28px; font-size: 16px; color: var(--mut); }
+.pos-skin .q button:hover { color: var(--ink); background: var(--soft); }
+.pos-skin .q b { min-width: 30px; text-align: center; font-weight: 600; font-size: 13.5px; }
+.pos-skin .rm { grid-column: 3; align-self: end; justify-self: end; color: var(--mut); font-size: 12.5px; }
+.pos-skin .rm:hover { color: var(--ink); text-decoration: underline; }
+
+.pos-skin .notice { margin: 0 0 14px; padding: 10px 12px; background: var(--acc-soft); border: 1px solid var(--acc); font-size: 12.5px; color: var(--ink); }
+.pos-skin .notice b { color: var(--acc); }
+
+.pos-skin .f { margin-top: 14px; }
+.pos-skin .f label { display: block; font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
+.pos-skin .f select, .pos-skin .f input { width: 100%; height: 42px; border: 1px solid var(--line); background: var(--bg); padding: 0 12px; }
+.pos-skin .f select { cursor: pointer; }
+.pos-skin .f input:focus, .pos-skin .f select:focus { outline: none; border-color: var(--acc); box-shadow: 0 0 0 3px var(--acc-soft); }
+/* Tendered-too-low: the field itself is highlighted (not just the toast) and
+   is given focus, so correcting it is the very next keystroke. */
+.pos-skin .f input.err { border-color: var(--acc); box-shadow: 0 0 0 3px var(--acc-soft); }
+.pos-skin .seg { display: grid; grid-template-columns: repeat(var(--seg-cols, 4), 1fr); gap: 4px; background: var(--soft); padding: 4px; }
+.pos-skin .seg button { height: 36px; font-weight: 600; font-size: 13.5px; color: var(--ink); }
+.pos-skin .seg button[aria-pressed=true] { background: var(--acc); color: var(--acc-ink); }
+.pos-skin .quick { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.pos-skin .quick button { border: 1px solid var(--line); padding: 4px 10px; font-size: 13px; font-weight: 600; color: var(--ink); }
+.pos-skin .quick button:hover { border-color: var(--acc); color: var(--acc); }
+.pos-skin .sum { margin: 16px 0 14px; display: grid; gap: 6px; }
+.pos-skin .sum div { display: flex; justify-content: space-between; color: var(--mut); }
+.pos-skin .sum .chg b { color: var(--acc); }
+.pos-skin .sum .tot { color: var(--ink); align-items: baseline; border-top: 1px dashed var(--line); padding-top: 12px; margin-top: 4px; font-weight: 600; font-size: 15px; }
+.pos-skin .sum .tot b { font-size: 28px; letter-spacing: -.02em; font-weight: 700; }
+.pos-skin .sum .tot i { font-style: normal; font-size: 13px; color: var(--mut); margin-right: 5px; font-weight: 500; }
+.pos-skin .go { height: 76px; min-height: 76px; flex-shrink: 0; background: var(--acc); color: var(--acc-ink); font-weight: 700; font-size: 18px; width: 100%; margin-top: 12px; text-align: center; }
+.pos-skin .go:hover:not(:disabled) { filter: brightness(1.08); }
+.pos-skin .go:disabled { cursor: not-allowed; opacity: .6; }
+
+.pos-skin .cartbar { display: none; }
+
+/* -------------------------------------------------------- receipt printer */
+.pos-skin .rcpt { position: fixed; inset: 0; z-index: 50; background: rgba(10, 10, 12, .62); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px)); overflow: auto; }
+.pos-skin .rcpt[hidden] { display: none; }
+.pos-skin .pr { --pm: #3b3b41; width: min(340px, 100%); display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+html.dark .pos-skin .pr { --pm: #232327; }
+.pos-skin .mach { position: relative; isolation: isolate; width: 100%; background: var(--pm); border: 1px solid #111; padding: 20px 12px 32px; box-shadow: 0 20px 36px -20px rgba(0, 0, 0, .6), inset 0 1px 0 rgba(255, 255, 255, .14), inset 0 -1px 0 rgba(0, 0, 0, .55); }
+.pos-skin .ph { display: flex; align-items: center; justify-content: space-between; height: 44px; color: #c9c9d0; font-size: 12.5px; font-weight: 600; }
+.pos-skin .ph b { letter-spacing: .04em; color: #8e8e98; font-weight: 600; }
+.pos-skin .pst { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.pos-skin .stat-text { animation: pos-stat-in .18s cubic-bezier(.23, 1, .32, 1); }
+.pos-skin .ind { width: 18px; height: 18px; border: 2.5px solid #8e8e98; border-top-color: transparent; border-radius: 50%; animation: pos-spin .8s linear infinite; flex-shrink: 0; }
+.pos-skin [data-stage=complete] .ind { animation: none; border: 0; background: #fff; display: grid; place-items: center; }
+.pos-skin [data-stage=complete] .ind::after { content: "✓"; color: #18181b; font-size: 11px; font-weight: 800; }
+.pos-skin .scr { background: #0f0f11; color: #f4f4f5; padding: 14px 16px; border: 1px solid #000; box-shadow: inset 0 0 24px 4px rgba(0, 0, 0, .5); }
+.pos-skin .scr small { display: block; color: #9a9aa3; font-size: 12.5px; }
+.pos-skin .scr b { font-size: 28px; letter-spacing: -.02em; }
+.pos-skin .pslot { position: absolute; left: 24px; right: 24px; bottom: 12px; height: 8px; background: #0a0a0a; z-index: 40; }
+.pos-skin .rwrap { display: flex; flex-direction: column; align-items: center; gap: 14px; width: 100%; }
+.pos-skin .out { position: relative; z-index: 50; margin-top: -16px; width: calc(80% + 3rem); max-width: 100%; overflow: hidden; padding: 0 24px; }
+.pos-skin .out::before { content: ""; position: absolute; left: 24px; right: 24px; top: -4px; height: 8px; background: rgba(0, 0, 0, .75); filter: blur(6px); z-index: 20; pointer-events: none; opacity: 0; }
+.pos-skin [data-stage=printing] .out::before, .pos-skin [data-stage=complete] .out::before { opacity: 1; }
+.pos-skin .feed { opacity: 0; transform: translateY(calc(-100% + 2px)); filter: drop-shadow(0 8px 14px rgba(0, 0, 0, .25)); }
+.pos-skin [data-stage=printing] .feed { opacity: 1; animation: pos-feed 1.75s linear forwards; }
+.pos-skin [data-stage=complete] .feed { opacity: 1; transform: none; }
+.pos-skin .paper { background: #fbfbf8; color: #1a1a1c; padding: 28px 22px 34px; font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.pos-skin .rt { text-align: center; font-weight: 700; font-size: 15px; margin-bottom: 6px; }
+.pos-skin .rmeta { color: #5a5a60; font-size: 11.5px; line-height: 1.6; }
+.pos-skin .rmeta.c { text-align: center; margin-top: 6px; }
+.pos-skin .paper hr { border: 0; border-top: 1px dashed #8a8a90; margin: 12px 0; }
+.pos-skin .rw { display: flex; justify-content: space-between; gap: 10px; }
+.pos-skin .rw.b { font-weight: 700; font-size: 14px; }
+.pos-skin .rs { color: #5a5a60; font-size: 11.5px; margin-bottom: 6px; }
+.pos-skin .pbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: min(340px, 100%); flex-shrink: 0; }
+.pos-skin .pb { height: 56px; font-weight: 700; font-size: 15px; background: var(--acc); color: #fff; }
+.pos-skin .pb.alt { background: var(--surf); color: var(--ink); border: 1px solid var(--line); }
+.pos-skin .pb:disabled { opacity: .5; cursor: not-allowed; }
+
+@keyframes pos-spin { to { transform: rotate(360deg); } }
+@keyframes pos-stat-in { from { opacity: 0; transform: translateY(4px); } }
+@keyframes pos-feed {
+    0% { transform: translateY(calc(-100% + 2px)); }
+    7.5%, 10.5% { transform: translateY(-91%); }
+    18%, 21% { transform: translateY(-81%); }
+    28.5%, 31.5% { transform: translateY(-70%); }
+    39%, 42% { transform: translateY(-58%); }
+    49.5%, 52.5% { transform: translateY(-45%); }
+    60%, 63% { transform: translateY(-32%); }
+    70.5%, 73.5% { transform: translateY(-20%); }
+    81%, 84% { transform: translateY(-10%); }
+    91.5%, 94.5% { transform: translateY(-3%); }
+    100% { transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .pos-skin .feed, .pos-skin .ind, .pos-skin .stat-text { animation: none !important; }
+    .pos-skin * { transition: none !important; }
+}
+
+/*
+ * Print: isolate the receipt by removing everything else from the layout
+ * (display:none), not just hiding it (visibility:hidden) as an earlier
+ * version of this rule did. Visibility alone kept every hidden element's
+ * box in the flow, so the whole app's full page height (grid, sidebar,
+ * header) was still there, invisible — the print job paginated against
+ * that full height, so depending on the browser's handling of the
+ * position:fixed overlay across printed pages, the receipt could land on
+ * a page buried under blank ones, or not render at all. Removing the rest
+ * of the page outright leaves nothing to paginate against: the printed
+ * page is exactly the receipt's own height. Likewise .rcpt itself drops
+ * position:fixed in print — it was only ever there to overlay the live
+ * page, which no longer exists once everything else is display:none — so
+ * it just flows normally as the page's only content. The paper width
+ * follows the real configured size (--paper-width, set inline from the
+ * hardware setting) instead of a fixed 80mm, and @page margin:0 stops the
+ * browser's default page margins from pushing a narrow roll's content
+ * off-center or shrinking how much of it fits. .rwrap's on-screen zoom
+ * (fitReceipt(), set to keep a long receipt fitting the dialog without a
+ * scrollbar) is cancelled too — the printed paper is real-size, not
+ * shrunk to fit a screen.
+ */
+@media print {
+    @page { margin: 0; }
+
+    body *:not(.pos-skin .rcpt):not(.pos-skin .rcpt *) { display: none !important; }
+    .pos-skin .rcpt { position: static; background: #fff !important; padding: 0; }
+    .pos-skin .rwrap { zoom: 1 !important; }
+    .pos-skin .mach, .pos-skin .pbtns { display: none !important; }
+    .pos-skin .pr { width: var(--paper-width, 80mm); max-width: 100%; margin: 0 auto; }
+    .pos-skin .out { width: 100%; height: auto; margin: 0; padding: 0; overflow: visible !important; }
+    .pos-skin .out::before { display: none; }
+    .pos-skin .feed { opacity: 1 !important; transform: none !important; animation: none !important; filter: none; }
+    .pos-skin .paper { clip-path: none !important; }
+}
+
+/* -------------------------------------------------------------- mobile */
+/*
+ * @container, not @media — the two-column app/400px-cart layout needs
+ * real room; whether it fits depends on this page's own actual width,
+ * which the expanded sidebar can shrink well past this point even on a
+ * desktop-width viewport. A @media query only sees the viewport, so it
+ * kept the cart pinned as a squeezed side column instead of dropping to
+ * the stacked layout/slide-up drawer it falls back to everywhere else
+ * this page is genuinely narrow.
+ */
+@container (max-width: 960px) {
+    .pos-skin .app { grid-template-columns: 1fr; padding: 0 0 86px; }
+    .pos-skin aside { position: fixed; inset: 0; z-index: 10; height: 100%; max-height: none; border: 0; transform: translateY(100%); transition: transform .25s; padding-top: calc(20px + env(safe-area-inset-top, 0px)); padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)); }
+    .pos-skin aside.open { transform: none; }
+    .pos-skin .cartbar { display: flex; position: fixed; left: 14px; right: 14px; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); z-index: 9; height: 54px; background: var(--acc); color: var(--acc-ink); align-items: center; justify-content: space-between; padding: 0 20px; font-weight: 600; }
+}

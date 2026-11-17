@@ -69,45 +69,44 @@ class PosOutOfStockTest extends TestCase
         $this->assertSame(0.0, $products->firstWhere('id', $product->id)['stock_quantity']);
     }
 
-    public function test_the_page_tells_the_browser_whether_negative_stock_sales_are_allowed(): void
+    public function test_the_out_of_stock_guard_cannot_be_bent_by_the_negative_stock_sale_setting(): void
     {
-        SalesSetting::current()->update(['allow_negative_stock_sale' => false]);
-
-        Livewire::actingAs($this->cashier)->test(Terminal::class)
-            ->assertSeeHtml('allowNegativeStockSale: false');
-
+        // The sale service rejects any line that outruns real stock on
+        // hand unconditionally now (no allow_negative_stock_sale escape
+        // hatch left in it) — the till would only be setting a cart up to
+        // fail at checkout if it still let that setting through a tile
+        // that's actually out of stock, so the guard itself must no
+        // longer read or forward the setting at all.
         SalesSetting::current()->update(['allow_negative_stock_sale' => true]);
 
         Livewire::actingAs($this->cashier)->test(Terminal::class)
-            ->assertSeeHtml('allowNegativeStockSale: true');
+            ->assertDontSeeHtml('allowNegativeStockSale')
+            ->assertSeeHtml('isOutOfStock(product) {')
+            ->assertSee('return product.stock_quantity < 1;', false);
     }
 
     public function test_the_out_of_stock_guard_is_shipped_to_the_browser(): void
     {
         Livewire::actingAs($this->cashier)->test(Terminal::class)
-            // The click handler stays wired up (so a click is never silently
-            // inert) — the guard inside addToCart() is what stops the add.
+            // A truly out-of-stock tile is a genuinely disabled button —
+            // nothing to click, nothing to say.
             ->assertSeeHtml('@click="addToCart(product)"')
-            ->assertSeeHtml('isOutOfStock(product)')
-            ->assertSee('Out of stock.', false)
-            ->assertSee("all of it's in the cart.", false);
+            ->assertSeeHtml(':disabled="isOutOfStock(product)"')
+            ->assertSeeHtml('addToCart(product) {')
+            ->assertSee('if (this.isOutOfStock(product)) return;', false);
     }
 
-    public function test_the_notice_floats_over_the_clicked_tile_not_the_checkout_error_bar(): void
+    public function test_the_partial_stock_message_is_a_bottom_toast_not_a_per_tile_bubble(): void
     {
         Livewire::actingAs($this->cashier)->test(Terminal::class)
-            // A bubble anchored to this one tile (bottom-full = sits above it),
-            // bound to oosProductId/oosMessage — separate from the shared
-            // errorMessage bar used for checkout-time problems.
-            ->assertSeeHtml('x-show="oosProductId === product.id"')
-            ->assertSeeHtml('bottom-full')
-            ->assertSeeHtml('x-text="oosMessage"')
-            ->assertSeeHtml('showOosNotice(product,');
+            // One shared toast (bottom-centre), not a bubble anchored to the
+            // tile — fired only when some stock exists but it's all already
+            // in the cart; true zero stock never reaches this at all.
+            ->assertSeeHtml('class="toast"')
+            ->assertSeeHtml('x-text="toastMessage"')
+            ->assertSee("in stock.", false)
+            ->assertDontSeeHtml('oosProductId')
+            ->assertDontSeeHtml('bottom-full');
     }
 
-    public function test_a_live_settings_broadcast_refreshes_the_negative_stock_flag_too(): void
-    {
-        Livewire::actingAs($this->cashier)->test(Terminal::class)
-            ->assertSeeHtml('this.allowNegativeStockSale = detail.allowNegativeStockSale;');
-    }
 }

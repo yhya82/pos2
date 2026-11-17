@@ -39,7 +39,7 @@ function currentLanIp() {
 export default defineConfig(async () => ({
     plugins: [
         laravel({
-            input: ['resources/css/app.css', 'resources/js/app.js'],
+            input: ['resources/css/app.css', 'resources/css/pos-terminal.css', 'resources/js/app.js'],
             refresh: true,
         }),
     ],

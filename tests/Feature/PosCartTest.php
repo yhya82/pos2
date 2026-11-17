@@ -98,12 +98,15 @@ class PosCartTest extends TestCase
 
     // ---------------------------------------------------------- whole numbers
 
-    public function test_the_quantity_box_only_takes_whole_numbers(): void
+    public function test_cart_quantity_is_a_stepper_not_a_free_typed_number(): void
     {
         Livewire::actingAs($this->cashier)->test(Terminal::class)
-            ->assertSeeHtml('min="1" step="1" inputmode="numeric"')
+            // A −/N/+ stepper that only ever moves by one whole unit — no
+            // free-text quantity box a cashier could type a fraction into.
+            ->assertSeeHtml('stepQuantity(index, -1)')
+            ->assertSeeHtml('stepQuantity(index, 1)')
             ->assertDontSeeHtml('step="0.001"')
-            ->assertSeeHtml('setQuantity(index');
+            ->assertDontSeeHtml('setQuantity(index');
     }
 
     public function test_whole_quantities_sell_including_ones_sent_as_text(): void

@@ -7,9 +7,31 @@
         'credit_limit' => (float) $c->credit_limit,
         'outstanding_balance' => (float) $c->outstanding_balance,
     ])->values();
+
+    // What the print rule in pos-terminal.css actually sizes the paper to —
+    // the real configured hardware setting, not the mockup's fixed 80mm.
+    $paperWidths = ['58mm' => '58mm', '80mm' => '80mm', 'A4' => '210mm'];
 @endphp
 
 <div
+    class="pos-skin"
+    style="--paper-width: {{ $paperWidths[$paperSize] ?? '80mm' }}"
+    {{--
+        Everything below this point is driven entirely by Alpine's own
+        reactive state — x-data only ever evaluates this JSON once, at
+        mount; every update after that flows through refreshLiveData()
+        via the pos-live-update browser event, never through fresh
+        server HTML. wire:ignore tells Livewire to never re-morph this
+        subtree on a later render (e.g. the StockChanged listener below
+        firing from the till's own checkout deducting stock). Without
+        it, that re-render restores plain static markers like x-cloak
+        from the freshly rendered HTML — Alpine only strips x-cloak
+        once, on first paint, it doesn't treat it as an ongoing binding
+        to protect across morphs — which snaps `[x-cloak]{display:none}`
+        back onto the receipt dialog mid-animation and silently closes
+        it a couple of seconds after checkout.
+    --}}
+    wire:ignore
     x-data="posTerminal({
         products: @js($products),
         customers: @js($customersJson),
@@ -21,243 +43,246 @@
         currencyCode: @js($currencyCode),
         autoPrintReceipt: {{ $autoPrintReceipt ? 'true' : 'false' }},
         barcodeScannerEnabled: {{ $barcodeScannerEnabled ? 'true' : 'false' }},
-        allowNegativeStockSale: {{ $allowNegativeStockSale ? 'true' : 'false' }},
     })"
     x-on:pos-live-update.window="refreshLiveData($event.detail)"
-    class="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start"
+    x-on:keydown.window="if ($event.key === '/' && !['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName)) { $event.preventDefault(); $refs.search.focus() } if ($event.key === 'Escape') cartOpen = false"
+    x-on:resize.window="if (receiptOpen) fitReceipt()"
 >
-    {{-- ============================== LEFT: PRODUCT SEARCH ============================== --}}
-    <div class="lg:col-span-2 space-y-4">
-        <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 p-4 space-y-3">
-            <div class="flex flex-col sm:flex-row gap-3">
-                <input
-                    type="text"
-                    x-model="search"
-                    placeholder="Search products by name..."
-                    class="flex-1 min-w-0 rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
-                >
-                <input
-                    type="text"
-                    x-show="barcodeScannerEnabled"
-                    x-model="barcodeInput"
-                    x-ref="barcodeInput"
-                    @keydown.enter.prevent="scanBarcode()"
-                    placeholder="Scan barcode + Enter"
-                    class="w-full sm:w-56 rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm font-mono"
-                >
-            </div>
-
-            <div class="flex flex-wrap gap-2">
-                <button
-                    type="button"
-                    @click="selectedCategory = null"
-                    :class="selectedCategory === null ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'"
-                    class="px-3 py-1 rounded-full text-xs font-medium"
-                >All</button>
-                <template x-for="category in categories" :key="category.id">
-                    <button
-                        type="button"
-                        @click="selectedCategory = category.id"
-                        :class="selectedCategory === category.id ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'"
-                        class="px-3 py-1 rounded-full text-xs font-medium"
-                        x-text="category.name"
-                    ></button>
-                </template>
-            </div>
-        </div>
-
-        <div class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
-            <template x-for="product in filteredProducts()" :key="product.id">
-                <div class="relative">
-                    {{-- Floats directly over this tile — not the shared error bar
-                         down by checkout, which is easy to miss while tapping
-                         through the grid — and clears itself a couple seconds
-                         after showOosNotice() sets it. --}}
-                    <div
-                        x-show="oosProductId === product.id"
-                        x-transition.opacity
-                        x-cloak
-                        class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-20 w-max max-w-[9rem] text-center text-[10px] font-medium leading-tight text-white bg-red-600 rounded-md shadow-lg px-2 py-1"
-                        x-text="oosMessage"
-                    ></div>
-                    <button
-                        type="button"
-                        @click="addToCart(product)"
-                        :class="isOutOfStock(product) ? 'opacity-50' : 'hover:ring-2 hover:ring-indigo-500'"
-                        class="flex flex-col h-24 w-full text-left bg-white dark:bg-gray-800 shadow-sm rounded-lg ring-1 ring-gray-900/5 dark:ring-white/10 overflow-hidden transition"
-                    >
-                        <div class="flex-1 w-full min-h-0 bg-gray-100 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
-                            <img x-show="product.image_url" :src="product.image_url" class="block h-full w-full object-cover" x-cloak>
-                            <svg x-show="!product.image_url" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3.5 w-3.5 text-gray-400 dark:text-gray-500 shrink-0">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" />
-                            </svg>
-                        </div>
-                        <div class="flex-1 min-h-0 p-1 flex flex-col justify-center overflow-hidden">
-                            <div class="text-xs font-medium text-gray-900 dark:text-gray-100 truncate" x-text="product.name"></div>
-                            <template x-if="product.has_promo">
-                                <div class="text-[10px] leading-tight mt-0.5 flex items-center gap-1 flex-wrap">
-                                    <span class="text-gray-400 dark:text-gray-500 line-through" x-text="formatMoney(product.selling_price)"></span>
-                                    <span class="text-emerald-600 dark:text-emerald-400 font-medium" x-text="formatMoney(product.effective_price) + ' / ' + product.selling_unit"></span>
-                                </div>
-                            </template>
-                            <template x-if="!product.has_promo">
-                                <div class="text-[10px] leading-tight text-gray-500 dark:text-gray-400 mt-0.5" x-text="formatMoney(product.selling_price) + ' / ' + product.selling_unit"></div>
-                            </template>
-                            <div class="text-[10px] leading-tight mt-0.5" :class="product.stock_quantity <= 0 ? 'text-red-500 dark:text-red-400' : 'text-gray-400 dark:text-gray-500'" x-text="'Stock: ' + trimQty(product.stock_quantity)"></div>
-                        </div>
+    <div class="app">
+        {{-- ============================== LEFT: PRODUCT SEARCH ============================== --}}
+        <main>
+            <section class="filters">
+                <div class="sr">
+                    <div class="search">
+                        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                        <input
+                            x-ref="search"
+                            type="search"
+                            x-model="search"
+                            @keydown.enter.prevent="searchEnter()"
+                            placeholder="Search by name or barcode"
+                            autocomplete="off"
+                            aria-label="Search products by name or barcode"
+                        >
+                        <kbd>/</kbd>
+                    </div>
+                    <button type="button" class="scan" x-show="barcodeScannerEnabled" x-cloak @click="focusScan()" aria-label="Scan or enter a barcode">
+                        <svg viewBox="0 0 24 24"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M7 12h10"/></svg>
                     </button>
                 </div>
-            </template>
-            <template x-if="filteredProducts().length === 0">
-                <p class="col-span-full text-sm text-gray-500 dark:text-gray-400 py-6 text-center">No products match.</p>
-            </template>
-        </div>
-    </div>
-
-    {{-- ============================== RIGHT: CART + PAYMENT ============================== --}}
-    <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 p-4 space-y-4 lg:sticky lg:top-4">
-        <div class="flex items-center justify-between">
-            <h3 class="font-semibold text-gray-800 dark:text-gray-100">Cart</h3>
-            <button
-                type="button"
-                @click="clearCart()"
-                :disabled="cart.length === 0"
-                class="text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-                Clear Cart
-            </button>
-        </div>
-
-        <div x-show="priceNotices.length > 0" x-cloak class="rounded-md border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/30 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
-            <div class="flex items-start justify-between gap-2">
-                <div class="font-semibold">Prices updated,your cart total has changed</div>
-                <button type="button" @click="priceNotices = []" class="text-amber-700 hover:text-amber-900 dark:text-amber-300" aria-label="Dismiss">✕</button>
-            </div>
-            <ul class="mt-1 space-y-0.5">
-                <template x-for="notice in priceNotices" :key="notice.product_id">
-                    <li>
-                        <span x-text="notice.name"></span>:
-                        <span class="line-through opacity-70" x-text="formatMoney(notice.from)"></span>
-                        &rarr;
-                        <span class="font-semibold" x-text="formatMoney(notice.to)"></span>
-                    </li>
-                </template>
-            </ul>
-        </div>
-
-        <div class="space-y-2 max-h-80 overflow-y-auto">
-            <template x-for="(line, index) in cart" :key="line.product_id">
-                <div class="flex items-center gap-2 text-sm border-b border-gray-100 dark:border-gray-700 pb-2">
-                    <div class="flex-1 min-w-0">
-                        <div class="truncate text-gray-800 dark:text-gray-100" x-text="line.name"></div>
-                        <div class="text-xs text-gray-500 dark:text-gray-400" x-text="formatMoney(line.unit_price) + ' each'"></div>
-                    </div>
-                    <input type="number" min="1" step="1" inputmode="numeric" :value="line.quantity"
-                        @keydown="if (['.', ',', 'e', 'E', '+', '-'].includes($event.key)) $event.preventDefault()"
-                        @change="setQuantity(index, $event.target.value); $event.target.value = cart[index] ? cart[index].quantity : ''"
-                        class="w-16 text-sm rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100">
-                    <div class="w-20 text-right tabular-nums text-gray-700 dark:text-gray-300" x-text="formatMoney(line.quantity * line.unit_price)"></div>
-                    <button type="button" @click="removeFromCart(index)" class="text-red-500 hover:text-red-700">✕</button>
-                </div>
-            </template>
-            <template x-if="cart.length === 0">
-                <p class="text-sm text-gray-500 dark:text-gray-400 py-4 text-center">Cart is empty.</p>
-            </template>
-        </div>
-
-        <div class="space-y-2 border-t border-gray-200 dark:border-gray-700 pt-3">
-            <div>
-                <label class="text-xs text-gray-500 dark:text-gray-400">Customer (required for credit)</label>
-                <select x-model.number="customerId" @change="onCustomerChange()" class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100">
-                    <option :value="null">Walk-in customer</option>
-                    <template x-for="customer in customers" :key="customer.id">
-                        <option :value="customer.id" x-text="customer.name + (customer.credit_enabled ? ' (credit)' : '')"></option>
+                <div class="cats">
+                    <button type="button" class="cat" @click="selectedCategory = null" :aria-pressed="selectedCategory === null">
+                        All<small x-text="products.length"></small>
+                    </button>
+                    <template x-for="category in categories" :key="category.id">
+                        <button type="button" class="cat" @click="selectedCategory = category.id" :aria-pressed="selectedCategory === category.id">
+                            <span x-text="category.name"></span><small x-text="products.filter(p => p.category_id === category.id).length"></small>
+                        </button>
                     </template>
-                </select>
-            </div>
-
-            <div>
-                <label class="text-xs text-gray-500 dark:text-gray-400">Payment Method</label>
-                {{-- :selected is set explicitly (not left to x-model alone) because
-                     x-model's initial sync runs on this <select> before its child
-                     x-for has created any <option> elements yet — Alpine walks
-                     parent-before-children, so that first sync finds zero options
-                     and silently selects nothing, leaving the browser's native
-                     "first option in the list" as the visible (wrong) default even
-                     though paymentMethodId itself is already correct underneath. --}}
-                <select x-model.number="paymentMethodId" class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100">
-                    <template x-for="method in paymentMethods" :key="method.id">
-                        <option :value="method.id" :selected="method.id === paymentMethodId" x-text="method.name"></option>
-                    </template>
-                </select>
-            </div>
-
-            <div x-show="isCredit() && selectedCustomer()">
-                <p class="text-xs" :class="creditWouldExceedLimit() ? 'text-red-600' : 'text-gray-500 dark:text-gray-400'">
-                    Available credit: <span x-text="selectedCustomer() ? formatMoney(selectedCustomer().credit_limit - selectedCustomer().outstanding_balance) : ''"></span>
-                </p>
-            </div>
-
-            <div x-show="!isCredit()">
-                <label class="text-xs text-gray-500 dark:text-gray-400" x-text="paymentMethodCode() === 'cash' ? 'Amount Tendered' : 'Reference Number'"></label>
-                <template x-if="paymentMethodCode() === 'cash'">
-                    <input type="number" min="0" step="0.01" x-model.number="tenderedAmount" class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100">
-                </template>
-                <template x-if="paymentMethodCode() !== 'cash'">
-                    <input type="text" x-model="referenceNumber" class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100">
-                </template>
-                <div class="flex justify-between text-sm text-red-600 dark:text-red-400 mt-1" x-show="paymentMethodCode() === 'cash' && tenderedAmount !== '' && changeDue() > 0">
-                    <span>Change Due</span><span class="font-bold" x-text="formatMoney(changeDue())"></span>
                 </div>
-                <div class="flex justify-between text-sm text-red-600 dark:text-red-400 mt-1" x-show="paymentMethodCode() === 'cash' && tenderedAmount !== '' && changeDue() < 0">
-                    <span>Amount Short</span><span class="font-bold" x-text="formatMoney(Math.abs(changeDue()))"></span>
+            </section>
+
+            <section class="grid">
+                <template x-for="product in filteredProducts()" :key="product.id">
+                    <button
+                        type="button"
+                        class="p"
+                        :class="cartQty(product.id) > 0 ? 'in' : ''"
+                        :disabled="isOutOfStock(product)"
+                        @click="addToCart(product)"
+                    >
+                        <span class="cube">
+                            <template x-if="cartQty(product.id) > 0"><span class="badge" x-text="cartQty(product.id)"></span></template>
+                            <img x-show="product.image_url" :src="product.image_url" :alt="product.name" x-cloak>
+                            <svg x-show="!product.image_url" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="m21 16-5-5-8 8"/></svg>
+                        </span>
+                        <span class="n" x-text="product.name"></span>
+                        <span class="sku" x-text="(product.barcode ? product.barcode + ' · ' : '') + 'per ' + product.selling_unit"></span>
+                        <span class="row">
+                            <span class="pc">
+                                <template x-if="product.has_promo"><del x-text="formatMoney(product.selling_price)"></del></template>
+                                <span x-text="formatMoney(product.effective_price)"></span>
+                            </span>
+                            <span class="s" :class="isOutOfStock(product) ? 'oos' : (isLow(product) ? 'low' : '')" x-text="stockLabel(product)"></span>
+                        </span>
+                    </button>
+                </template>
+                <template x-if="filteredProducts().length === 0">
+                    <div class="none" x-text="'No products match “' + search + '”. Try another name or category.'"></div>
+                </template>
+            </section>
+        </main>
+
+        {{-- ============================== RIGHT: CART + PAYMENT ============================== --}}
+        <aside id="cart" aria-label="Cart" :class="cartOpen ? 'open' : ''">
+            <div class="ch">
+                <div>
+                    <h2 @click="if (window.innerWidth <= 960) cartOpen = false">Current Sale</h2>
+                    <p class="status" x-text="cart.length ? cartCount() + (cartCount() == 1 ? ' item in this sale' : ' items in this sale') : 'Cart is empty'"></p>
                 </div>
-            </div>
-        </div>
-
-        <div class="border-t border-gray-200 dark:border-gray-700 pt-3 space-y-1 text-sm">
-            <div class="flex justify-between text-gray-600 dark:text-gray-400">
-                <span>Subtotal</span><span x-text="formatMoney(subtotal())"></span>
-            </div>
-            <div class="flex justify-between text-gray-600 dark:text-gray-400" x-show="taxEnabled">
-                <span>Tax</span><span x-text="formatMoney(taxAmount())"></span>
-            </div>
-            <div class="flex justify-between font-semibold text-gray-900 dark:text-gray-100 text-base">
-                <span>Total</span><span x-text="formatMoney(total())"></span>
-            </div>
-        </div>
-
-        <p x-show="errorMessage" x-text="errorMessage" class="text-sm text-red-600"></p>
-
-        <button
-            type="button"
-            @click="completeSale()"
-            :disabled="processing || cart.length === 0"
-            class="w-full inline-flex justify-center items-center px-4 py-2 bg-green-500 dark:bg-green-500 border border-transparent rounded-md font-semibold text-xs text-white dark:text-gray-300 uppercase tracking-widest hover:bg-gray-700 dark:hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-            <span x-show="!processing">Complete Sale</span>
-            <span x-show="processing">Processing...</span>
-        </button>
-    </div>
-
-    <div
-        x-show="lastReceiptNumber"
-        x-cloak
-        class="fixed inset-0 z-50 flex items-center justify-center bg-gray-500/75 dark:bg-gray-900/75 p-4"
-    >
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 max-w-sm w-full text-center space-y-4">
-            <div class="text-emerald-600 text-4xl">✓</div>
-            <p class="text-gray-800 dark:text-gray-100 font-medium">Sale complete  <span x-text="lastReceiptNumber"></span></p>
-            <div class="flex gap-3 justify-center">
-                <a :href="'/sales/' + lastSaleId + '/receipt'" target="_blank" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-500">
-                    View Receipt
-                </a>
-                <button type="button" @click="lastReceiptNumber = null; lastSaleId = null" class="inline-flex items-center px-4 py-2 bg-gray-100 dark:bg-gray-700 border border-transparent rounded-md font-semibold text-xs text-gray-700 dark:text-gray-200 uppercase tracking-widest hover:bg-gray-200 dark:hover:bg-gray-600">
-                    New Sale
+                <button type="button" class="clear" :disabled="cart.length === 0" @click="clearCart()" aria-label="Clear cart" title="Clear cart">
+                    <svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>
                 </button>
             </div>
+
+            <div class="body">
+                <template x-if="priceNotices.length > 0">
+                    <div class="notice">
+                        <div class="flex items-start justify-between gap-2">
+                            <b>Prices updated — your cart total has changed</b>
+                            <button type="button" @click="priceNotices = []" aria-label="Dismiss">✕</button>
+                        </div>
+                        <template x-for="notice in priceNotices" :key="notice.product_id">
+                            <div class="mt-1">
+                                <span x-text="notice.name"></span>:
+                                <del x-text="formatMoney(notice.from)"></del>
+                                →
+                                <b x-text="formatMoney(notice.to)"></b>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+
+                {{-- Nothing in the cart yet: the customer picker sits up here,
+                     where there's otherwise nothing to show — e.g. a regular
+                     customer can be picked before anything's scanned. Once
+                     items exist it moves back down near payment, out of the
+                     way of the lines themselves. One field either way (never
+                     both at once), bound to the same customerId. --}}
+                <template x-if="cart.length === 0">
+                    <div class="f">
+                        <label for="pos_customer">Customer (required for credit)</label>
+                        <select id="pos_customer" x-model.number="customerId" @change="onCustomerChange()">
+                            <option :value="null">Walk-in customer</option>
+                            <template x-for="customer in customers" :key="customer.id">
+                                <option :value="customer.id" x-text="customer.name + (customer.credit_enabled ? ' (credit)' : '')"></option>
+                            </template>
+                        </select>
+                    </div>
+                </template>
+
+                <div class="lines" :class="cart.length === 0 ? 'lines-empty' : ''">
+                    <template x-for="(line, index) in cart" :key="line.product_id">
+                        <div class="l">
+                            <span class="th">
+                                <img x-show="line.image_url" :src="line.image_url" :alt="line.name" x-cloak>
+                                <svg x-show="!line.image_url" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="m21 16-5-5-8 8"/></svg>
+                            </span>
+                            <div>
+                                <div class="nm" x-text="line.name"></div>
+                                <div class="un" x-text="formatMoney(line.unit_price) + ' / ' + line.selling_unit"></div>
+                            </div>
+                            <div class="lt" x-text="formatMoney(line.quantity * line.unit_price)"></div>
+                            <div class="q">
+                                <button type="button" @click="stepQuantity(index, -1)" :aria-label="'Remove one ' + line.name">−</button>
+                                <b x-text="line.quantity"></b>
+                                <button type="button" @click="stepQuantity(index, 1)" :aria-label="'Add one ' + line.name">+</button>
+                            </div>
+                            <button type="button" class="rm" @click="removeFromCart(index)">Remove</button>
+                        </div>
+                    </template>
+                </div>
+
+                <template x-if="cart.length > 0">
+                    <div class="f">
+                        <label for="pos_customer_bottom">Customer (required for credit)</label>
+                        <select id="pos_customer_bottom" x-model.number="customerId" @change="onCustomerChange()">
+                            <option :value="null">Walk-in customer</option>
+                            <template x-for="customer in customers" :key="customer.id">
+                                <option :value="customer.id" x-text="customer.name + (customer.credit_enabled ? ' (credit)' : '')"></option>
+                            </template>
+                        </select>
+                    </div>
+                </template>
+
+                <div class="f" x-show="isCredit() && selectedCustomer()" x-cloak>
+                    <p class="text-xs" :style="creditWouldExceedLimit() ? 'color:var(--acc)' : ''">
+                        Available credit: <span x-text="selectedCustomer() ? formatMoney(selectedCustomer().credit_limit - selectedCustomer().outstanding_balance) : ''"></span>
+                    </p>
+                </div>
+
+                <div class="f">
+                    <label>Payment method</label>
+                    <div class="seg" :style="'--seg-cols:' + paymentMethods.length">
+                        <template x-for="method in paymentMethods" :key="method.id">
+                            <button type="button" :aria-pressed="method.id === paymentMethodId" @click="paymentMethodId = method.id" x-text="method.name"></button>
+                        </template>
+                    </div>
+                </div>
+
+                <div class="f" x-show="!isCredit() && paymentMethodCode() === 'cash'" x-cloak>
+                    <label for="pos_tender">Amount tendered</label>
+                    <input id="pos_tender" x-ref="tendered" x-model.number="tenderedAmount" @input="tenderedError = false" :class="tenderedError ? 'err' : ''" inputmode="decimal" placeholder="0.00">
+                    <div class="quick">
+                        <template x-for="(amount, i) in quickCashAmounts()" :key="i">
+                            <button type="button" @click="tenderedAmount = amount" x-text="i === 0 && total() > 0 ? 'Exact' : num(amount)"></button>
+                        </template>
+                    </div>
+                </div>
+
+                <div class="f" x-show="!isCredit() && paymentMethodCode() !== 'cash'" x-cloak>
+                    <label for="pos_ref">Reference number</label>
+                    <input id="pos_ref" type="text" x-model="referenceNumber">
+                </div>
+            </div>
+
+            <div class="sum">
+                <div><span>Subtotal</span><span x-text="formatMoney(subtotal())"></span></div>
+                <template x-if="taxEnabled">
+                    <div><span>Tax</span><span x-text="formatMoney(taxAmount())"></span></div>
+                </template>
+                <template x-if="paymentMethodCode() === 'cash' && Number(tenderedAmount) > 0">
+                    <div class="chg" x-show="changeDue() >= 0"><span>Change due</span><b x-text="formatMoney(changeDue())"></b></div>
+                </template>
+                <template x-if="paymentMethodCode() === 'cash' && Number(tenderedAmount) > 0">
+                    <div x-show="changeDue() < 0"><span>Amount short</span><span x-text="formatMoney(Math.abs(changeDue()))"></span></div>
+                </template>
+                <div class="tot"><span>Total</span><b><i x-text="currencyCode"></i><span x-text="money(total())"></span></b></div>
+            </div>
+
+            <button type="button" class="go" :disabled="processing || cart.length === 0" @click="completeSale()">
+                <span x-text="goLabel()"></span>
+            </button>
+        </aside>
+    </div>
+
+    <button type="button" class="cartbar" @click="cartOpen = true">
+        <span x-text="cart.length ? cartCount() + (cartCount() == 1 ? ' item' : ' items') + ' · ' + formatMoney(total()) : 'Cart is empty'"></span>
+        <span>View cart</span>
+    </button>
+
+    {{-- ----------------------------------------------------- receipt / printer ---------------------------------------------------- --}}
+    <div class="rcpt" role="dialog" aria-modal="true" aria-label="Receipt" :hidden="!receiptOpen" x-cloak>
+        <div class="rwrap" x-ref="rwrap">
+            <div class="pr" :data-stage="receiptStage">
+                <div class="mach">
+                    <div class="ph">
+                        <div class="pst">
+                            <span class="ind" aria-hidden="true"></span>
+                            <div class="stat-text" role="status" aria-live="polite" x-text="receiptStageLabel()" :key="receiptStage"></div>
+                        </div>
+                        <b>POS-80</b>
+                    </div>
+                    <div class="scr">
+                        <small x-text="receiptItemsLabel()"></small>
+                        <b x-text="receiptMoney(receiptData ? receiptData.totals.total_amount : 0)"></b>
+                    </div>
+                    <div class="pslot" aria-hidden="true"></div>
+                </div>
+                <div class="out">
+                    <div class="feed">
+                        <article class="paper" x-ref="paper" :style="'clip-path: ' + paperClip" x-html="receiptMarkup()"></article>
+                    </div>
+                </div>
+            </div>
+            <div class="pbtns">
+                <button type="button" class="pb alt" :disabled="receiptStage !== 'complete'" @click="printReceipt()">Print receipt</button>
+                <button type="button" class="pb" @click="newSale()" x-ref="newSaleBtn">New sale</button>
+            </div>
         </div>
     </div>
+
+    <div class="toast" :class="toastMessage ? 'on' : ''" role="status" x-text="toastMessage"></div>
 
     {{--
         Auto-print target: an iframe, not a new tab/window. Off-screen
@@ -282,12 +307,11 @@
             currencyCode: config.currencyCode,
             autoPrintReceipt: config.autoPrintReceipt,
             barcodeScannerEnabled: config.barcodeScannerEnabled,
-            allowNegativeStockSale: config.allowNegativeStockSale,
 
             search: '',
-            barcodeInput: '',
             selectedCategory: null,
             cart: [],
+            cartOpen: false,
             customerId: null,
             // Cash always wins as the starting selection, regardless of
             // the configured default_payment_method_id setting — every
@@ -299,73 +323,86 @@
                 ?? (config.paymentMethods[0]?.id ?? null),
             referenceNumber: '',
             tenderedAmount: '',
+            tenderedError: false,
             processing: false,
-            errorMessage: '',
-            // The out-of-stock notice floats over the clicked tile itself,
-            // not the shared errorMessage bar (that's over by checkout, easy
-            // to miss) — productId it belongs to, its text, and the timer
-            // that clears it so it doesn't linger.
-            oosProductId: null,
-            oosMessage: '',
-            oosTimer: null,
+            toastMessage: '',
+            toastTimer: null,
             priceNotices: [],
-            lastReceiptNumber: null,
-            lastSaleId: null,
+            receiptOpen: false,
+            receiptStage: 'processing',
+            receiptData: null,
+            receiptTimers: [],
+            // The torn/perforated bottom edge on the printed-paper look —
+            // a zigzag clip-path computed once (it never needs to change)
+            // and applied via :style, same shape the mockup itself used.
+            paperClip: (() => {
+                const stops = [];
+
+                for (let i = 0; i < 80; i++) {
+                    stops.push((100 - (i + 1) * 100 / 80) + '% ' + (i % 2 === 0 ? '100%' : 'calc(100% - 4px)'));
+                }
+
+                return 'polygon(0 0, 100% 0, 100% calc(100% - 4px), ' + stops.join(', ') + ')';
+            })(),
+
+            toast(message) {
+                this.toastMessage = message;
+                clearTimeout(this.toastTimer);
+                this.toastTimer = setTimeout(() => { this.toastMessage = ''; }, 2600);
+            },
 
             filteredProducts() {
                 const term = this.search.trim().toLowerCase();
 
                 return this.products.filter(p => {
                     if (this.selectedCategory !== null && p.category_id !== this.selectedCategory) return false;
-                    if (term && !p.name.toLowerCase().includes(term)) return false;
+                    if (term && !p.name.toLowerCase().includes(term) && !(p.barcode ?? '').toLowerCase().includes(term)) return false;
 
                     return true;
                 });
             },
 
-            // Quantities are whole numbers: anything typed or pasted is rounded
-            // down to one, and 0 (or nothing usable) takes the line out of the cart.
-            setQuantity(index, raw) {
-                const line = this.cart[index];
-
-                if (! line) return;
-
-                const whole = Math.floor(Number(raw));
-
-                if (! Number.isFinite(whole) || whole < 1) {
-                    this.removeFromCart(index);
-
-                    return;
-                }
-
-                line.quantity = whole;
+            cartQty(productId) {
+                return this.cart.find(l => l.product_id === productId)?.quantity ?? 0;
             },
 
-            // Whole-tile out-of-stock check: < 1 full unit left, and nothing
-            // bends that (allowNegativeStockSale is an explicit "oversell
-            // knowingly" override, so it skips this entirely).
+            cartCount() {
+                return this.cart.reduce((sum, l) => sum + l.quantity, 0);
+            },
+
+            // Whole-tile out-of-stock check: < 1 full unit left. The sale
+            // service rejects any line that outruns real stock on hand no
+            // matter what — the till can't knowingly oversell, so this
+            // never has an override to bend it either.
             isOutOfStock(product) {
-                return !this.allowNegativeStockSale && product.stock_quantity < 1;
+                return product.stock_quantity < 1;
             },
 
-            // Shown as a bubble over the tile just clicked (see showOosNotice)
-            // rather than the shared errorMessage bar, so it's seen without
-            // looking away from the grid — and clears itself after a beat.
-            showOosNotice(product, text) {
-                clearTimeout(this.oosTimer);
-                this.oosProductId = product.id;
-                this.oosMessage = text;
-                this.oosTimer = setTimeout(() => { this.oosProductId = null; }, 2500);
+            // Same rule the real low-stock report uses: on hand at or below
+            // the product's own threshold, but still in stock (out of stock
+            // is its own, more severe label).
+            isLow(product) {
+                return product.stock_quantity > 0 && product.stock_quantity <= product.min_stock_level;
             },
 
+            stockLabel(product) {
+                if (product.stock_quantity <= 0) return 'Out of stock';
+
+                return this.num(product.stock_quantity) + ' ' + product.selling_unit + ' left';
+            },
+
+            // A truly out-of-stock tile is just a disabled button — nothing
+            // to click, nothing to say. The only message this produces is
+            // for the one case a disabled attribute can't express: some
+            // stock exists, but all of it is already in the cart.
             addToCart(product) {
+                if (this.isOutOfStock(product)) return;
+
                 const existing = this.cart.find(l => l.product_id === product.id);
                 const alreadyInCart = existing ? existing.quantity : 0;
 
-                if (!this.allowNegativeStockSale && alreadyInCart + 1 > product.stock_quantity) {
-                    this.showOosNotice(product, alreadyInCart > 0
-                        ? `Only ${this.trimQty(product.stock_quantity)} ${product.selling_unit} in stock — all of it's in the cart.`
-                        : 'Out of stock.');
+                if (alreadyInCart + 1 > product.stock_quantity) {
+                    this.toast('Only ' + this.num(product.stock_quantity) + ' of ' + product.name + ' in stock.');
 
                     return;
                 }
@@ -376,33 +413,59 @@
                     this.cart.push({
                         product_id: product.id,
                         name: product.name,
+                        image_url: product.image_url,
                         unit_price: product.effective_price,
+                        selling_unit: product.selling_unit,
                         quantity: 1,
                     });
                 }
-
-                this.errorMessage = '';
-                if (this.oosProductId === product.id) {
-                    clearTimeout(this.oosTimer);
-                    this.oosProductId = null;
-                }
             },
 
-            scanBarcode() {
-                const code = this.barcodeInput.trim();
-                this.barcodeInput = '';
+            // Quantities are whole numbers: the stepper only ever moves by
+            // one, so there's nothing to round — going to 0 just removes it.
+            stepQuantity(index, delta) {
+                const line = this.cart[index];
+                if (!line) return;
 
-                if (!code) return;
+                if (delta > 0) {
+                    const product = this.products.find(p => p.id === line.product_id);
+                    if (product && line.quantity + 1 > product.stock_quantity) {
+                        this.toast('Only ' + this.num(product.stock_quantity) + ' of ' + product.name + ' in stock.');
 
-                const product = this.products.find(p => p.barcode === code);
-
-                if (product) {
-                    this.addToCart(product);
-                } else {
-                    this.errorMessage = `No product found for barcode "${code}".`;
+                        return;
+                    }
                 }
 
-                this.$refs.barcodeInput.focus();
+                line.quantity += delta;
+                if (line.quantity <= 0) this.removeFromCart(index);
+            },
+
+            focusScan() {
+                this.$refs.search.focus();
+                this.toast('Scan a barcode, or type one, then press Enter');
+            },
+
+            // Enter in the search box: an exact barcode match wins outright
+            // (what a hardware scanner actually produces); otherwise, if the
+            // current search narrows the grid to exactly one in-stock match,
+            // add that one — same as tapping its tile.
+            searchEnter() {
+                const term = this.search.trim();
+                if (!term) return;
+
+                const exact = this.products.find(p => p.barcode && p.barcode === term);
+                if (exact) {
+                    this.addToCart(exact);
+                    this.search = '';
+
+                    return;
+                }
+
+                const matches = this.filteredProducts().filter(p => !this.isOutOfStock(p));
+                if (matches.length === 1) {
+                    this.addToCart(matches[0]);
+                    this.search = '';
+                }
             },
 
             removeFromCart(index) {
@@ -412,6 +475,7 @@
             clearCart() {
                 this.cart = [];
                 this.priceNotices = [];
+                this.tenderedError = false;
             },
 
             // A price or promo changed while items were already in the cart —
@@ -455,7 +519,13 @@
             },
 
             changeDue() {
-                return round2((this.tenderedAmount || 0) - this.total());
+                return round2((Number(this.tenderedAmount) || 0) - this.total());
+            },
+
+            quickCashAmounts() {
+                const fixed = [100, 500, 1000, 5000];
+
+                return this.total() > 0 ? [this.total(), ...fixed] : fixed;
             },
 
             selectedCustomer() {
@@ -487,12 +557,24 @@
                 return (customer.outstanding_balance + this.total()) > customer.credit_limit;
             },
 
-            formatMoney(amount) {
-                return this.currencyCode + ' ' + Number(amount ?? 0).toFixed(2);
+            // The complete-sale button says up front what's stopping it,
+            // rather than letting you click and only then finding out.
+            goLabel() {
+                if (this.isCredit() && !this.customerId) return 'Choose a customer for credit';
+
+                return 'Complete sale';
             },
 
-            trimQty(qty) {
-                return Number(qty ?? 0).toFixed(3).replace(/\.?0+$/, '') || '0';
+            formatMoney(amount) {
+                return this.currencyCode + ' ' + this.money(amount);
+            },
+
+            money(amount) {
+                return Number(amount ?? 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            },
+
+            num(amount) {
+                return Number(amount ?? 0).toLocaleString('en-GB', { maximumFractionDigits: 3 });
             },
 
             // Patches server-truth data (stock levels, available payment
@@ -509,7 +591,6 @@
                 this.currencyCode = detail.currencyCode;
                 this.barcodeScannerEnabled = detail.barcodeScannerEnabled;
                 this.autoPrintReceipt = detail.autoPrintReceipt;
-                this.allowNegativeStockSale = detail.allowNegativeStockSale;
 
                 if (!this.paymentMethods.some(m => m.id === this.paymentMethodId)) {
                     this.paymentMethodId = this.paymentMethods.find(m => m.code === 'cash')?.id ?? this.paymentMethods[0]?.id ?? null;
@@ -517,20 +598,23 @@
             },
 
             async completeSale() {
-                this.errorMessage = '';
-
-                if (this.cart.length === 0) return;
+                if (this.cart.length === 0 || this.processing) return;
 
                 if (this.isCredit() && !this.customerId) {
-                    this.errorMessage = 'Credit sales require a customer to be selected.';
+                    this.toast('Credit sales require a customer to be selected.');
+
                     return;
                 }
 
                 if (this.paymentMethodCode() === 'cash' && (Number(this.tenderedAmount) || 0) < this.total()) {
-                    this.errorMessage = 'Amount tendered is less than the total due.';
+                    this.toast('Amount tendered is less than the total due.');
+                    this.tenderedError = true;
+                    this.$nextTick(() => this.$refs.tendered?.focus());
+
                     return;
                 }
 
+                this.tenderedError = false;
                 this.processing = true;
 
                 const result = await this.$wire.checkout(
@@ -543,12 +627,10 @@
                 this.processing = false;
 
                 if (!result.success) {
-                    this.errorMessage = result.message;
+                    this.toast(result.message);
+
                     return;
                 }
-
-                this.lastSaleId = result.saleId;
-                this.lastReceiptNumber = result.receiptNumber;
 
                 if (this.autoPrintReceipt) {
                     this.$refs.printFrame.src = '/sales/' + result.saleId + '/receipt?autoprint=1';
@@ -561,11 +643,135 @@
                     }
                 });
 
+                this.cartOpen = false;
+                this.showReceipt(result.receipt);
+
                 this.cart = [];
                 this.priceNotices = [];
                 this.customerId = null;
                 this.referenceNumber = '';
                 this.tenderedAmount = '';
+            },
+
+            receiptStageLabel() {
+                return { processing: 'Processing your order', printing: 'Printing your receipt', complete: 'Order complete' }[this.receiptStage];
+            },
+
+            receiptItemsLabel() {
+                if (!this.receiptData) return '';
+
+                const n = this.receiptData.lines.reduce((sum, l) => sum + Number(l.quantity), 0);
+
+                return this.num(n) + (n == 1 ? ' item' : ' items') + ' · ' + this.receiptData.totals.payment_method;
+            },
+
+            // Formatted with the receipt's own frozen currency, not the
+            // live setting — a reprint must read identically no matter what
+            // the store's currency has changed to since.
+            receiptMoney(amount) {
+                const code = this.receiptData?.business?.currency_code ?? this.currencyCode;
+
+                return code + ' ' + this.money(amount);
+            },
+
+            // Same 'Y-m-d H:i' shape the real printed receipt uses.
+            receiptDate(iso) {
+                const d = new Date(iso);
+                const pad = n => String(n).padStart(2, '0');
+
+                return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+            },
+
+            receiptMarkup() {
+                if (!this.receiptData) return '';
+
+                const b = this.receiptData.business, t = this.receiptData.totals, m = this.receiptData.meta;
+                const esc = s => String(s ?? '').replace(/[<&]/g, c => c === '<' ? '&lt;' : '&amp;');
+                const row = (a, c, cls) => '<div class="rw' + (cls ? ' ' + cls : '') + '"><span>' + a + '</span><span>' + c + '</span></div>';
+
+                let h = '<div class="rt">' + esc(b.business_name) + '</div>';
+                // One block, one <br>-joined block — not a separate div per
+                // line, which left them glued together with no breathing
+                // room between them. Same grouping the real printed receipt
+                // (sales/receipt.blade.php) uses: business name, then
+                // address/phone/the store's own configurable "printed at the
+                // top of every receipt" message (Settings → Receipt Business
+                // Info) together, then a clear break before the sale's own
+                // details.
+                h += '<div class="rmeta c">' + [b.address, b.contact_phone, b.receipt_business_info].filter(Boolean).map(esc).join('<br>') + '</div>';
+                h += '<hr>';
+
+                h += '<div class="rmeta">' + [
+                    'Receipt: ' + esc(m.receipt_number),
+                    'Date: ' + this.receiptDate(m.sale_date),
+                    'Cashier: ' + esc(m.cashier_name),
+                    m.customer_name ? 'Customer: ' + esc(m.customer_name) : null,
+                ].filter(Boolean).join('<br>') + '</div>';
+                h += '<hr>';
+
+                this.receiptData.lines.forEach(l => {
+                    h += row(esc(l.product_name), this.money(l.subtotal))
+                        + '<div class="rs">' + this.num(l.quantity) + ' ' + esc(l.unit) + ' × ' + this.receiptMoney(l.unit_price) + '</div>';
+                });
+
+                h += '<hr>' + row('Subtotal', this.money(t.subtotal));
+                if (Number(t.discount_amount) > 0) h += row('Discount', '-' + this.money(t.discount_amount));
+                if (Number(t.tax_amount) > 0) h += row('Tax', this.money(t.tax_amount));
+                h += row('Total', this.receiptMoney(t.total_amount), 'b');
+                h += row('Payment', esc(t.payment_method));
+                h += '<hr><div class="rmeta c">Thank you for your purchase</div>';
+
+                return h;
+            },
+
+            showReceipt(receipt) {
+                this.receiptTimers.forEach(clearTimeout);
+                this.receiptTimers = [];
+                this.receiptData = receipt;
+                this.receiptOpen = true;
+                this.receiptStage = 'processing';
+
+                const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+                this.receiptTimers.push(setTimeout(() => { this.receiptStage = 'printing'; }, reduced ? 0 : 1300));
+                this.receiptTimers.push(setTimeout(() => { this.receiptStage = 'complete'; }, reduced ? 200 : 3050));
+
+                this.$nextTick(() => {
+                    this.$refs.newSaleBtn?.focus();
+                    this.fitReceipt();
+                });
+            },
+
+            // Shrinks the whole printer graphic (not just the paper) so a
+            // long cart's receipt still fits the screen without the dialog
+            // having to scroll — `zoom`, not `transform: scale`, because
+            // scale only changes how it's painted, not the space it
+            // reserves, so the dialog would still overflow and scroll by
+            // the unscaled height even though it visually looked shrunk.
+            // Floors at .5 rather than shrinking indefinitely; a receipt
+            // that still can't fit at half size falls back to the dialog's
+            // own scroll rather than becoming illegibly tiny.
+            fitReceipt() {
+                const wrap = this.$refs.rwrap;
+                if (!wrap) return;
+
+                wrap.style.zoom = 1;
+
+                const available = wrap.parentElement.clientHeight;
+                const natural = wrap.scrollHeight;
+
+                if (available > 0 && natural > available) {
+                    wrap.style.zoom = Math.max(.5, available / natural);
+                }
+            },
+
+            newSale() {
+                this.receiptTimers.forEach(clearTimeout);
+                this.receiptOpen = false;
+                this.$nextTick(() => this.$refs.search.focus());
+            },
+
+            printReceipt() {
+                window.print();
             },
         };
     }

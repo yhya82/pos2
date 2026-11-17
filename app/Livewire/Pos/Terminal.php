@@ -61,7 +61,7 @@ class Terminal extends Component
             currencyCode: $generalSettings->currency_code,
             barcodeScannerEnabled: (bool) $hardwareSettings?->barcode_scanner_enabled,
             autoPrintReceipt: (bool) $hardwareSettings?->auto_print_receipt,
-            allowNegativeStockSale: (bool) SalesSetting::current()->allow_negative_stock_sale,
+            paperSize: $hardwareSettings?->paper_size ?? '80mm',
         );
     }
 
@@ -71,7 +71,7 @@ class Terminal extends Component
             ->withSum(['batches as stock_quantity' => fn ($q) => $q->where('status', 'active')], 'qty_remaining')
             ->where('status', 'active')
             ->orderBy('name')
-            ->get(['id', 'name', 'barcode', 'image_path', 'category_id', 'selling_price', 'selling_unit_id', 'promo_discount_type', 'promo_discount_value', 'promo_starts_at', 'promo_ends_at'])
+            ->get(['id', 'name', 'barcode', 'image_path', 'category_id', 'selling_price', 'selling_unit_id', 'min_stock_level', 'promo_discount_type', 'promo_discount_value', 'promo_starts_at', 'promo_ends_at'])
             ->map(fn ($p) => [
                 'id' => $p->id,
                 'name' => $p->name,
@@ -83,6 +83,11 @@ class Terminal extends Component
                 'has_promo' => $p->hasActivePromo(),
                 'selling_unit' => $p->sellingUnit->name,
                 'stock_quantity' => (float) ($p->stock_quantity ?? 0),
+                // Same rule the v_current_stock view uses (qty on hand <= the
+                // product's own minimum) — no fallback to a store-wide
+                // default, so this always agrees with the real low-stock
+                // reports rather than inventing a second definition of "low".
+                'min_stock_level' => (float) $p->min_stock_level,
             ])
             ->values();
     }
@@ -113,13 +118,13 @@ class Terminal extends Component
             'currencyCode' => $generalSettings->currency_code,
             'autoPrintReceipt' => (bool) HardwareSetting::current()?->auto_print_receipt,
             'barcodeScannerEnabled' => (bool) HardwareSetting::current()?->barcode_scanner_enabled,
-            'allowNegativeStockSale' => (bool) $salesSettings->allow_negative_stock_sale,
+            'paperSize' => HardwareSetting::current()?->paper_size ?? '80mm',
         ]);
     }
 
     /**
      * @param  array<int, array{product_id: int, quantity: float|string}>  $cart
-     * @return array{success: bool, message?: string, saleId?: int, receiptNumber?: string}
+     * @return array{success: bool, message?: string, saleId?: int, receiptNumber?: string, receipt?: array{business: array, lines: array, totals: array, meta: array}}
      */
     public function checkout(
         array $cart,
@@ -147,6 +152,30 @@ class Terminal extends Component
             return ['success' => false, 'message' => $e->getMessage()];
         }
 
-        return ['success' => true, 'saleId' => $sale->id, 'receiptNumber' => $sale->receipt_number];
+        // The receipt animation renders the real, already-persisted snapshot
+        // — not a client-reconstructed one — so what's shown on screen can
+        // never drift from what a reprint later shows.
+        $receipt = $sale->receipt;
+
+        return [
+            'success' => true,
+            'saleId' => $sale->id,
+            'receiptNumber' => $sale->receipt_number,
+            'receipt' => $receipt ? [
+                'business' => $receipt->business_snapshot,
+                'lines' => $receipt->line_items_snapshot,
+                'totals' => $receipt->totals_snapshot,
+                // Same receipt-number/date/cashier/customer line the real
+                // printed receipt (sales/receipt.blade.php) shows — not part
+                // of the receipt's own frozen snapshot (those columns live
+                // on the sale itself), so pulled from $sale directly.
+                'meta' => [
+                    'receipt_number' => $sale->receipt_number,
+                    'sale_date' => $sale->sale_date->toIso8601String(),
+                    'cashier_name' => $sale->cashier->name,
+                    'customer_name' => $sale->customer?->name,
+                ],
+            ] : null,
+        ];
     }
 }

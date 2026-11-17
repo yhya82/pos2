@@ -20,7 +20,7 @@ class WholeNumber implements ValidationRule
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
         if (! Whole::is($value)) {
-            $fail('Enter a whole number, like 3 — no decimals.');
+            $fail('Enter a whole number, like 3  no decimals.');
 
             return;
         }

@@ -36,16 +36,7 @@ class SaleService
      *
      * @throws RuntimeException on empty cart, a non-whole quantity, insufficient stock, disabled/missing customer credit, or any discount
      */
-    public function completeSale(
-        array $cartLines,
-        ?int $customerId,
-        int $paymentMethodId,
-        ?string $referenceNumber,
-        string $discountType,
-        float $discountValue,
-        ?string $discountReason,
-        User $cashier,
-    ): Sale {
+    public function completeSale( array $cartLines, ?int $customerId, int $paymentMethodId, ?string $referenceNumber,string $discountType, float $discountValue,?string $discountReason,User $cashier,): Sale {
         if (empty($cartLines)) {
             throw new RuntimeException('Cannot complete a sale with no items.');
         }

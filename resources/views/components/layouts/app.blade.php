@@ -24,6 +24,7 @@
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
         @vite(['resources/css/app.css', 'resources/js/app.js'])
+        @stack('head')
     </head>
     <body
         class="font-sans antialiased bg-gray-100 dark:bg-gray-900"
@@ -52,7 +53,7 @@
             <div class="flex flex-col min-h-screen transition-[padding] duration-200 ease-in-out" :class="$store.sidebar.collapsed ? 'md:pl-16' : 'md:pl-64'">
                 <!-- Header: business context on the left, notifications and
                      the user menu on the right (SRS Sec. 20.4) -->
-                <header class="min-h-16 shrink-0 flex items-center flex-wrap justify-between gap-x-4 gap-y-2 px-4 sm:px-6 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                <header id="app-header" class="min-h-16 shrink-0 flex items-center flex-wrap justify-between gap-x-4 gap-y-2 px-4 sm:px-6 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
                     <div class="flex items-center gap-3 min-w-0">
                         <button
                             type="button"

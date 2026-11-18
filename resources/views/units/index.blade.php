@@ -1,4 +1,8 @@
 <x-layouts.app>
+    @push('head')
+        @vite(['resources/css/units.css'])
+    @endpush
+
     <x-slot name="header">
         {{ __('Units') }}
     </x-slot>

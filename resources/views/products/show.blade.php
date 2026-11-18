@@ -1,4 +1,8 @@
 <x-layouts.app>
+    @push('head')
+        @vite(['resources/css/products.css'])
+    @endpush
+
     <x-slot name="header">
         <a href="{{ route('products.index') }}" wire:navigate class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">←</a>
         {{ __('Product Profile') }}

@@ -1,94 +1,108 @@
-<div>
-    <div class="flex items-center justify-between gap-4 mb-4">
-        <div class="w-full max-w-xs">
-            <x-text-input wire:model.live.debounce.300ms="search" type="search" placeholder="Search units..." class="w-full" />
+<div class="units-skin">
+    <div class="top">
+        <div>
+            <h1>Units</h1>
+            <p>Purchase and selling units products are measured in — e.g. Carton, Bottle, Kg</p>
         </div>
-
         @if (auth()->user()->hasPermission('products', 'create'))
-            <x-primary-button wire:click="create">
+            <button type="button" wire:click="create" class="btn p">
+                <svg viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 5v14M5 12h14"/></svg>
                 Create Unit
-            </x-primary-button>
+            </button>
         @endif
     </div>
 
-    <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 overflow-hidden">
+    <div class="filters">
+        <div class="search">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input wire:model.live.debounce.300ms="search" type="search" placeholder="Search units…">
+        </div>
+    </div>
+
+    <div class="card">
         @php $showActions = auth()->user()->hasPermission('products', 'update') || auth()->user()->hasPermission('products', 'delete'); @endphp
-        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead class="bg-gray-50 dark:bg-gray-900/40">
+        <table class="tbl">
+            <thead>
                 <tr>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Name</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Products Using It</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                    <th>Name</th>
+                    <th class="num">Products Using It</th>
+                    <th>Status</th>
                     @if ($showActions)
-                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                        <th class="actions">Actions</th>
                     @endif
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody>
                 @forelse ($units as $unit)
                     <tr wire:key="unit-{{ $unit->id }}">
-                        <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{{ $unit->name }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ $unit->products_as_purchase_unit_count + $unit->products_as_selling_unit_count }}</td>
-                        <td class="px-4 py-3 text-sm">
-                            <span @class([
-                                'inline-flex px-2 py-0.5 rounded-full text-xs font-medium',
-                                'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' => $unit->is_active,
-                                'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' => ! $unit->is_active,
-                            ])>
-                                {{ $unit->is_active ? 'Active' : 'Inactive' }}
-                            </span>
+                        <td>{{ $unit->name }}</td>
+                        <td class="num">{{ $unit->products_as_purchase_unit_count + $unit->products_as_selling_unit_count }}</td>
+                        <td>
+                            <span @class(['status', 'ok' => $unit->is_active, 'plain' => ! $unit->is_active])>{{ $unit->is_active ? 'Active' : 'Inactive' }}</span>
                         </td>
                         @if ($showActions)
-                        <td class="px-4 py-3 text-sm text-right space-x-3">
-                            @if (auth()->user()->hasPermission('products', 'update'))
-                                <button wire:click="edit({{ $unit->id }})" class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium">
-                                    Edit
-                                </button>
-                            @endif
-                            @if (auth()->user()->hasPermission('products', 'delete'))
-                                <button wire:click="confirmDeactivate({{ $unit->id }})" class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 font-medium">
-                                    {{ $unit->is_active ? 'Deactivate' : 'Reactivate' }}
-                                </button>
-                            @endif
-                        </td>
+                            <td class="actions">
+                                @if (auth()->user()->hasPermission('products', 'update'))
+                                    <button type="button" wire:click="edit({{ $unit->id }})" class="actionbtn">Edit</button>
+                                @endif
+                                @if (auth()->user()->hasPermission('products', 'delete'))
+                                    <button type="button" wire:click="confirmDeactivate({{ $unit->id }})" class="actionbtn danger">
+                                        {{ $unit->is_active ? 'Deactivate' : 'Reactivate' }}
+                                    </button>
+                                @endif
+                            </td>
                         @endif
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="{{ $showActions ? 4 : 3 }}" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                            No units found.
-                        </td>
+                        <td colspan="{{ $showActions ? 4 : 3 }}" class="empty">No units found.</td>
                     </tr>
                 @endforelse
             </tbody>
         </table>
-
-        <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
-            {{ $units->links() }}
+        <div class="pager">
+            <span>Showing {{ $units->firstItem() ?? 0 }}–{{ $units->lastItem() ?? 0 }} of {{ $units->total() }}</span>
+            @if ($units->hasPages())
+                <div class="pages">
+                    @foreach ($units->getUrlRange(max(1, $units->currentPage() - 2), min($units->lastPage(), $units->currentPage() + 2)) as $page => $url)
+                        <button type="button" wire:click="gotoPage({{ $page }})" aria-current="{{ $page === $units->currentPage() ? 'true' : 'false' }}">{{ $page }}</button>
+                    @endforeach
+                </div>
+            @endif
         </div>
     </div>
 
-    <x-slide-over name="unit-form" :title="$editingUnitId ? 'Edit Unit' : 'Create Unit'">
-        <form wire:submit="save" id="unit-form" class="space-y-6">
-            <div>
-                <x-input-label for="unit_name" value="Name" />
-                <x-text-input wire:model="name" id="unit_name" class="block mt-1 w-full" placeholder="e.g. Carton, Bottle, Kg" />
-                <x-input-error :messages="$errors->get('name')" class="mt-2" />
+    <x-modal name="unit-form" max-width="sm">
+        <div class="dialog">
+            <div class="dh">
+                <h2>{{ $editingUnitId ? 'Edit Unit' : 'Create Unit' }}</h2>
             </div>
-        </form>
+            <form wire:submit="save" id="unit-form">
+                <div class="db">
+                    <div class="f">
+                        <label for="unit_name">Name<span class="req">*</span></label>
+                        <input type="text" wire:model="name" id="unit_name" placeholder="e.g. Carton, Bottle, Kg">
+                        <x-input-error :messages="$errors->get('name')" class="mt-2" />
+                    </div>
+                </div>
+            </form>
+            <div class="df">
+                <button type="button" class="btn" x-on:click="show = false">Cancel</button>
+                <button type="submit" form="unit-form" class="btn p">Save</button>
+            </div>
+        </div>
+    </x-modal>
 
-        <x-slot name="footer">
-            <x-secondary-button x-on:click="show = false">Cancel</x-secondary-button>
-            <x-primary-button type="submit" form="unit-form">Save</x-primary-button>
-        </x-slot>
-    </x-slide-over>
-
-    <x-confirm-modal
-        name="confirm-deactivate-unit"
-        title="Confirm"
-        message="Are you sure? Products already using this unit are unaffected, but it stops being selectable for new products while inactive."
-        confirm-label="Confirm"
-    >
-        <x-danger-button wire:click="toggleStatus">Confirm</x-danger-button>
-    </x-confirm-modal>
+    <x-modal name="confirm-deactivate-unit" max-width="sm">
+        <div class="dialog">
+            <div class="dh">
+                <h2>Confirm</h2>
+                <p>Are you sure? Products already using this unit are unaffected, but it stops being selectable for new products while inactive.</p>
+            </div>
+            <div class="df">
+                <button type="button" class="btn" x-on:click="$dispatch('close')">Cancel</button>
+                <button type="button" wire:click="toggleStatus" class="btn danger">Confirm</button>
+            </div>
+        </div>
+    </x-modal>
 </div>

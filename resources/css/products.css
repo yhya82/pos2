@@ -1,0 +1,259 @@
+/*
+ * Products redesign (index + profile) — scoped entirely under
+ * .products-skin so none of this (palette, resets) ever leaks onto any
+ * other page. Same flat, boxy, Inter look as the POS/Dashboard/Sidebar/
+ * Sales/Returns/Customers redesigns. Color stays reserved for things
+ * that mean something: low stock, a promo price, profit/loss, a
+ * discount's actual cost — not painted across the page as decoration.
+ *
+ * The real <x-slide-over>/<x-modal> components are shared across every
+ * entity in the app (SRS Sec. 20.6/20.7) — reskinned here by targeting
+ * their existing hardcoded classes (same trick sales.css/customers.css
+ * use) rather than editing the shared component, so no other page is
+ * affected.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+body {
+    --bg: #f6f6f4; --surf: #fff; --ink: #1a1a1c; --mut: #55555b;
+    --line: #e3e3df; --soft: #efefeb; --acc: #a81c26; --acc-ink: #fff; --acc-soft: #f9e9e9;
+    --ok: #1f7a52; --ok-soft: #e7f3ed; --warn: #8a5a00; --warn-soft: #f8eedc;
+}
+html.dark body {
+    --bg: #0f0f11; --surf: #18181b; --ink: #f3f3f4; --mut: #aeaeb6;
+    --line: #2a2a2f; --soft: #222226; --acc: #c93840; --acc-ink: #fff; --acc-soft: #3a1c1d;
+    --ok: #3cc088; --ok-soft: #173327; --warn: #e0a93a; --warn-soft: #3a2f10;
+}
+
+#app-header { background: var(--acc); border-color: var(--acc); }
+#app-header, #app-header *:not(.absolute, .absolute *) { color: var(--acc-ink); }
+#app-header button:hover:not(.absolute button) { background: rgba(255, 255, 255, .16); }
+
+/* A secondary link living in the real shared header (e.g. "Manage
+   Units") — a bordered chip instead of plain underlined text with an
+   arrow, so it reads as a deliberate action against the red bar. */
+#app-header .hdr-link { display: inline-flex; align-items: center; height: 26px; padding: 0 11px; border: 1px solid rgba(255, 255, 255, .5); background: rgba(255, 255, 255, .12); font-size: 12.5px; font-weight: 600; }
+#app-header .hdr-link:hover { background: rgba(255, 255, 255, .22); border-color: rgba(255, 255, 255, .7); }
+
+.products-skin, .products-skin *, .products-skin *::before, .products-skin *::after { box-sizing: border-box; }
+.products-skin {
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    color: var(--ink);
+    color-scheme: light;
+}
+html.dark .products-skin { color-scheme: dark; }
+.products-skin button, .products-skin a { font: inherit; color: inherit; }
+.products-skin button { cursor: pointer; border: 0; background: none; padding: 0; }
+.products-skin a { text-decoration: none; }
+.products-skin svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.products-skin :focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+
+.products-skin .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+.products-skin .top > div:first-child { border-left: 4px solid var(--acc); padding-left: 14px; }
+.products-skin .top h1 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
+.products-skin .top p { margin: 2px 0 0; color: var(--mut); font-size: 13.5px; }
+
+.products-skin .filters { background: var(--surf); border: 1px solid var(--line); padding: 14px 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px; }
+.products-skin .search { position: relative; flex: 1 1 240px; min-width: 200px; }
+.products-skin .search svg { position: absolute; left: 12px; top: 11px; width: 16px; height: 16px; stroke: var(--mut); pointer-events: none; }
+.products-skin .search input { width: 100%; height: 40px; border: 1px solid var(--line); background: var(--bg); padding: 0 14px 0 36px; font: inherit; font-size: 13.5px; color: var(--ink); }
+.products-skin .search input:focus { outline: none; border-color: var(--acc); background: var(--surf); box-shadow: 0 0 0 3px var(--acc-soft); }
+
+.products-skin .notice { background: var(--acc-soft); border: 1px solid var(--acc); padding: 10px 14px; font-size: 13px; color: var(--ink); margin-bottom: 16px; }
+.products-skin .notice.ok { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
+.products-skin .notice.warn { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); }
+.products-skin .notice strong { font-weight: 700; }
+
+.products-skin .card { background: var(--surf); border: 1px solid var(--line); overflow-x: auto; }
+
+.products-skin .tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.products-skin .tbl th { text-align: left; padding: 11px 16px; font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--mut); background: var(--soft); border-bottom: 1px solid var(--line); white-space: nowrap; }
+.products-skin .tbl th.num, .products-skin .tbl td.num { text-align: right; }
+.products-skin .tbl th.actions, .products-skin .tbl td.actions { text-align: right; }
+.products-skin .tbl td { padding: 11px 16px; border-bottom: 1px solid var(--line); color: var(--ink); white-space: nowrap; }
+.products-skin .tbl tbody tr:last-child td { border-bottom: 0; }
+.products-skin .tbl tbody tr:hover td { background: var(--soft); }
+.products-skin .tbl .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-weight: 600; }
+.products-skin .tbl .mut { color: var(--mut); }
+.products-skin .tbl .num { font-variant-numeric: tabular-nums; font-weight: 700; }
+.products-skin .tbl .link { color: var(--ink); font-weight: 600; }
+.products-skin .tbl .link:hover { color: var(--acc); }
+.products-skin .tbl .empty { text-align: center; color: var(--mut); padding: 32px 0; white-space: normal; }
+
+.products-skin .thumb { width: 34px; height: 34px; background: var(--soft); color: var(--mut); display: grid; place-items: center; flex-shrink: 0; overflow: hidden; }
+.products-skin .thumb img { width: 100%; height: 100%; object-fit: cover; }
+.products-skin .thumb svg { width: 16px; height: 16px; }
+.products-skin .prodcell { display: flex; align-items: center; gap: 10px; }
+
+.products-skin .ccy { font-size: 10px; font-weight: 700; color: var(--mut); letter-spacing: .02em; margin-right: 2px; }
+
+.products-skin .status { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 11px; }
+.products-skin .status.ok { color: var(--ok); background: var(--ok-soft); }
+.products-skin .status.warn { color: var(--warn); background: var(--warn-soft); }
+.products-skin .status.acc { color: var(--acc); background: var(--acc-soft); }
+.products-skin .status.plain { color: var(--mut); background: var(--soft); }
+
+.products-skin .tag { display: inline-block; font-size: 10.5px; font-weight: 600; padding: 2px 7px; background: var(--soft); color: var(--mut); margin-left: 5px; vertical-align: 1px; cursor: help; }
+
+.products-skin .stockval { font-variant-numeric: tabular-nums; font-weight: 700; }
+.products-skin .stockval.low { color: var(--acc); }
+.products-skin .pill-low { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; padding: 2px 7px; margin-left: 6px; background: var(--acc-soft); color: var(--acc); vertical-align: 1px; }
+
+.products-skin .promo-old { color: var(--mut); text-decoration: line-through; font-size: 12.5px; }
+.products-skin .promo-new { color: var(--ok); font-weight: 800; }
+.products-skin .promo-tag { color: var(--ok); font-size: 11.5px; margin-top: 2px; }
+
+.products-skin .actionbtn { display: inline-flex; align-items: center; height: 28px; padding: 0 11px; font-size: 12px; font-weight: 600; border: 1px solid var(--line); background: var(--surf); color: var(--mut); margin-left: 6px; }
+.products-skin .actionbtn:first-child { margin-left: 0; }
+.products-skin .actionbtn:hover { background: var(--soft); color: var(--ink); }
+.products-skin .actionbtn.danger { color: var(--acc); border-color: var(--acc-soft); }
+.products-skin .actionbtn.danger:hover { background: var(--acc-soft); }
+
+.products-skin .pager { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--mut); flex-wrap: wrap; gap: 8px; }
+.products-skin .pager .pages { display: flex; gap: 4px; }
+.products-skin .pager .pages button { width: 30px; height: 30px; border: 1px solid var(--line); color: var(--mut); font-size: 12.5px; font-weight: 600; background: var(--surf); }
+.products-skin .pager .pages button:hover { border-color: var(--mut); color: var(--ink); }
+.products-skin .pager .pages button[aria-current=true] { background: var(--acc); border-color: var(--acc); color: var(--acc-ink); cursor: default; }
+
+.products-skin .btn { height: 38px; padding: 0 16px; font-weight: 600; font-size: 13px; border: 1px solid var(--line); background: var(--surf); color: var(--ink); display: inline-flex; align-items: center; gap: 6px; }
+.products-skin .btn:hover { border-color: var(--mut); }
+.products-skin .btn.p { background: var(--acc); color: var(--acc-ink); border-color: var(--acc); }
+.products-skin .btn.p:hover { filter: brightness(1.08); }
+.products-skin .btn.danger { background: var(--acc); color: var(--acc-ink); border-color: var(--acc); }
+.products-skin .btn.danger:hover { filter: brightness(1.08); }
+.products-skin .btn.sm { height: 30px; padding: 0 11px; font-size: 12px; gap: 5px; }
+.products-skin .btn.add { background: var(--ok-soft); color: var(--ok); border-color: var(--ok-soft); }
+.products-skin .btn.add:hover { border-color: var(--ok); }
+.products-skin .btn.adjust { background: var(--soft); color: var(--ink); border-color: var(--line); }
+.products-skin .btn.discount { background: var(--acc-soft); color: var(--acc); border-color: var(--acc-soft); }
+.products-skin .btn.discount:hover { border-color: var(--acc); }
+.products-skin .btn.back { background: var(--acc-soft); color: var(--acc); border-color: var(--acc-soft); }
+.products-skin .btn.back:hover { border-color: var(--acc); }
+
+/* ----------------------------------------------------------------- tabs */
+.products-skin .tabs { display: flex; gap: 22px; border-bottom: 1px solid var(--line); margin-bottom: 16px; flex-wrap: wrap; }
+.products-skin .tabs button { padding: 0 0 12px; font-size: 13.5px; font-weight: 600; color: var(--mut); border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+.products-skin .tabs button:hover { color: var(--ink); }
+.products-skin .tabs button[aria-selected=true] { color: var(--acc); border-bottom-color: var(--acc); }
+
+/* ------------------------------------------------------- profile header */
+.products-skin .profile-head { position: relative; background: var(--surf); border: 1px solid var(--line); border-top: 3px solid var(--acc); padding: 52px 20px 20px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 18px; margin-bottom: 16px; }
+/* The edit button sits in its own strip above the header content
+   (profile-head's extra top padding reserves exactly that space) —
+   without it, the absolutely-positioned button landed right on top
+   of the Selling Price figure in the corner below it. */
+.products-skin .profile-head .editbtn { position: absolute; top: 14px; right: 14px; width: 34px; height: 34px; background: var(--acc-soft); color: var(--acc); display: grid; place-items: center; }
+.products-skin .profile-head .editbtn:hover { filter: brightness(0.94); }
+.products-skin .profile-head .editbtn svg { width: 17px; height: 17px; }
+.products-skin .profile-head .photo { width: 76px; height: 76px; background: var(--soft); color: var(--mut); display: grid; place-items: center; flex-shrink: 0; overflow: hidden; }
+.products-skin .profile-head .photo img { width: 100%; height: 100%; object-fit: cover; }
+.products-skin .profile-head .photo svg { width: 30px; height: 30px; }
+.products-skin .profile-head .main { flex: 1; min-width: 220px; }
+.products-skin .profile-head .nm { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.products-skin .profile-head h2 { margin: 0; font-size: 21px; font-weight: 800; letter-spacing: -.02em; }
+.products-skin .profile-head .meta { margin: 6px 0 0; display: flex; flex-wrap: wrap; gap: 14px 16px; }
+.products-skin .profile-head .meta span.row { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--mut); }
+.products-skin .profile-head .meta .icon { width: 18px; height: 18px; background: var(--acc-soft); color: var(--acc); display: grid; place-items: center; flex-shrink: 0; }
+.products-skin .profile-head .meta .icon svg { width: 11px; height: 11px; }
+.products-skin .profile-head .desc { margin: 8px 0 0; color: var(--ink); font-size: 13px; line-height: 1.5; max-width: 46ch; }
+.products-skin .profile-head .acts { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.products-skin .profile-head .figs { display: grid; grid-template-columns: repeat(2, auto); gap: 18px 28px; text-align: right; flex-shrink: 0; }
+.products-skin .profile-head .figs .lbl { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mut); }
+.products-skin .profile-head .figs .big { font-size: 22px; font-weight: 800; letter-spacing: -.02em; margin-top: 4px; }
+
+/* -------------------------------------------------------- overview grid */
+.products-skin .statgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.products-skin .statcard { background: var(--surf); border: 1px solid var(--line); padding: 14px 16px; }
+.products-skin .statcard .hd { display: flex; align-items: center; gap: 7px; }
+.products-skin .statcard .ic { width: 20px; height: 20px; background: var(--acc-soft); color: var(--acc); display: grid; place-items: center; flex-shrink: 0; }
+.products-skin .statcard .ic svg { width: 11px; height: 11px; }
+.products-skin .statcard .ic.ok { background: var(--ok-soft); color: var(--ok); }
+.products-skin .statcard .lbl { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--mut); }
+.products-skin .statcard .val { font-size: 14.5px; font-weight: 700; color: var(--ink); margin-top: 7px; }
+
+@media (max-width: 900px) {
+    .products-skin .statgrid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ------------------------------------------------------------- form/f */
+.products-skin .f { margin-bottom: 16px; }
+.products-skin .f label { display: block; font-size: 12.5px; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
+.products-skin .req { color: var(--acc); font-weight: 700; }
+.products-skin .f label .req { margin-left: 3px; }
+.products-skin .f input, .products-skin .f select, .products-skin .f textarea { width: 100%; height: 40px; border: 1px solid var(--line); background: var(--bg); padding: 0 12px; font: inherit; font-size: 13.5px; color: var(--ink); }
+.products-skin .f textarea { height: auto; padding: 10px 12px; resize: vertical; }
+/* A plain <select> keeps its native caret inconsistently across
+   browsers once its border/background are reset — draw one explicitly
+   so every dropdown on this page reads as a dropdown. Targeted at the
+   same specificity as the base ".f select" rule above (and declared
+   after it) so its padding-right actually wins instead of being
+   silently overridden back to 12px by that rule's padding shorthand. */
+.products-skin .f select, .products-skin select {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2355555b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 13px;
+    padding-right: 34px;
+}
+html.dark .products-skin .f select, html.dark .products-skin select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23aeaeb6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+}
+.products-skin .f input:focus, .products-skin .f select:focus, .products-skin .f textarea:focus { outline: none; border-color: var(--acc); box-shadow: 0 0 0 3px var(--acc-soft); }
+.products-skin .f .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.products-skin .f .hint { font-size: 11.5px; color: var(--mut); margin-top: 5px; }
+.products-skin .f .hint.ok { color: var(--ok); }
+.products-skin .f .hint.warn { color: var(--acc); }
+.products-skin .f .photopick { display: flex; align-items: center; gap: 12px; }
+.products-skin .f .row { display: flex; gap: 8px; }
+.products-skin .f .row select { width: 130px; flex-shrink: 0; }
+.products-skin .f .check { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--ink); height: auto; }
+.products-skin .f .check input { width: 16px; height: 16px; flex: none; }
+.products-skin .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+.panel-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
+
+/* ------------------------------------------------------- modal (centered) */
+.products-skin .overlay { position: fixed; inset: 0; background: rgba(10, 10, 12, .55); z-index: 50; }
+.products-skin .modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 520px; max-width: 92vw; max-height: 86vh; background: var(--surf); border: 1px solid var(--line); display: flex; flex-direction: column; z-index: 51; }
+.products-skin .modal .mh { padding: 18px 20px; border-bottom: 1px solid var(--line); flex-shrink: 0; }
+.products-skin .modal .mh .hd { display: flex; align-items: center; gap: 10px; }
+.products-skin .modal .mh .ic { width: 32px; height: 32px; display: grid; place-items: center; flex-shrink: 0; background: var(--acc-soft); color: var(--acc); }
+.products-skin .modal .mh .ic svg { width: 16px; height: 16px; }
+.products-skin .modal .mh .ic.add { background: var(--ok-soft); color: var(--ok); }
+.products-skin .modal .mh .ic.adjust { background: var(--soft); color: var(--ink); }
+.products-skin .modal .mh h2 { margin: 0; font-size: 16px; font-weight: 800; letter-spacing: -.01em; }
+.products-skin .modal .mh p { margin: 6px 0 0; font-size: 12.5px; color: var(--mut); line-height: 1.5; }
+.products-skin .modal .mb { padding: 20px; overflow-y: auto; flex: 1; min-height: 0; }
+.products-skin .modal .mf { padding: 16px 20px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; gap: 10px; flex-shrink: 0; }
+/* The <form> wrapping .mb/.mf (so the submit button inside .mf can
+   stay part of it) would otherwise sit between them and .modal's own
+   flex column, breaking the "fixed header/footer, scrolling body"
+   layout — display:contents removes its own box so .mb/.mf act as
+   .modal's direct flex children again, exactly like the header already does. */
+.products-skin .modal form { display: contents; }
+
+/* A neutral info card — the same "before" preview box Correct Batch
+   Cost already uses, reused here for Add Stock's batch-value preview
+   and Adjust Stock's selected-batch summary, so these two forms carry
+   the same level of detail that one already did. */
+.products-skin .preview-card { background: var(--soft); border: 1px solid var(--line); padding: 12px 14px; margin-bottom: 16px; font-size: 12.5px; color: var(--mut); line-height: 1.6; }
+.products-skin .preview-card b { color: var(--ink); font-weight: 700; }
+
+/* ------------------------------------- shared slide-over, reskinned */
+.products-skin .shadow-xl.flex.flex-col { background: var(--surf); border-left: 1px solid var(--line); box-shadow: none; border-radius: 0; }
+.products-skin .border-b.shrink-0 { padding: 16px 20px; border-color: var(--line); }
+.products-skin .border-b.shrink-0 h2 { font-size: 16px; font-weight: 800; letter-spacing: -.01em; color: var(--ink); }
+.products-skin .border-b.shrink-0 button { color: var(--mut); }
+.products-skin .border-b.shrink-0 button:hover { color: var(--ink); }
+.products-skin .flex-1.overflow-y-auto { padding: 20px; }
+.products-skin .border-t.shrink-0 { padding: 16px 20px; border-color: var(--line); }
+
+/* ---------------------------------------------------- deactivate dialog */
+.products-skin .rounded-lg.shadow-xl.overflow-hidden { border-radius: 0; box-shadow: none; border: 1px solid var(--line); background: var(--surf); }
+.products-skin .dialog .dh { padding: 20px 20px 0; }
+.products-skin .dialog .dh h2 { margin: 0; font-size: 17px; font-weight: 800; letter-spacing: -.01em; color: var(--ink); }
+.products-skin .dialog .dh p { margin: 8px 0 0; font-size: 13px; color: var(--mut); line-height: 1.5; }
+.products-skin .dialog .db { padding: 16px 20px; max-height: 60vh; overflow-y: auto; }
+.products-skin .dialog .df { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 20px 20px; }

@@ -5,6 +5,7 @@ namespace App\Livewire\Products;
 use App\Livewire\Concerns\AuthorizesModuleActions;
 use App\Models\AuditLog;
 use App\Models\Category;
+use App\Models\GeneralSetting;
 use App\Models\Product;
 use App\Models\Supplier;
 use App\Models\Unit;
@@ -79,6 +80,7 @@ class ProductManager extends Component
     public function render()
     {
         return view('livewire.products.product-manager', [
+            'currencyCode' => GeneralSetting::current()->currency_code,
             'products' => Product::with(['category', 'supplier', 'purchaseUnit', 'sellingUnit'])
                 ->withSum(['batches as stock_quantity' => fn ($q) => $q->where('status', 'active')], 'qty_remaining')
                 ->withMin(['batches as nearest_expiry' => fn ($q) => $q->where('status', 'active')->whereNotNull('expiry_date')], 'expiry_date')

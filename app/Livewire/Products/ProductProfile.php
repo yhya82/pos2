@@ -6,6 +6,7 @@ use App\Livewire\Concerns\AuthorizesModuleActions;
 use App\Models\AuditLog;
 use App\Models\Batch;
 use App\Models\Category;
+use App\Models\GeneralSetting;
 use App\Models\InventoryMovement;
 use App\Models\Product;
 use App\Models\SaleLineItem;
@@ -689,6 +690,7 @@ class ProductProfile extends Component
             : null;
 
         return view('livewire.products.product-profile', [
+            'currencyCode' => GeneralSetting::current()->currency_code,
             'product' => $product,
             'stockOnHand' => (float) $product->batches()->where('status', 'active')->sum('qty_remaining'),
             'batches' => $batches,

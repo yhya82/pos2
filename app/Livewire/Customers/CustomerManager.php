@@ -5,6 +5,7 @@ namespace App\Livewire\Customers;
 use App\Livewire\Concerns\AuthorizesModuleActions;
 use App\Models\AuditLog;
 use App\Models\Customer;
+use App\Models\GeneralSetting;
 use App\Models\ModuleSetting;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -48,6 +49,7 @@ class CustomerManager extends Component
     public function render()
     {
         return view('livewire.customers.customer-manager', [
+            'currencyCode' => GeneralSetting::current()->currency_code,
             'customers' => Customer::when($this->search, fn ($query) => $query->where(function ($q) {
                     $q->where('name', 'like', "%{$this->search}%")
                         ->orWhere('phone', 'like', "%{$this->search}%");

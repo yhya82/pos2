@@ -4,6 +4,7 @@ namespace App\Livewire\Customers;
 
 use App\Livewire\Concerns\AuthorizesModuleActions;
 use App\Models\Customer;
+use App\Models\GeneralSetting;
 use App\Models\ModuleSetting;
 use App\Services\CreditPaymentService;
 use Livewire\Attributes\Locked;
@@ -46,6 +47,7 @@ class CustomerProfile extends Component
         $customer = Customer::findOrFail($this->customerId);
 
         return view('livewire.customers.customer-profile', [
+            'currencyCode' => GeneralSetting::current()->currency_code,
             'customer' => $customer,
             'sales' => $this->activeTab === 'purchases'
                 ? $customer->sales()->visibleTo(auth()->user())->with(['payment.paymentMethod'])->orderByDesc('sale_date')->paginate(10, pageName: 'salesPage')

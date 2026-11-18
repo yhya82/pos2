@@ -3,6 +3,7 @@
 namespace App\Livewire\Returns;
 
 use App\Livewire\Concerns\AuthorizesModuleActions;
+use App\Models\GeneralSetting;
 use App\Models\Sale;
 use App\Models\SalesReturn;
 use App\Services\ReturnService;
@@ -71,6 +72,7 @@ class ReturnManager extends Component
     public function render()
     {
         return view('livewire.returns.return-manager', [
+            'currencyCode' => GeneralSetting::current()->currency_code,
             'returns' => $this->mode === 'list' ? $this->returnsQuery() : null,
             'foundSale' => $this->foundSaleId ? Sale::visibleTo(auth()->user())->with(['customer', 'cashier'])->find($this->foundSaleId) : null,
             'returnableSales' => ($this->mode === 'process' && ! $this->foundSaleId) ? $this->returnableSalesQuery() : null,

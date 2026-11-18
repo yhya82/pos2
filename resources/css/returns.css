@@ -1,0 +1,124 @@
+/*
+ * Returns redesign — scoped entirely under .returns-skin so none of this
+ * (palette, resets) ever leaks onto any other page. Same flat, boxy, Inter
+ * look as the POS/Dashboard/Sidebar/Sales/Customers redesigns — red
+ * reserved for the one real primary action (Process Return) and the
+ * secondary "back" nav action's soft tint, not painted across the page.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+body {
+    --bg: #f6f6f4; --surf: #fff; --ink: #1a1a1c; --mut: #55555b;
+    --line: #e3e3df; --soft: #efefeb; --acc: #a81c26; --acc-ink: #fff; --acc-soft: #f9e9e9;
+    --ok: #1f7a52; --warn: #8a5a00;
+}
+html.dark body {
+    --bg: #0f0f11; --surf: #18181b; --ink: #f3f3f4; --mut: #aeaeb6;
+    --line: #2a2a2f; --soft: #222226; --acc: #c93840; --acc-ink: #fff; --acc-soft: #3a1c1d;
+    --ok: #3cc088; --warn: #e0a93a;
+}
+
+/* The real shared header bar, recoloured on this page only — same
+   mechanism as the POS/Dashboard/Sales pages (#app-header lives in the
+   shared layout, this stylesheet only ever loads here). */
+#app-header {
+    background: var(--acc);
+    border-color: var(--acc);
+}
+
+#app-header,
+#app-header *:not(.absolute, .absolute *) {
+    color: var(--acc-ink);
+}
+
+#app-header button:hover:not(.absolute button) {
+    background: rgba(255, 255, 255, .16);
+}
+
+.returns-skin, .returns-skin *, .returns-skin *::before, .returns-skin *::after { box-sizing: border-box; }
+.returns-skin {
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    color: var(--ink);
+    color-scheme: light;
+}
+html.dark .returns-skin { color-scheme: dark; }
+.returns-skin button, .returns-skin a { font: inherit; color: inherit; }
+.returns-skin button { cursor: pointer; border: 0; background: none; padding: 0; }
+.returns-skin a { text-decoration: none; }
+.returns-skin svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.returns-skin :focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+.returns-skin .mut { color: var(--mut); }
+
+.returns-skin .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+.returns-skin .top > div:first-child { border-left: 4px solid var(--acc); padding-left: 14px; }
+.returns-skin .top h1 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
+.returns-skin .top p { margin: 2px 0 0; color: var(--mut); font-size: 13.5px; }
+
+.returns-skin .filters { background: var(--surf); border: 1px solid var(--line); padding: 14px 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px; }
+.returns-skin .search { position: relative; flex: 1 1 240px; min-width: 200px; }
+.returns-skin .search svg { position: absolute; left: 12px; top: 11px; width: 16px; height: 16px; stroke: var(--mut); pointer-events: none; }
+.returns-skin .search input { width: 100%; height: 40px; border: 1px solid var(--line); background: var(--bg); padding: 0 14px 0 36px; font: inherit; font-size: 13.5px; color: var(--ink); }
+.returns-skin .search input:focus { outline: none; border-color: var(--acc); background: var(--surf); box-shadow: 0 0 0 3px var(--acc-soft); }
+
+.returns-skin .notice { background: var(--acc-soft); border: 1px solid var(--acc); padding: 10px 14px; font-size: 13px; color: var(--ink); margin-bottom: 16px; }
+
+.returns-skin .card { background: var(--surf); border: 1px solid var(--line); overflow-x: auto; }
+
+.returns-skin .tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.returns-skin .tbl th { text-align: left; padding: 11px 16px; font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--mut); background: var(--soft); border-bottom: 1px solid var(--line); white-space: nowrap; }
+.returns-skin .tbl th.num, .returns-skin .tbl td.num { text-align: right; }
+.returns-skin .tbl th.actions, .returns-skin .tbl td.actions { text-align: right; }
+.returns-skin .tbl td { padding: 13px 16px; border-bottom: 1px solid var(--line); color: var(--ink); white-space: nowrap; }
+.returns-skin .tbl tbody tr:last-child td { border-bottom: 0; }
+.returns-skin .tbl tbody tr:hover td { background: var(--soft); }
+.returns-skin .tbl .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-weight: 600; }
+.returns-skin .tbl .mut { color: var(--mut); }
+.returns-skin .tbl .num { font-variant-numeric: tabular-nums; font-weight: 700; }
+.returns-skin .tbl .empty { text-align: center; color: var(--mut); padding: 32px 0; white-space: normal; }
+
+.returns-skin .ccy { font-size: 10px; font-weight: 700; color: var(--mut); letter-spacing: .02em; margin-right: 2px; }
+
+.returns-skin .status { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 11px; }
+.returns-skin .status.ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
+.returns-skin .status.plain { color: var(--mut); background: var(--soft); }
+
+.returns-skin .actionbtn { display: inline-flex; align-items: center; height: 28px; padding: 0 11px; font-size: 12px; font-weight: 600; border: 1px solid var(--line); background: var(--surf); color: var(--mut); margin-left: 6px; }
+.returns-skin .actionbtn:first-child { margin-left: 0; }
+.returns-skin .actionbtn:hover { background: var(--soft); color: var(--ink); }
+.returns-skin .actionbtn.refund { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 35%, var(--line)); }
+.returns-skin .actionbtn.refund:hover { background: color-mix(in srgb, var(--warn) 10%, var(--surf)); }
+
+.returns-skin .pager { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--mut); flex-wrap: wrap; gap: 8px; }
+.returns-skin .pager .pages { display: flex; gap: 4px; }
+.returns-skin .pager .pages button { width: 30px; height: 30px; border: 1px solid var(--line); color: var(--mut); font-size: 12.5px; font-weight: 600; background: var(--surf); }
+.returns-skin .pager .pages button:hover { border-color: var(--mut); color: var(--ink); }
+.returns-skin .pager .pages button[aria-current=true] { background: var(--acc); border-color: var(--acc); color: var(--acc-ink); cursor: default; }
+
+.returns-skin .btn { height: 38px; padding: 0 16px; font-weight: 600; font-size: 13px; border: 1px solid var(--line); background: var(--surf); color: var(--ink); display: inline-flex; align-items: center; gap: 6px; }
+.returns-skin .btn:hover { border-color: var(--mut); }
+.returns-skin .btn.p { background: var(--acc); color: var(--acc-ink); border-color: var(--acc); }
+.returns-skin .btn.p:hover { filter: brightness(1.08); }
+/* Secondary nav action — the same light-red chip as the sales/customers
+   pages' own "Charge"/alert tint, not the solid fill .btn.p uses, since
+   this isn't the page's one primary action. */
+.returns-skin .btn.back { background: var(--acc-soft); color: var(--acc); border-color: var(--acc-soft); }
+.returns-skin .btn.back:hover { border-color: var(--acc); }
+
+.returns-skin .f { margin-top: 14px; }
+.returns-skin .f label { display: block; font-size: 12.5px; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
+.returns-skin .f input, .returns-skin .f select, .returns-skin .f textarea { width: 100%; height: 40px; border: 1px solid var(--line); background: var(--bg); padding: 0 12px; font: inherit; font-size: 13.5px; color: var(--ink); }
+.returns-skin .f textarea { height: auto; padding: 10px 12px; resize: vertical; }
+.returns-skin .f input:focus, .returns-skin .f select:focus, .returns-skin .f textarea:focus { outline: none; border-color: var(--acc); box-shadow: 0 0 0 3px var(--acc-soft); }
+
+/* Per-line qty/condition/reason — same rows the Sales page's own Refund
+   modal uses (same ReturnService under both), just laid out inline on
+   this page instead of inside a modal. */
+.returns-skin .refline { border: 1px solid var(--line); padding: 10px 12px; margin-bottom: 10px; }
+.returns-skin .refline-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.returns-skin .refline-top .mut { font-weight: 500; color: var(--mut); font-size: 12.5px; white-space: nowrap; }
+.returns-skin .refline-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+.returns-skin .refline-grid label { font-size: 11px; font-weight: 600; color: var(--mut); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .04em; }
+.returns-skin .refline-grid input, .returns-skin .refline-grid select { width: 100%; height: 34px; border: 1px solid var(--line); background: var(--bg); padding: 0 8px; font: inherit; font-size: 13px; color: var(--ink); }
+.returns-skin .refline-grid input:focus, .returns-skin .refline-grid select:focus { outline: none; border-color: var(--acc); box-shadow: 0 0 0 3px var(--acc-soft); }
+
+.returns-skin .formactions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }

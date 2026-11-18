@@ -1,127 +1,159 @@
-<div>
-    <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 p-4 mb-4">
-        <div class="flex flex-wrap items-start justify-between gap-4">
-            <div>
-                <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ $customer->name }}</h2>
-                <p class="text-sm text-gray-500 dark:text-gray-400">{{ $customer->formattedPhone() }} @if ($customer->email) · {{ $customer->email }} @endif</p>
+@php
+    $money = fn ($amount) => new \Illuminate\Support\HtmlString(
+        '<span class="ccy">'.e($currencyCode).'</span> '.number_format($amount, 2)
+    );
+@endphp
+
+<div class="customers-skin">
+    <div class="profile-head">
+        <div>
+            <h2>{{ $customer->name }}</h2>
+            <div class="contact">
+                @if ($customer->phone)
+                    <div>
+                        <span class="icon"><svg viewBox="0 0 24 24"><path d="M2.25 6.75c0 8.284 6.716 15 15 15h.75a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg></span>
+                        {{ $customer->formattedPhone() }}
+                    </div>
+                @endif
+                @if ($customer->email)
+                    <div>
+                        <span class="icon"><svg viewBox="0 0 24 24"><path d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"/></svg></span>
+                        {{ $customer->email }}
+                    </div>
+                @endif
                 @if ($customer->address)
-                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ $customer->address }}</p>
+                    <div>
+                        <span class="icon"><svg viewBox="0 0 24 24"><path d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/><path d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/></svg></span>
+                        {{ $customer->address }}
+                    </div>
                 @endif
             </div>
-
-            @if ($creditModuleEnabled && $customer->credit_enabled)
-                <div class="text-right">
-                    <div class="text-xs text-gray-500 dark:text-gray-400">Outstanding Balance</div>
-                    <div class="text-xl font-semibold text-gray-900 dark:text-gray-100">{{ number_format($customer->outstanding_balance, 2) }}</div>
-                    <div class="text-xs text-gray-500 dark:text-gray-400">of {{ number_format($customer->credit_limit, 2) }} limit</div>
-                </div>
-            @endif
         </div>
+
+        @if ($creditModuleEnabled && $customer->credit_enabled)
+            @php
+                $limit = (float) $customer->credit_limit;
+                $balance = (float) $customer->outstanding_balance;
+                $usedPct = $limit > 0 ? min(100, ($balance / $limit) * 100) : ($balance > 0 ? 100 : 0);
+            @endphp
+            <div class="bal">
+                <div class="lbl">Outstanding balance</div>
+                <div class="amt">{{ $money($balance) }}</div>
+                <div @class(['bar', 'over' => $balance >= $limit && $limit > 0, 'near' => $limit > 0 && $balance < $limit && $usedPct >= 85])>
+                    <div style="width: {{ $usedPct }}%"></div>
+                </div>
+                <div class="cap">of <span class="cap-amt">{{ $money($limit) }}</span> limit</div>
+            </div>
+        @endif
     </div>
 
-    <div class="border-b border-gray-200 dark:border-gray-700 mb-4">
-        <nav class="-mb-px flex gap-6">
-            <button
-                wire:click="setTab('purchases')"
-                @class(['py-3 px-1 border-b-2 text-sm font-medium', 'border-indigo-500 text-indigo-600 dark:text-indigo-400' => $activeTab === 'purchases', 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400' => $activeTab !== 'purchases'])
-            >Purchase History</button>
-            @if ($creditModuleEnabled && $customer->credit_enabled)
-                <button
-                    wire:click="setTab('credit')"
-                    @class(['py-3 px-1 border-b-2 text-sm font-medium', 'border-indigo-500 text-indigo-600 dark:text-indigo-400' => $activeTab === 'credit', 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400' => $activeTab !== 'credit'])
-                >Credit Ledger</button>
-            @endif
-        </nav>
+    <div class="tabs">
+        <button type="button" wire:click="setTab('purchases')" aria-selected="{{ $activeTab === 'purchases' ? 'true' : 'false' }}">Purchase History</button>
+        @if ($creditModuleEnabled && $customer->credit_enabled)
+            <button type="button" wire:click="setTab('credit')" aria-selected="{{ $activeTab === 'credit' ? 'true' : 'false' }}">Credit Ledger</button>
+        @endif
     </div>
 
     @if ($activeTab === 'purchases')
-        <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead class="bg-gray-50 dark:bg-gray-900/40">
+        <div class="card">
+            <table class="tbl">
+                <thead>
                     <tr>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Receipt #</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Payment</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                        <th>Receipt #</th>
+                        <th>Date</th>
+                        <th>Payment</th>
+                        <th class="num">Total</th>
+                        <th>Status</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                <tbody>
                     @forelse ($sales as $sale)
                         <tr wire:key="sale-{{ $sale->id }}">
-                            <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100 font-mono whitespace-nowrap">
-                                <a href="{{ route('sales.receipt', $sale) }}" target="_blank" class="hover:text-indigo-600 dark:hover:text-indigo-400">{{ $sale->receipt_number }}</a>
-                            </td>
-                            <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ $sale->sale_date->format('Y-m-d H:i') }}</td>
-                            <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ $sale->payment?->paymentMethod->name }}</td>
-                            <td class="px-4 py-3 text-sm text-right tabular-nums text-gray-700 dark:text-gray-300 whitespace-nowrap">{{ number_format($sale->total_amount, 2) }}</td>
-                            <td class="px-4 py-3 text-sm whitespace-nowrap">
+                            <td class="mono"><a href="{{ route('sales.receipt', $sale) }}" target="_blank" class="link">{{ $sale->receipt_number }}</a></td>
+                            <td class="mut">{{ $sale->sale_date->format('Y-m-d H:i') }}</td>
+                            <td>{{ $sale->payment?->paymentMethod->name }}</td>
+                            <td class="num">{{ $money($sale->total_amount) }}</td>
+                            <td>
                                 <span @class([
-                                    'inline-flex px-2 py-0.5 rounded-full text-xs font-medium',
-                                    'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' => $sale->status === 'completed',
-                                    'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300' => $sale->status === 'voided',
-                                    'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300' => $sale->status === 'refunded',
+                                    'status',
+                                    'ok' => $sale->status === 'completed',
+                                    'acc' => $sale->status === 'voided',
+                                    'warn' => $sale->status === 'refunded',
                                 ])>{{ ucfirst($sale->status) }}</span>
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="5" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No purchases yet.</td></tr>
+                        <tr><td colspan="5" class="empty">No purchases yet.</td></tr>
                     @endforelse
                 </tbody>
             </table>
-            <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700">{{ $sales->links() }}</div>
+            <div class="pager">
+                <span>Showing {{ $sales->firstItem() ?? 0 }}–{{ $sales->lastItem() ?? 0 }} of {{ $sales->total() }}</span>
+                @if ($sales->hasPages())
+                    <div class="pages">
+                        @foreach ($sales->getUrlRange(max(1, $sales->currentPage() - 2), min($sales->lastPage(), $sales->currentPage() + 2)) as $page => $url)
+                            <button type="button" wire:click="gotoPage({{ $page }}, 'salesPage')" aria-current="{{ $page === $sales->currentPage() ? 'true' : 'false' }}">{{ $page }}</button>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
         </div>
     @endif
 
     @if ($activeTab === 'credit')
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div class="lg:col-span-2 bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead class="bg-gray-50 dark:bg-gray-900/40">
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 16px; align-items: start">
+            <div class="card">
+                <table class="tbl">
+                    <thead>
                         <tr>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</th>
-                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
-                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Balance After</th>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th class="num">Amount</th>
+                            <th class="num">Balance After</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                    <tbody>
                         @forelse ($creditTransactions as $transaction)
                             <tr wire:key="credit-{{ $transaction->id }}">
-                                <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ $transaction->created_at->format('Y-m-d H:i') }}</td>
-                                <td class="px-4 py-3 text-sm whitespace-nowrap">
-                                    <span @class([
-                                        'inline-flex px-2 py-0.5 rounded-full text-xs font-medium',
-                                        'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' => $transaction->type === 'credit_sale',
-                                        'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' => $transaction->type === 'payment',
-                                    ])>{{ $transaction->type === 'credit_sale' ? 'Charge' : 'Payment' }}</span>
+                                <td class="mut">{{ $transaction->created_at->format('Y-m-d H:i') }}</td>
+                                <td>
+                                    <span @class(['status', 'acc' => $transaction->type === 'credit_sale', 'ok' => $transaction->type === 'payment'])>{{ $transaction->type === 'credit_sale' ? 'Charge' : 'Payment' }}</span>
                                     @if ($transaction->sale)
-                                        <a href="{{ route('sales.receipt', $transaction->sale) }}" target="_blank" class="ml-1 text-xs text-gray-400 hover:text-indigo-600">{{ $transaction->sale->receipt_number }}</a>
+                                        <a href="{{ route('sales.receipt', $transaction->sale) }}" target="_blank" class="mono mut" style="font-size: 12px; margin-left: 4px;">{{ $transaction->sale->receipt_number }}</a>
                                     @endif
                                 </td>
-                                <td @class(['px-4 py-3 text-sm text-right tabular-nums whitespace-nowrap', 'text-red-600' => $transaction->type === 'credit_sale', 'text-emerald-600' => $transaction->type === 'payment'])>
-                                    {{ $transaction->type === 'credit_sale' ? '+' : '-' }}{{ number_format($transaction->amount, 2) }}
+                                <td class="num" style="color: {{ $transaction->type === 'credit_sale' ? 'var(--acc)' : 'var(--ok)' }}">
+                                    <span class="ccy">{{ $currencyCode }}</span> {{ $transaction->type === 'credit_sale' ? '+' : '-' }}{{ number_format($transaction->amount, 2) }}
                                 </td>
-                                <td class="px-4 py-3 text-sm text-right tabular-nums text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ number_format($transaction->balance_after, 2) }}</td>
+                                <td class="num mut">{{ $money($transaction->balance_after) }}</td>
                             </tr>
                         @empty
-                            <tr><td colspan="4" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No credit activity yet.</td></tr>
+                            <tr><td colspan="4" class="empty">No credit activity yet.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
-                <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700">{{ $creditTransactions->links() }}</div>
+                <div class="pager">
+                    <span>Showing {{ $creditTransactions->firstItem() ?? 0 }}–{{ $creditTransactions->lastItem() ?? 0 }} of {{ $creditTransactions->total() }}</span>
+                    @if ($creditTransactions->hasPages())
+                        <div class="pages">
+                            @foreach ($creditTransactions->getUrlRange(max(1, $creditTransactions->currentPage() - 2), min($creditTransactions->lastPage(), $creditTransactions->currentPage() + 2)) as $page => $url)
+                                <button type="button" wire:click="gotoPage({{ $page }}, 'creditPage')" aria-current="{{ $page === $creditTransactions->currentPage() ? 'true' : 'false' }}">{{ $page }}</button>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
             </div>
 
             @if (auth()->user()->hasPermission('customers', 'update'))
-                <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 p-4 space-y-3 self-start">
-                    <h3 class="font-semibold text-gray-800 dark:text-gray-100">Record Payment</h3>
-                    <form wire:submit="recordPayment" class="space-y-3">
-                        <div>
-                            <x-input-label for="payment_amount" value="Amount" />
-                            <x-text-input wire:model="paymentAmount" id="payment_amount" class="block mt-1 w-full" />
+                <div class="credit-panel">
+                    <h3>Record payment</h3>
+                    <form wire:submit="recordPayment">
+                        <div class="f">
+                            <label for="payment_amount">Amount</label>
+                            <input type="text" wire:model="paymentAmount" id="payment_amount">
                             <x-input-error :messages="$errors->get('paymentAmount')" class="mt-2" />
                         </div>
-                        <x-primary-button type="submit" class="w-full justify-center">Record Payment</x-primary-button>
+                        <button type="submit" class="btn p" style="width: 100%; justify-content: center;">Record payment</button>
                     </form>
                 </div>
             @endif

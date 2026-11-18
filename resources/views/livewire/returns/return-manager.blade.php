@@ -1,157 +1,198 @@
-<div>
-    @if ($mode === 'list')
-        <div class="flex items-center justify-between gap-4 mb-4">
-            <div class="w-full max-w-xs">
-                <x-text-input wire:model.live.debounce.300ms="search" type="search" placeholder="Search return # or receipt #..." class="w-full" />
-            </div>
+@php
+    $money = fn ($amount) => new \Illuminate\Support\HtmlString(
+        '<span class="ccy">'.e($currencyCode).'</span> '.number_format($amount, 2)
+    );
+@endphp
 
+<div class="returns-skin">
+    @if ($mode === 'list')
+        <div class="top">
+            <div>
+                <h1>Returns</h1>
+                <p>Every return processed, store-wide</p>
+            </div>
             @if (auth()->user()->hasPermission('returns', 'create'))
-                <x-primary-button wire:click="startProcessing">
+                <button type="button" wire:click="startProcessing" class="btn p">
+                    <svg viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 5v14M5 12h14"/></svg>
                     Process Return
-                </x-primary-button>
+                </button>
             @endif
         </div>
 
-        <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead class="bg-gray-50 dark:bg-gray-900/40">
+        <div class="filters">
+            <div class="search">
+                <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                <input wire:model.live.debounce.300ms="search" type="search" placeholder="Search return # or receipt #…">
+            </div>
+        </div>
+
+        <div class="card">
+            <table class="tbl">
+                <thead>
                     <tr>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Return #</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Original Sale</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Processed By</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Refund</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                        <th>Return #</th>
+                        <th>Original Sale</th>
+                        <th>Date</th>
+                        <th>Processed By</th>
+                        <th class="num">Refund</th>
+                        <th>Status</th>
+                        <th class="actions">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                <tbody>
                     @forelse ($returns as $return)
                         <tr wire:key="return-{{ $return->id }}">
-                            <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100 font-mono whitespace-nowrap">{{ $return->return_number }}</td>
-                            <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 font-mono whitespace-nowrap">{{ $return->originalSale->receipt_number }}</td>
-                            <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ $return->created_at->format('Y-m-d H:i') }}</td>
-                            <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ $return->processedBy->name }}</td>
-                            <td class="px-4 py-3 text-sm text-right tabular-nums text-gray-700 dark:text-gray-300 whitespace-nowrap">{{ number_format($return->refund_amount, 2) }}</td>
-                            <td class="px-4 py-3 text-sm whitespace-nowrap">
-                                <span @class([
-                                    'inline-flex px-2 py-0.5 rounded-full text-xs font-medium',
-                                    'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' => $return->status === 'completed',
-                                    'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' => $return->status !== 'completed',
-                                ])>{{ ucfirst($return->status) }}</span>
+                            <td class="mono">{{ $return->return_number }}</td>
+                            <td class="mono mut">{{ $return->originalSale->receipt_number }}</td>
+                            <td class="mut">{{ $return->created_at->format('Y-m-d H:i') }}</td>
+                            <td>{{ $return->processedBy->name }}</td>
+                            <td class="num">{{ $money($return->refund_amount) }}</td>
+                            <td>
+                                <span @class(['status', 'ok' => $return->status === 'completed', 'plain' => $return->status !== 'completed'])>{{ ucfirst($return->status) }}</span>
                             </td>
-                            <td class="px-4 py-3 text-sm text-right whitespace-nowrap">
-                                <a href="{{ route('returns.receipt', $return) }}" target="_blank" class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium">Receipt</a>
+                            <td class="actions">
+                                <a href="{{ route('returns.receipt', $return) }}" target="_blank" class="actionbtn">Receipt</a>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No returns found.</td>
+                            <td colspan="7" class="empty">No returns found.</td>
                         </tr>
                     @endforelse
                 </tbody>
             </table>
-            <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
-                {{ $returns->links() }}
+            <div class="pager">
+                <span>Showing {{ $returns->firstItem() ?? 0 }}–{{ $returns->lastItem() ?? 0 }} of {{ $returns->total() }}</span>
+                @if ($returns->hasPages())
+                    <div class="pages">
+                        @foreach ($returns->getUrlRange(max(1, $returns->currentPage() - 2), min($returns->lastPage(), $returns->currentPage() + 2)) as $page => $url)
+                            <button type="button" wire:click="gotoPage({{ $page }})" aria-current="{{ $page === $returns->currentPage() ? 'true' : 'false' }}">{{ $page }}</button>
+                        @endforeach
+                    </div>
+                @endif
             </div>
         </div>
     @endif
 
     @if ($mode === 'process')
         @if ($foundSale)
-            <div class="max-w-2xl space-y-4">
-                <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 p-4">
-                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            <div class="top">
+                <div>
+                    <h1>Process return</h1>
+                    <p>
                         {{ $foundSale->receipt_number }} — {{ $foundSale->sale_date->format('Y-m-d H:i') }}
-                        @if ($foundSale->customer) · {{ $foundSale->customer->name }} @endif
+                        @if ($foundSale->customer) &middot; {{ $foundSale->customer->name }} @endif
                     </p>
+                </div>
+                <button type="button" wire:click="cancelProcessing" class="btn back">
+                    <svg viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M15 19l-7-7 7-7"/></svg>
+                    Back to returns
+                </button>
+            </div>
 
-                    <form wire:submit="submitReturn" class="space-y-4">
-                        @foreach ($returnLines as $index => $line)
-                            <div class="border border-gray-200 dark:border-gray-700 rounded-md p-3" wire:key="return-line-{{ $index }}">
-                                <div class="flex items-center justify-between text-sm font-medium text-gray-800 dark:text-gray-100">
-                                    <span>{{ $line['product_name'] }}</span>
-                                    <span class="text-gray-500 dark:text-gray-400 font-normal">{{ rtrim(rtrim($line['max_returnable'], '0'), '.') }} eligible @ {{ number_format($line['unit_price'], 2) }}</span>
+            <div class="card" style="padding: 20px;">
+                <form wire:submit="submitReturn">
+                    @foreach ($returnLines as $index => $line)
+                        <div class="refline" wire:key="return-line-{{ $index }}">
+                            <div class="refline-top">
+                                <span>{{ $line['product_name'] }}</span>
+                                <span class="mut">{{ rtrim(rtrim($line['max_returnable'], '0'), '.') }} eligible &commat; {{ $money($line['unit_price']) }}</span>
+                            </div>
+                            <div class="refline-grid">
+                                <div>
+                                    <label>Qty to return</label>
+                                    <input type="text" wire:model="returnLines.{{ $index }}.quantity">
                                 </div>
-
-                                <div class="grid grid-cols-3 gap-2 mt-2">
-                                    <div>
-                                        <x-input-label value="Qty to return" class="text-xs" />
-                                        <input type="text" wire:model="returnLines.{{ $index }}.quantity" class="block w-full text-sm mt-1 rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100">
-                                    </div>
-                                    <div>
-                                        <x-input-label value="Condition" class="text-xs" />
-                                        <select wire:model="returnLines.{{ $index }}.condition_type" class="block w-full text-sm mt-1 rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100">
-                                            <option value="sellable">Sellable</option>
-                                            <option value="damaged">Damaged</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <x-input-label value="Reason" class="text-xs" />
-                                        <input type="text" wire:model="returnLines.{{ $index }}.reason" class="block w-full text-sm mt-1 rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100">
-                                    </div>
+                                <div>
+                                    <label>Condition</label>
+                                    <select wire:model="returnLines.{{ $index }}.condition_type">
+                                        <option value="sellable">Sellable</option>
+                                        <option value="damaged">Damaged</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label>Reason</label>
+                                    <input type="text" wire:model="returnLines.{{ $index }}.reason">
                                 </div>
                             </div>
-                        @endforeach
-
-                        <div>
-                            <x-input-label for="overall_reason" value="Overall Reason (required)" />
-                            <textarea wire:model="overallReason" id="overall_reason" rows="2" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
-                            <x-input-error :messages="$errors->get('overallReason')" class="mt-2" />
                         </div>
+                    @endforeach
 
-                        <div class="flex justify-end gap-3">
-                            <x-secondary-button type="button" wire:click="cancelProcessing">Cancel</x-secondary-button>
-                            <x-primary-button type="submit">Process Return</x-primary-button>
-                        </div>
-                    </form>
-                </div>
+                    <div class="f">
+                        <label for="overall_reason">Overall Reason (required)</label>
+                        <textarea wire:model="overallReason" id="overall_reason" rows="2"></textarea>
+                        <x-input-error :messages="$errors->get('overallReason')" class="mt-2" />
+                    </div>
+
+                    <div class="formactions">
+                        <button type="button" wire:click="cancelProcessing" class="btn">Cancel</button>
+                        <button type="submit" class="btn p">Process Return</button>
+                    </div>
+                </form>
             </div>
         @else
-            <div class="flex items-center justify-between gap-4 mb-4">
-                <div class="w-full max-w-xs">
-                    <x-text-input wire:model.live.debounce.300ms="saleSearch" type="search" placeholder="Search receipt # or customer..." class="w-full" />
+            <div class="top">
+                <div>
+                    <h1>Process return</h1>
+                    <p>Pick the sale to refund — only sales you're allowed to refund show up</p>
                 </div>
-                <x-secondary-button wire:click="cancelProcessing">Back to Returns</x-secondary-button>
+                <button type="button" wire:click="cancelProcessing" class="btn back">
+                    <svg viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M15 19l-7-7 7-7"/></svg>
+                    Back to returns
+                </button>
+            </div>
+
+            <div class="filters">
+                <div class="search">
+                    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                    <input wire:model.live.debounce.300ms="saleSearch" type="search" placeholder="Search receipt # or customer…">
+                </div>
             </div>
 
             @if ($saleSearchError)
-                <p class="text-sm text-red-600 mb-4">{{ $saleSearchError }}</p>
+                <div class="notice">{{ $saleSearchError }}</div>
             @endif
 
-            <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead class="bg-gray-50 dark:bg-gray-900/40">
+            <div class="card">
+                <table class="tbl">
+                    <thead>
                         <tr>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Receipt #</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Customer</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Cashier</th>
-                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total</th>
-                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                            <th>Receipt #</th>
+                            <th>Date</th>
+                            <th>Customer</th>
+                            <th>Cashier</th>
+                            <th class="num">Total</th>
+                            <th class="actions">Actions</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                    <tbody>
                         @forelse ($returnableSales as $sale)
                             <tr wire:key="returnable-sale-{{ $sale->id }}">
-                                <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100 font-mono whitespace-nowrap">{{ $sale->receipt_number }}</td>
-                                <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ $sale->sale_date->format('Y-m-d H:i') }}</td>
-                                <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ $sale->customer?->name ?? 'Walk-in' }}</td>
-                                <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ $sale->cashier->name }}</td>
-                                <td class="px-4 py-3 text-sm text-right tabular-nums text-gray-700 dark:text-gray-300 whitespace-nowrap">{{ number_format($sale->total_amount, 2) }}</td>
-                                <td class="px-4 py-3 text-sm text-right whitespace-nowrap">
-                                    <button type="button" wire:click="selectSale({{ $sale->id }})" class="text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300 font-medium">Refund</button>
+                                <td class="mono">{{ $sale->receipt_number }}</td>
+                                <td class="mut">{{ $sale->sale_date->format('Y-m-d H:i') }}</td>
+                                <td class="mut">{{ $sale->customer?->name ?? 'Walk-in' }}</td>
+                                <td>{{ $sale->cashier->name }}</td>
+                                <td class="num">{{ $money($sale->total_amount) }}</td>
+                                <td class="actions">
+                                    <button type="button" wire:click="selectSale({{ $sale->id }})" class="actionbtn refund">Refund</button>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No sales found.</td>
+                                <td colspan="6" class="empty">No sales found.</td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
-                <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
-                    {{ $returnableSales->links() }}
+                <div class="pager">
+                    <span>Showing {{ $returnableSales->firstItem() ?? 0 }}–{{ $returnableSales->lastItem() ?? 0 }} of {{ $returnableSales->total() }}</span>
+                    @if ($returnableSales->hasPages())
+                        <div class="pages">
+                            @foreach ($returnableSales->getUrlRange(max(1, $returnableSales->currentPage() - 2), min($returnableSales->lastPage(), $returnableSales->currentPage() + 2)) as $page => $url)
+                                <button type="button" wire:click="gotoPage({{ $page }}, 'salesPage')" aria-current="{{ $page === $returnableSales->currentPage() ? 'true' : 'false' }}">{{ $page }}</button>
+                            @endforeach
+                        </div>
+                    @endif
                 </div>
             </div>
         @endif

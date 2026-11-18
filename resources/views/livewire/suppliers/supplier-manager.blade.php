@@ -1,133 +1,135 @@
-<div>
-    <div class="flex items-center justify-between gap-4 mb-4">
-        <div class="w-full max-w-xs">
-            <x-text-input wire:model.live.debounce.300ms="search" type="search" placeholder="Search name or phone..." class="w-full" />
+<div class="suppliers-skin">
+    <div class="top">
+        <div>
+            <h1>Suppliers</h1>
+            <p>Everyone the store orders stock from</p>
         </div>
-
         @if (auth()->user()->hasPermission('suppliers', 'create'))
-            <x-primary-button wire:click="create">
+            <button type="button" wire:click="create" class="btn p">
+                <svg viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 5v14M5 12h14"/></svg>
                 Create Supplier
-            </x-primary-button>
+            </button>
         @endif
     </div>
 
-    @if ($phonesToFix > 0)
-        <div class="mb-4 rounded-md border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/30 px-3 py-2 text-sm text-amber-900 dark:text-amber-200">
-            <strong>{{ $phonesToFix }}</strong> {{ $phonesToFix === 1 ? 'supplier has' : 'suppliers have' }} a phone number that needs updating — a valid number is +220 followed by 9 digits.
+    <div class="filters">
+        <div class="search">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input wire:model.live.debounce.300ms="search" type="search" placeholder="Search name or phone…">
         </div>
+    </div>
+
+    @if ($phonesToFix > 0)
+        <div class="notice"><strong>{{ $phonesToFix }}</strong> {{ $phonesToFix === 1 ? 'supplier has' : 'suppliers have' }} a phone number that needs updating — a valid number is +220 followed by 9 digits.</div>
     @endif
 
-    <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 overflow-hidden">
+    <div class="card">
         @php $showActions = auth()->user()->hasPermission('suppliers', 'update') || auth()->user()->hasPermission('suppliers', 'delete'); @endphp
-        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead class="bg-gray-50 dark:bg-gray-900/40">
+        <table class="tbl">
+            <thead>
                 <tr>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Name</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Phone</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Email</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Products</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                    <th>Name</th>
+                    <th>Phone</th>
+                    <th>Email</th>
+                    <th class="num">Products</th>
+                    <th>Status</th>
                     @if ($showActions)
-                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                        <th class="actions">Actions</th>
                     @endif
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody>
                 @forelse ($suppliers as $supplier)
                     <tr wire:key="supplier-{{ $supplier->id }}">
-                        <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{{ $supplier->name }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                        <td>{{ $supplier->name }}</td>
+                        <td class="mut">
                             @if ($supplier->hasValidPhone())
                                 {{ $supplier->formattedPhone() }}
                             @else
-                                <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300" title="Not in the +220 + 9 digits form">Needs updating</span>
+                                <span class="status warn" title="Not in the +220 + 9 digits form">Needs updating</span>
                                 @if ($supplier->phone)
-                                    <span class="ml-1 text-xs text-gray-400">{{ $supplier->phone }}</span>
+                                    <span class="mut" style="font-size:11px;">{{ $supplier->phone }}</span>
                                 @endif
                             @endif
                         </td>
-                        <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ $supplier->email }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ $supplier->products_count }}</td>
-                        <td class="px-4 py-3 text-sm">
-                            <span @class([
-                                'inline-flex px-2 py-0.5 rounded-full text-xs font-medium',
-                                'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' => $supplier->status === 'active',
-                                'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' => $supplier->status === 'inactive',
-                            ])>
-                                {{ ucfirst($supplier->status) }}
-                            </span>
+                        <td class="mut">{{ $supplier->email ?: '—' }}</td>
+                        <td class="num">{{ $supplier->products_count }}</td>
+                        <td>
+                            <span @class(['status', 'ok' => $supplier->status === 'active', 'plain' => $supplier->status !== 'active'])>{{ ucfirst($supplier->status) }}</span>
                         </td>
                         @if ($showActions)
-                        <td class="px-4 py-3 text-sm text-right space-x-3">
-                            @if (auth()->user()->hasPermission('suppliers', 'update'))
-                                <button wire:click="edit({{ $supplier->id }})" class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium">
-                                    Edit
-                                </button>
-                            @endif
-                            @if (auth()->user()->hasPermission('suppliers', 'delete'))
-                                <button wire:click="confirmDeactivate({{ $supplier->id }})" class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 font-medium">
-                                    {{ $supplier->status === 'active' ? 'Deactivate' : 'Reactivate' }}
-                                </button>
-                            @endif
-                        </td>
+                            <td class="actions">
+                                @if (auth()->user()->hasPermission('suppliers', 'update'))
+                                    <button type="button" wire:click="edit({{ $supplier->id }})" class="actionbtn">Edit</button>
+                                @endif
+                                @if (auth()->user()->hasPermission('suppliers', 'delete'))
+                                    <button type="button" wire:click="confirmDeactivate({{ $supplier->id }})" class="actionbtn danger">
+                                        {{ $supplier->status === 'active' ? 'Deactivate' : 'Reactivate' }}
+                                    </button>
+                                @endif
+                            </td>
                         @endif
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="{{ $showActions ? 6 : 5 }}" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                            No suppliers found.
-                        </td>
+                        <td colspan="{{ $showActions ? 6 : 5 }}" class="empty">No suppliers found.</td>
                     </tr>
                 @endforelse
             </tbody>
         </table>
-
-        <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
-            {{ $suppliers->links() }}
+        <div class="pager">
+            <span>Showing {{ $suppliers->firstItem() ?? 0 }}–{{ $suppliers->lastItem() ?? 0 }} of {{ $suppliers->total() }}</span>
+            @if ($suppliers->hasPages())
+                <div class="pages">
+                    @foreach ($suppliers->getUrlRange(max(1, $suppliers->currentPage() - 2), min($suppliers->lastPage(), $suppliers->currentPage() + 2)) as $page => $url)
+                        <button type="button" wire:click="gotoPage({{ $page }})" aria-current="{{ $page === $suppliers->currentPage() ? 'true' : 'false' }}">{{ $page }}</button>
+                    @endforeach
+                </div>
+            @endif
         </div>
     </div>
 
     <x-slide-over name="supplier-form" :title="$editingSupplierId ? 'Edit Supplier' : 'Create Supplier'">
-        <form wire:submit="save" id="supplier-form" class="space-y-6">
-            <div>
-                <x-input-label for="supplier_name" value="Name" />
-                <x-text-input wire:model="name" id="supplier_name" class="block mt-1 w-full" />
+        <form wire:submit="save" id="supplier-form">
+            <div class="f">
+                <label for="supplier_name">Name<span class="req">*</span></label>
+                <input type="text" wire:model="name" id="supplier_name">
                 <x-input-error :messages="$errors->get('name')" class="mt-2" />
             </div>
 
-            <div>
-                <x-input-label for="supplier_phone" value="Phone" />
-                <div class="mt-1 flex items-center gap-2">
-                    <span class="text-sm text-gray-500 dark:text-gray-400">+220</span>
-                    <x-text-input wire:model="phone" id="supplier_phone" placeholder="831234567" maxlength="9" inputmode="numeric" class="block w-full" />
+            <div class="f">
+                <label for="supplier_phone">Phone<span class="req">*</span></label>
+                <div class="prefix">
+                    <span>+220</span>
+                    <input type="text" wire:model="phone" id="supplier_phone" placeholder="831234567" maxlength="9" inputmode="numeric">
                 </div>
                 @if ($legacyPhone !== '')
-                    <p class="mt-1 text-xs text-amber-700 dark:text-amber-300">On file: {{ $legacyPhone }} — that isn't a full number. Enter the 9 digits.</p>
+                    <div class="hint">On file: {{ $legacyPhone }} — that isn't a full number. Enter the 9 digits.</div>
                 @endif
                 <x-input-error :messages="$errors->get('phone')" class="mt-2" />
             </div>
 
-            <div>
-                <x-input-label for="supplier_email" value="Email" />
-                <x-text-input wire:model="email" id="supplier_email" type="email" class="block mt-1 w-full" />
+            <div class="f">
+                <label for="supplier_email">Email</label>
+                <input type="email" wire:model="email" id="supplier_email">
                 <x-input-error :messages="$errors->get('email')" class="mt-2" />
             </div>
 
-            <div>
-                <x-input-label for="supplier_address" value="Address" />
-                <textarea wire:model="address" id="supplier_address" rows="2" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+            <div class="f">
+                <label for="supplier_address">Address</label>
+                <textarea wire:model="address" id="supplier_address" rows="2"></textarea>
                 <x-input-error :messages="$errors->get('address')" class="mt-2" />
             </div>
 
-            <div>
-                <x-input-label for="supplier_notes" value="Notes" />
-                <textarea wire:model="notes" id="supplier_notes" rows="2" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+            <div class="f">
+                <label for="supplier_notes">Notes</label>
+                <textarea wire:model="notes" id="supplier_notes" rows="2"></textarea>
                 <x-input-error :messages="$errors->get('notes')" class="mt-2" />
             </div>
 
-            <div>
-                <x-input-label for="supplier_status" value="Status" />
-                <select wire:model="status" id="supplier_status" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+            <div class="f">
+                <label for="supplier_status">Status<span class="req">*</span></label>
+                <select wire:model="status" id="supplier_status">
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
                 </select>
@@ -135,17 +137,21 @@
         </form>
 
         <x-slot name="footer">
-            <x-secondary-button x-on:click="show = false">Cancel</x-secondary-button>
-            <x-primary-button type="submit" form="supplier-form">Save</x-primary-button>
+            <button type="button" x-on:click="show = false" class="btn">Cancel</button>
+            <button type="submit" form="supplier-form" class="btn p">Save</button>
         </x-slot>
     </x-slide-over>
 
-    <x-confirm-modal
-        name="confirm-deactivate-supplier"
-        title="Confirm"
-        message="Are you sure? Products from this supplier keep their assignment but it stops being selectable for new ones while inactive."
-        confirm-label="Confirm"
-    >
-        <x-danger-button wire:click="toggleStatus">Confirm</x-danger-button>
-    </x-confirm-modal>
+    <x-modal name="confirm-deactivate-supplier" max-width="sm">
+        <div class="dialog">
+            <div class="dh">
+                <h2>Confirm</h2>
+                <p>Are you sure? Products from this supplier keep their assignment but it stops being selectable for new ones while inactive.</p>
+            </div>
+            <div class="df">
+                <button type="button" class="btn" x-on:click="$dispatch('close')">Cancel</button>
+                <button type="button" wire:click="toggleStatus" class="btn danger">Confirm</button>
+            </div>
+        </div>
+    </x-modal>
 </div>

@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Inventory — expiry tracking</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./shared.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body { margin: 0; }
+</style>
+</helmet>
+<div class="skin" style="width: 100%; min-height: 900px;">
+<div class="wrap">
+
+  <div class="top">
+    <div>
+      <h1>Inventory</h1>
+      <p>Stock on hand, movements, adjustments, expiry and pricing — all in one place</p>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button type="button" aria-selected="false">Stock Overview</button>
+    <button type="button" aria-selected="false">Stock Valuation</button>
+    <button type="button" aria-selected="false">Movement History</button>
+    <button type="button" aria-selected="false">Stock Adjustments</button>
+    <button type="button" aria-selected="true">Expiry Tracking</button>
+    <button type="button" aria-selected="false">Bulk Discounts</button>
+  </div>
+
+  <div class="filters">
+    <div class="search">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" placeholder="Search product…">
+    </div>
+    <select>
+      <option>All upcoming expiries</option>
+      <option selected>Within 30 days</option>
+      <option>Within 60 days</option>
+    </select>
+  </div>
+
+  <div class="card">
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th class="num">Qty Remaining</th>
+          <th>Expiry Date</th>
+          <th>Days Left</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Julbrew Lager 50cl</td>
+          <td class="num mut">6</td>
+          <td class="mut">2026-11-10</td>
+          <td><span class="status acc">Expired</span></td>
+        </tr>
+        <tr>
+          <td>Fanta Orange 50cl</td>
+          <td class="num mut">24</td>
+          <td class="mut">2026-11-23</td>
+          <td><span class="status acc">5 days</span></td>
+        </tr>
+        <tr>
+          <td>Omo Detergent 1kg</td>
+          <td class="num mut">48</td>
+          <td class="mut">2026-12-05</td>
+          <td><span class="status warn">17 days</span></td>
+        </tr>
+        <tr>
+          <td>Jumbo Stock Cubes</td>
+          <td class="num mut">612</td>
+          <td class="mut">2027-04-02</td>
+          <td class="mut">135 days</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="pager">
+      <span>Showing 1–4 of 37</span>
+      <div class="pages">
+        <button type="button" aria-current="true">1</button>
+        <button type="button">2</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1320,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

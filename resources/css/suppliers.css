@@ -1,0 +1,132 @@
+/*
+ * Suppliers redesign — scoped entirely under .suppliers-skin so none
+ * of this (palette, resets) ever leaks onto any other page. Same flat,
+ * boxy, Inter look as the rest of the app — another of the Products
+ * module's small reference-data screens, so it keeps the same red
+ * accent as products.css/units.css/categories.css.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+body {
+    --bg: #f6f6f4; --surf: #fff; --ink: #1a1a1c; --mut: #55555b;
+    --line: #e3e3df; --soft: #efefeb; --acc: #a81c26; --acc-ink: #fff; --acc-soft: #f9e9e9;
+    --ok: #1f7a52; --ok-soft: #e7f3ed; --warn: #8a5a00; --warn-soft: #f8eedc;
+}
+html.dark body {
+    --bg: #0f0f11; --surf: #18181b; --ink: #f3f3f4; --mut: #aeaeb6;
+    --line: #2a2a2f; --soft: #222226; --acc: #c93840; --acc-ink: #fff; --acc-soft: #3a1c1d;
+    --ok: #3cc088; --ok-soft: #173327; --warn: #e0a93a; --warn-soft: #3a2f10;
+}
+
+#app-header { background: var(--acc); border-color: var(--acc); }
+#app-header, #app-header *:not(.absolute, .absolute *) { color: var(--acc-ink); }
+#app-header button:hover:not(.absolute button) { background: rgba(255, 255, 255, .16); }
+
+.suppliers-skin, .suppliers-skin *, .suppliers-skin *::before, .suppliers-skin *::after { box-sizing: border-box; }
+.suppliers-skin {
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    color: var(--ink);
+    color-scheme: light;
+}
+html.dark .suppliers-skin { color-scheme: dark; }
+.suppliers-skin button, .suppliers-skin a { font: inherit; color: inherit; }
+.suppliers-skin button { cursor: pointer; border: 0; background: none; padding: 0; }
+.suppliers-skin a { text-decoration: none; }
+.suppliers-skin svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.suppliers-skin :focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+
+.suppliers-skin .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+.suppliers-skin .top > div:first-child { border-left: 4px solid var(--acc); padding-left: 14px; }
+.suppliers-skin .top h1 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
+.suppliers-skin .top p { margin: 2px 0 0; color: var(--mut); font-size: 13.5px; }
+
+.suppliers-skin .filters { background: var(--surf); border: 1px solid var(--line); padding: 14px 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px; }
+.suppliers-skin .search { position: relative; flex: 1 1 240px; min-width: 200px; }
+.suppliers-skin .search svg { position: absolute; left: 12px; top: 11px; width: 16px; height: 16px; stroke: var(--mut); pointer-events: none; }
+.suppliers-skin .search input { width: 100%; height: 40px; border: 1px solid var(--line); background: var(--bg); padding: 0 14px 0 36px; font: inherit; font-size: 13.5px; color: var(--ink); }
+.suppliers-skin .search input:focus { outline: none; border-color: var(--acc); background: var(--surf); box-shadow: 0 0 0 3px var(--acc-soft); }
+
+.suppliers-skin .notice { background: var(--warn-soft); border: 1px solid var(--warn); padding: 10px 14px; font-size: 13px; color: var(--warn); margin-bottom: 16px; }
+.suppliers-skin .notice strong { font-weight: 700; }
+
+.suppliers-skin .card { background: var(--surf); border: 1px solid var(--line); overflow-x: auto; }
+
+.suppliers-skin .tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.suppliers-skin .tbl th { text-align: left; padding: 11px 16px; font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--mut); background: var(--soft); border-bottom: 1px solid var(--line); white-space: nowrap; }
+.suppliers-skin .tbl th.num, .suppliers-skin .tbl td.num { text-align: right; }
+.suppliers-skin .tbl th.actions, .suppliers-skin .tbl td.actions { text-align: right; }
+.suppliers-skin .tbl td { padding: 13px 16px; border-bottom: 1px solid var(--line); color: var(--ink); white-space: nowrap; }
+.suppliers-skin .tbl tbody tr:last-child td { border-bottom: 0; }
+.suppliers-skin .tbl tbody tr:hover td { background: var(--soft); }
+.suppliers-skin .tbl .mut { color: var(--mut); }
+.suppliers-skin .tbl .num { font-variant-numeric: tabular-nums; font-weight: 700; }
+.suppliers-skin .tbl .empty { text-align: center; color: var(--mut); padding: 32px 0; white-space: normal; }
+
+.suppliers-skin .status { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 11px; }
+.suppliers-skin .status.ok { color: var(--ok); background: var(--ok-soft); }
+.suppliers-skin .status.plain { color: var(--mut); background: var(--soft); }
+.suppliers-skin .status.warn { color: var(--warn); background: var(--warn-soft); cursor: help; }
+
+.suppliers-skin .actionbtn { display: inline-flex; align-items: center; height: 28px; padding: 0 11px; font-size: 12px; font-weight: 600; border: 1px solid var(--line); background: var(--surf); color: var(--mut); margin-left: 6px; }
+.suppliers-skin .actionbtn:first-child { margin-left: 0; }
+.suppliers-skin .actionbtn:hover { background: var(--soft); color: var(--ink); }
+.suppliers-skin .actionbtn.danger { color: var(--acc); border-color: var(--acc-soft); }
+.suppliers-skin .actionbtn.danger:hover { background: var(--acc-soft); }
+
+.suppliers-skin .pager { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--mut); flex-wrap: wrap; gap: 8px; }
+.suppliers-skin .pager .pages { display: flex; gap: 4px; }
+.suppliers-skin .pager .pages button { width: 30px; height: 30px; border: 1px solid var(--line); color: var(--mut); font-size: 12.5px; font-weight: 600; background: var(--surf); }
+.suppliers-skin .pager .pages button:hover { border-color: var(--mut); color: var(--ink); }
+.suppliers-skin .pager .pages button[aria-current=true] { background: var(--acc); border-color: var(--acc); color: var(--acc-ink); cursor: default; }
+
+.suppliers-skin .btn { height: 38px; padding: 0 16px; font-weight: 600; font-size: 13px; border: 1px solid var(--line); background: var(--surf); color: var(--ink); display: inline-flex; align-items: center; gap: 6px; }
+.suppliers-skin .btn:hover { border-color: var(--mut); }
+.suppliers-skin .btn.p { background: var(--acc); color: var(--acc-ink); border-color: var(--acc); }
+.suppliers-skin .btn.p:hover { filter: brightness(1.08); }
+.suppliers-skin .btn.danger { background: var(--acc); color: var(--acc-ink); border-color: var(--acc); }
+.suppliers-skin .btn.danger:hover { filter: brightness(1.08); }
+
+/* ------------------------------------------------------------- form/f */
+.suppliers-skin .f { margin-bottom: 16px; }
+.suppliers-skin .f:last-child { margin-bottom: 0; }
+.suppliers-skin .f label { display: block; font-size: 12.5px; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
+.suppliers-skin .f label .req { color: var(--acc); font-weight: 700; margin-left: 3px; }
+.suppliers-skin .f input, .suppliers-skin .f select, .suppliers-skin .f textarea { width: 100%; height: 40px; border: 1px solid var(--line); background: var(--bg); padding: 0 12px; font: inherit; font-size: 13.5px; color: var(--ink); }
+.suppliers-skin .f textarea { height: auto; padding: 10px 12px; resize: vertical; }
+.suppliers-skin .f input:focus, .suppliers-skin .f select:focus, .suppliers-skin .f textarea:focus { outline: none; border-color: var(--acc); box-shadow: 0 0 0 3px var(--acc-soft); }
+.suppliers-skin .f .prefix { display: flex; align-items: center; gap: 8px; }
+.suppliers-skin .f .prefix span { color: var(--mut); font-size: 13.5px; flex-shrink: 0; }
+.suppliers-skin .f .hint { font-size: 11.5px; color: var(--warn); margin-top: 5px; }
+.suppliers-skin .f select {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2355555b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 13px;
+    padding-right: 34px;
+}
+html.dark .suppliers-skin .f select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23aeaeb6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+}
+
+/* ------------------------------------- shared slide-over, reskinned */
+/* The Create/Edit Supplier form — a slide-over, not a centered modal,
+   same as Products/Customers (reskinned via the real component's own
+   hardcoded classes, same trick as every other redesigned page, so the
+   shared component itself stays untouched and no other page is hit). */
+.suppliers-skin .shadow-xl.flex.flex-col { background: var(--surf); border-left: 1px solid var(--line); box-shadow: none; border-radius: 0; }
+.suppliers-skin .border-b.shrink-0 { padding: 16px 20px; border-color: var(--line); }
+.suppliers-skin .border-b.shrink-0 h2 { font-size: 16px; font-weight: 800; letter-spacing: -.01em; color: var(--ink); }
+.suppliers-skin .border-b.shrink-0 button { color: var(--mut); }
+.suppliers-skin .border-b.shrink-0 button:hover { color: var(--ink); }
+.suppliers-skin .flex-1.overflow-y-auto { padding: 20px; }
+.suppliers-skin .border-t.shrink-0 { padding: 16px 20px; border-color: var(--line); }
+
+/* -------------------------------------------------- centered dialogs */
+/* The deactivate confirmation stays a centered <x-modal>. */
+.suppliers-skin .rounded-lg.shadow-xl.overflow-hidden { border-radius: 0; box-shadow: none; border: 1px solid var(--line); background: var(--surf); }
+.suppliers-skin .dialog .dh { padding: 20px 20px 0; }
+.suppliers-skin .dialog .dh h2 { margin: 0; font-size: 17px; font-weight: 800; letter-spacing: -.01em; color: var(--ink); }
+.suppliers-skin .dialog .dh p { margin: 8px 0 0; font-size: 13px; color: var(--mut); line-height: 1.5; }
+.suppliers-skin .dialog .df { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 20px 20px; }

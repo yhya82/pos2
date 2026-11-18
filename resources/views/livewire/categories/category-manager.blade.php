@@ -1,110 +1,124 @@
-<div>
-    <div class="flex items-center justify-between gap-4 mb-4">
-        <div class="w-full max-w-xs">
-            <x-text-input wire:model.live.debounce.300ms="search" type="search" placeholder="Search categories..." class="w-full" />
+<div class="categories-skin">
+    <div class="top">
+        <div>
+            <h1>Categories</h1>
+            <p>Group products for browsing and reporting</p>
         </div>
-
         @if (auth()->user()->hasPermission('categories', 'create'))
-            <x-primary-button wire:click="create">
+            <button type="button" wire:click="create" class="btn p">
+                <svg viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 5v14M5 12h14"/></svg>
                 Create Category
-            </x-primary-button>
+            </button>
         @endif
     </div>
 
-    <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 overflow-hidden">
+    <div class="filters">
+        <div class="search">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input wire:model.live.debounce.300ms="search" type="search" placeholder="Search categories…">
+        </div>
+    </div>
+
+    <div class="card">
         @php $showActions = auth()->user()->hasPermission('categories', 'update') || auth()->user()->hasPermission('categories', 'delete'); @endphp
-        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead class="bg-gray-50 dark:bg-gray-900/40">
+        <table class="tbl">
+            <thead>
                 <tr>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Name</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Description</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Products</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th class="num">Products</th>
+                    <th>Status</th>
                     @if ($showActions)
-                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                        <th class="actions">Actions</th>
                     @endif
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody>
                 @forelse ($categories as $category)
                     <tr wire:key="category-{{ $category->id }}">
-                        <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{{ $category->name }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ $category->description }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ $category->products_count }}</td>
-                        <td class="px-4 py-3 text-sm">
-                            <span @class([
-                                'inline-flex px-2 py-0.5 rounded-full text-xs font-medium',
-                                'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' => $category->status === 'active',
-                                'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' => $category->status === 'inactive',
-                            ])>
-                                {{ ucfirst($category->status) }}
-                            </span>
+                        <td>{{ $category->name }}</td>
+                        <td class="mut wrap">{{ $category->description ?: '—' }}</td>
+                        <td class="num">{{ $category->products_count }}</td>
+                        <td>
+                            <span @class(['status', 'ok' => $category->status === 'active', 'plain' => $category->status !== 'active'])>{{ ucfirst($category->status) }}</span>
                         </td>
                         @if ($showActions)
-                        <td class="px-4 py-3 text-sm text-right space-x-3">
-                            @if (auth()->user()->hasPermission('categories', 'update'))
-                                <button wire:click="edit({{ $category->id }})" class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium">
-                                    Edit
-                                </button>
-                            @endif
-                            @if (auth()->user()->hasPermission('categories', 'delete'))
-                                <button wire:click="confirmDeactivate({{ $category->id }})" class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 font-medium">
-                                    {{ $category->status === 'active' ? 'Deactivate' : 'Reactivate' }}
-                                </button>
-                            @endif
-                        </td>
+                            <td class="actions">
+                                @if (auth()->user()->hasPermission('categories', 'update'))
+                                    <button type="button" wire:click="edit({{ $category->id }})" class="actionbtn">Edit</button>
+                                @endif
+                                @if (auth()->user()->hasPermission('categories', 'delete'))
+                                    <button type="button" wire:click="confirmDeactivate({{ $category->id }})" class="actionbtn danger">
+                                        {{ $category->status === 'active' ? 'Deactivate' : 'Reactivate' }}
+                                    </button>
+                                @endif
+                            </td>
                         @endif
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="{{ $showActions ? 5 : 4 }}" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                            No categories found.
-                        </td>
+                        <td colspan="{{ $showActions ? 5 : 4 }}" class="empty">No categories found.</td>
                     </tr>
                 @endforelse
             </tbody>
         </table>
-
-        <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
-            {{ $categories->links() }}
+        <div class="pager">
+            <span>Showing {{ $categories->firstItem() ?? 0 }}–{{ $categories->lastItem() ?? 0 }} of {{ $categories->total() }}</span>
+            @if ($categories->hasPages())
+                <div class="pages">
+                    @foreach ($categories->getUrlRange(max(1, $categories->currentPage() - 2), min($categories->lastPage(), $categories->currentPage() + 2)) as $page => $url)
+                        <button type="button" wire:click="gotoPage({{ $page }})" aria-current="{{ $page === $categories->currentPage() ? 'true' : 'false' }}">{{ $page }}</button>
+                    @endforeach
+                </div>
+            @endif
         </div>
     </div>
 
-    <x-slide-over name="category-form" :title="$editingCategoryId ? 'Edit Category' : 'Create Category'">
-        <form wire:submit="save" id="category-form" class="space-y-6">
-            <div>
-                <x-input-label for="category_name" value="Name" />
-                <x-text-input wire:model="name" id="category_name" class="block mt-1 w-full" />
-                <x-input-error :messages="$errors->get('name')" class="mt-2" />
+    <x-modal name="category-form" max-width="sm">
+        <div class="dialog">
+            <div class="dh">
+                <h2>{{ $editingCategoryId ? 'Edit Category' : 'Create Category' }}</h2>
             </div>
+            <form wire:submit="save" id="category-form">
+                <div class="db">
+                    <div class="f">
+                        <label for="category_name">Name<span class="req">*</span></label>
+                        <input type="text" wire:model="name" id="category_name">
+                        <x-input-error :messages="$errors->get('name')" class="mt-2" />
+                    </div>
 
-            <div>
-                <x-input-label for="category_description" value="Description" />
-                <textarea wire:model="description" id="category_description" rows="3" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
-                <x-input-error :messages="$errors->get('description')" class="mt-2" />
+                    <div class="f">
+                        <label for="category_description">Description</label>
+                        <textarea wire:model="description" id="category_description" rows="3"></textarea>
+                        <x-input-error :messages="$errors->get('description')" class="mt-2" />
+                    </div>
+
+                    <div class="f">
+                        <label for="category_status">Status<span class="req">*</span></label>
+                        <select wire:model="status" id="category_status">
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+            </form>
+            <div class="df">
+                <button type="button" class="btn" x-on:click="show = false">Cancel</button>
+                <button type="submit" form="category-form" class="btn p">Save</button>
             </div>
+        </div>
+    </x-modal>
 
-            <div>
-                <x-input-label for="category_status" value="Status" />
-                <select wire:model="status" id="category_status" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                </select>
+    <x-modal name="confirm-deactivate-category" max-width="sm">
+        <div class="dialog">
+            <div class="dh">
+                <h2>Confirm</h2>
+                <p>Are you sure? Products in this category keep their assignment but the category stops being selectable for new ones while inactive.</p>
             </div>
-        </form>
-
-        <x-slot name="footer">
-            <x-secondary-button x-on:click="show = false">Cancel</x-secondary-button>
-            <x-primary-button type="submit" form="category-form">Save</x-primary-button>
-        </x-slot>
-    </x-slide-over>
-
-    <x-confirm-modal
-        name="confirm-deactivate-category"
-        title="Confirm"
-        message="Are you sure? Products in this category keep their assignment but the category stops being selectable for new ones while inactive."
-        confirm-label="Confirm"
-    >
-        <x-danger-button wire:click="toggleStatus">Confirm</x-danger-button>
-    </x-confirm-modal>
+            <div class="df">
+                <button type="button" class="btn" x-on:click="$dispatch('close')">Cancel</button>
+                <button type="button" wire:click="toggleStatus" class="btn danger">Confirm</button>
+            </div>
+        </div>
+    </x-modal>
 </div>

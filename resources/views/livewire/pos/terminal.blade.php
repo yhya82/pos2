@@ -101,7 +101,7 @@
                         <span class="row">
                             <span class="pc">
                                 <template x-if="product.has_promo"><del x-text="formatMoney(product.selling_price)"></del></template>
-                                <span x-text="formatMoney(product.effective_price)"></span>
+                                <span :class="product.has_promo ? 'promo' : ''" x-text="formatMoney(product.effective_price)"></span>
                             </span>
                             <span class="s" :class="isOutOfStock(product) ? 'oos' : (isLow(product) ? 'low' : '')" x-text="stockLabel(product)"></span>
                         </span>

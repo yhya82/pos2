@@ -33,6 +33,7 @@ body {
     --acc: #a81c26;
     --acc-ink: #fff;
     --acc-soft: #f9e9e9;
+    --ok: #1f7a52;
 }
 
 html.dark body {
@@ -45,6 +46,7 @@ html.dark body {
     --acc: #c93840;
     --acc-ink: #fff;
     --acc-soft: #3a1c1d;
+    --ok: #3cc088;
 }
 
 .pos-skin {
@@ -189,9 +191,10 @@ html.dark .pos-skin {
    less critical figure of the two) yields space and ellipsizes rather
    than ever pushing the price onto its own line. */
 .pos-skin .p .row { display: flex; flex-wrap: nowrap; align-items: baseline; justify-content: space-between; gap: 6px; margin-top: auto; padding-top: 14px; }
-.pos-skin .p .pc { flex-shrink: 0; font-weight: 700; font-size: clamp(12.5px, 7cqw, 15px); white-space: nowrap; }
-.pos-skin .p .pc del { font-weight: 500; color: var(--mut); text-decoration: line-through; margin-right: 3px; }
+.pos-skin .p .pc { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-start; font-weight: 700; font-size: clamp(12.5px, 7cqw, 15px); line-height: 1.25; white-space: nowrap; }
+.pos-skin .p .pc del { font-weight: 500; color: var(--mut); text-decoration: line-through; font-size: 11px; }
 .pos-skin .p .pc small { font-weight: 500; color: var(--mut); font-size: 11.5px; }
+.pos-skin .p .pc .promo { color: var(--ok); }
 .pos-skin .p .s { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: right; font-size: clamp(10.5px, 5cqw, 11.5px); color: var(--mut); white-space: nowrap; }
 .pos-skin .p .s.low { color: var(--ink); font-weight: 600; }
 .pos-skin .p .s.oos { color: var(--acc); font-weight: 600; }

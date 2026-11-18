@@ -5,6 +5,7 @@ namespace App\Livewire\PurchaseOrders;
 use App\Livewire\Concerns\AuthorizesModuleActions;
 use App\Models\AuditLog;
 use App\Models\Batch;
+use App\Models\GeneralSetting;
 use App\Models\ReceivingIssue;
 use App\Models\Product;
 use App\Models\PurchaseOrder;
@@ -184,6 +185,7 @@ class PurchaseOrderManager extends Component
     public function render()
     {
         return view('livewire.purchase-orders.purchase-order-manager', [
+            'currencyCode' => GeneralSetting::current()->currency_code,
             'details' => $this->details(),
             'canEditPrices' => $this->canEditPrices(),
             'canWriteOff' => $this->canWriteOff(),

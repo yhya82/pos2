@@ -8,7 +8,7 @@
     <div class="top">
         <div>
             <h1>Products</h1>
-            <p>The full catalog — every product on file, in or out of stock</p>
+            <p>The full catalog , every product on file, in or out of stock</p>
         </div>
         @if (auth()->user()->hasPermission('products', 'create'))
             <button type="button" wire:click="create" class="btn p">

@@ -1,0 +1,155 @@
+/*
+ * Inventory redesign — scoped entirely under .inventory-skin so none of
+ * this (palette, resets) ever leaks onto any other page. Same flat,
+ * boxy, Inter look as the rest of the app. Status colors stay the
+ * three tokens used everywhere else: ok (green) for fine, warn (amber)
+ * for approaching a problem, acc (red) for an actual one — never a
+ * fourth hue invented for this page.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+body {
+    --bg: #f6f6f4; --surf: #fff; --ink: #1a1a1c; --mut: #55555b;
+    --line: #e3e3df; --soft: #efefeb; --acc: #a81c26; --acc-ink: #fff; --acc-soft: #f9e9e9;
+    --ok: #1f7a52; --ok-soft: #e7f3ed; --warn: #8a5a00; --warn-soft: #f8eedc;
+}
+html.dark body {
+    --bg: #0f0f11; --surf: #18181b; --ink: #f3f3f4; --mut: #aeaeb6;
+    --line: #2a2a2f; --soft: #222226; --acc: #c93840; --acc-ink: #fff; --acc-soft: #3a1c1d;
+    --ok: #3cc088; --ok-soft: #173327; --warn: #e0a93a; --warn-soft: #3a2f10;
+}
+
+#app-header { background: var(--acc); border-color: var(--acc); }
+#app-header, #app-header *:not(.absolute, .absolute *) { color: var(--acc-ink); }
+#app-header button:hover:not(.absolute button) { background: rgba(255, 255, 255, .16); }
+
+/* The real <main> wrapper keeps its own padding around this page's
+   content but never had its background recolored — in dark mode that
+   left a strip of Tailwind's own bluish dark-gray showing around this
+   page's near-black surfaces, most visible wherever a card doesn't
+   stretch edge to edge (the narrow Stock Adjustments form, for one). */
+main { background: var(--bg); }
+
+.inventory-skin, .inventory-skin *, .inventory-skin *::before, .inventory-skin *::after { box-sizing: border-box; }
+.inventory-skin {
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    color: var(--ink);
+    color-scheme: light;
+}
+html.dark .inventory-skin { color-scheme: dark; }
+.inventory-skin button, .inventory-skin a { font: inherit; color: inherit; }
+.inventory-skin button { cursor: pointer; border: 0; background: none; padding: 0; }
+.inventory-skin a { text-decoration: none; }
+.inventory-skin svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.inventory-skin :focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+
+/* ----------------------------------------------------------------- tabs */
+.inventory-skin .tabs { display: flex; gap: 22px; border-bottom: 1px solid var(--line); margin-bottom: 16px; flex-wrap: wrap; overflow-x: auto; }
+.inventory-skin .tabs button { padding: 0 0 12px; font-size: 13.5px; font-weight: 600; color: var(--mut); border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+.inventory-skin .tabs button:hover { color: var(--ink); }
+.inventory-skin .tabs button[aria-selected=true] { color: var(--acc); border-bottom-color: var(--acc); }
+
+.inventory-skin .filters { background: var(--surf); border: 1px solid var(--line); padding: 14px 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px; }
+.inventory-skin .search { position: relative; flex: 1 1 220px; min-width: 180px; }
+.inventory-skin .search svg { position: absolute; left: 12px; top: 11px; width: 16px; height: 16px; stroke: var(--mut); pointer-events: none; }
+.inventory-skin .search input { width: 100%; height: 38px; border: 1px solid var(--line); background: var(--bg); padding: 0 14px 0 36px; font: inherit; font-size: 13.5px; color: var(--ink); }
+.inventory-skin .search input:focus { outline: none; border-color: var(--acc); background: var(--surf); box-shadow: 0 0 0 3px var(--acc-soft); }
+.inventory-skin .filters select, .inventory-skin .filters input[type=date] {
+    height: 38px; border: 1px solid var(--line); background: var(--bg); padding: 0 12px; font: inherit; font-size: 13px; color: var(--ink);
+    appearance: none; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2355555b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 10px center; background-size: 12px; padding-right: 30px;
+}
+html.dark .inventory-skin .filters select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23aeaeb6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+}
+.inventory-skin .filters input[type=date] { background-image: none; padding-right: 12px; }
+.inventory-skin .filters .check { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--ink); flex-shrink: 0; white-space: nowrap; }
+.inventory-skin .filters .check input { width: 15px; height: 15px; }
+.inventory-skin .filters .to { color: var(--mut); font-size: 13px; }
+.inventory-skin .filters .daterange { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.inventory-skin .filters .daterange svg { width: 16px; height: 16px; stroke: var(--mut); flex-shrink: 0; }
+
+.inventory-skin .card { background: var(--surf); border: 1px solid var(--line); overflow-x: auto; }
+
+.inventory-skin .tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.inventory-skin .tbl th { text-align: left; padding: 11px 16px; font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--mut); background: var(--soft); border-bottom: 1px solid var(--line); white-space: nowrap; }
+.inventory-skin .tbl th.num, .inventory-skin .tbl td.num { text-align: right; }
+.inventory-skin .tbl th button { display: inline-flex; align-items: center; gap: 4px; font: inherit; font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--mut); }
+.inventory-skin .tbl th button:hover { color: var(--ink); }
+.inventory-skin .tbl th button svg { width: 11px; height: 11px; }
+.inventory-skin .tbl td { padding: 12px 16px; border-bottom: 1px solid var(--line); color: var(--ink); white-space: nowrap; }
+.inventory-skin .tbl tbody tr:last-child td { border-bottom: 0; }
+.inventory-skin .tbl tbody tr:hover td { background: var(--soft); }
+/* A checked row needs to stay visibly picked out, not just show a
+   ticked checkbox easy to miss in a dense table — the same light-red
+   tint used for anything else "selected/active" in this app. Pure CSS
+   (no round trip needed) so it updates the instant the box is clicked. */
+.inventory-skin .tbl tbody tr:has(input[type=checkbox]:checked) td { background: var(--acc-soft); }
+.inventory-skin .tbl .mut { color: var(--mut); }
+.inventory-skin .tbl .num { font-variant-numeric: tabular-nums; font-weight: 700; }
+.inventory-skin .tbl .link { color: var(--ink); font-weight: 600; }
+.inventory-skin .tbl .link:hover { color: var(--acc); }
+.inventory-skin .tbl .empty { text-align: center; color: var(--mut); padding: 32px 0; white-space: normal; }
+.inventory-skin .tbl tfoot td { padding: 12px 16px; border-top: 2px solid var(--line); font-weight: 700; background: var(--soft); }
+.inventory-skin .tbl .chk { width: 40px; }
+
+.inventory-skin .ccy { font-size: 10px; font-weight: 700; color: var(--mut); letter-spacing: .02em; margin-right: 2px; }
+
+.inventory-skin .status { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 11px; }
+.inventory-skin .status.ok { color: var(--ok); background: var(--ok-soft); }
+.inventory-skin .status.warn { color: var(--warn); background: var(--warn-soft); }
+.inventory-skin .status.acc { color: var(--acc); background: var(--acc-soft); }
+.inventory-skin .status.plain { color: var(--mut); background: var(--soft); }
+
+.inventory-skin .stockval.acc { color: var(--acc); }
+.inventory-skin .stockval.warn { color: var(--warn); }
+
+.inventory-skin .pager { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--mut); flex-wrap: wrap; gap: 8px; }
+.inventory-skin .pager .pages { display: flex; gap: 4px; }
+.inventory-skin .pager .pages button { width: 30px; height: 30px; border: 1px solid var(--line); color: var(--mut); font-size: 12.5px; font-weight: 600; background: var(--surf); }
+.inventory-skin .pager .pages button:hover { border-color: var(--mut); color: var(--ink); }
+.inventory-skin .pager .pages button[aria-current=true] { background: var(--acc); border-color: var(--acc); color: var(--acc-ink); cursor: default; }
+
+.inventory-skin .btn { height: 38px; padding: 0 16px; font-weight: 600; font-size: 13px; border: 1px solid var(--line); background: var(--surf); color: var(--ink); display: inline-flex; align-items: center; gap: 6px; }
+.inventory-skin .btn:hover { border-color: var(--mut); }
+.inventory-skin .btn.p { background: var(--acc); color: var(--acc-ink); border-color: var(--acc); }
+.inventory-skin .btn.p:hover { filter: brightness(1.08); }
+.inventory-skin .btn.back { background: var(--acc-soft); color: var(--acc); border-color: var(--acc-soft); }
+.inventory-skin .btn.back:hover { border-color: var(--acc); }
+.inventory-skin .btn.sm { height: 30px; padding: 0 11px; font-size: 12px; gap: 5px; }
+
+/* ------------------------------------------------------------- form/f */
+.inventory-skin .f { margin-bottom: 16px; }
+.inventory-skin .f:last-child { margin-bottom: 0; }
+.inventory-skin .f label { display: block; font-size: 12.5px; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
+.inventory-skin .f label .req { color: var(--acc); font-weight: 700; margin-left: 3px; }
+.inventory-skin .f input, .inventory-skin .f select, .inventory-skin .f textarea { width: 100%; height: 40px; border: 1px solid var(--line); background: var(--bg); padding: 0 12px; font: inherit; font-size: 13.5px; color: var(--ink); }
+.inventory-skin .f textarea { height: auto; padding: 10px 12px; resize: vertical; }
+.inventory-skin .f input:focus, .inventory-skin .f select:focus, .inventory-skin .f textarea:focus { outline: none; border-color: var(--acc); box-shadow: 0 0 0 3px var(--acc-soft); }
+.inventory-skin .f .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.inventory-skin .f .hint { font-size: 11.5px; color: var(--mut); margin-top: 5px; }
+.inventory-skin .f select {
+    appearance: none; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2355555b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center; background-size: 13px; padding-right: 34px;
+}
+html.dark .inventory-skin .f select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23aeaeb6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+}
+
+/* ------------------------------------------------------ side-panel card */
+.inventory-skin .panel { background: var(--surf); border: 1px solid var(--line); padding: 16px; align-self: start; }
+.inventory-skin .panel .stack { display: flex; flex-direction: column; gap: 8px; }
+
+.inventory-skin .cardhead { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.inventory-skin .cardhead .ic { width: 30px; height: 30px; background: var(--acc-soft); color: var(--acc); display: grid; place-items: center; flex-shrink: 0; }
+.inventory-skin .cardhead .ic svg { width: 15px; height: 15px; }
+.inventory-skin .cardhead .ic.adjust { background: var(--soft); color: var(--ink); }
+.inventory-skin .cardhead .ic.discount { background: var(--acc-soft); color: var(--acc); }
+.inventory-skin .cardhead h2, .inventory-skin .cardhead h3 { margin: 0; font-size: 15px; font-weight: 700; }
+
+.inventory-skin .toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); font-size: 13px; color: var(--mut); }
+.inventory-skin .toolbar .acts { display: flex; gap: 8px; }
+
+.inventory-skin .note { font-size: 12px; color: var(--mut); margin-bottom: 14px; line-height: 1.5; }

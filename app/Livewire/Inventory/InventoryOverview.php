@@ -9,6 +9,7 @@ use App\Models\Batch;
 use App\Models\Category;
 use App\Models\CurrentStock;
 use App\Models\BatchExpiry;
+use App\Models\GeneralSetting;
 use App\Models\InventoryMovement;
 use App\Models\Product;
 use App\Models\Supplier;
@@ -192,6 +193,7 @@ class InventoryOverview extends Component
         }
 
         return view('livewire.inventory.inventory-overview', [
+            'currencyCode' => GeneralSetting::current()->currency_code,
             'canViewValuation' => $canViewValuation,
             'valuation' => $this->activeTab === 'valuation' ? $this->valuationQuery() : null,
             'valuationTotals' => $this->activeTab === 'valuation' ? $this->valuationTotals() : null,
@@ -277,6 +279,12 @@ class InventoryOverview extends Component
 
     public function clearSelection(): void
     {
+        if (empty($this->selectedProductIds)) {
+            $this->dispatch('flash-message', message: 'Select at least one product first.', variant: 'error');
+
+            return;
+        }
+
         $this->selectedProductIds = [];
     }
 

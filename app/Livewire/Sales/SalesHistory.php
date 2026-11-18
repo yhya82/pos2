@@ -3,6 +3,7 @@
 namespace App\Livewire\Sales;
 
 use App\Livewire\Concerns\AuthorizesModuleActions;
+use App\Models\GeneralSetting;
 use App\Models\Sale;
 use App\Services\SaleService;
 use Livewire\Attributes\On;
@@ -31,6 +32,11 @@ class SalesHistory extends Component
         $this->resetPage();
     }
 
+    public function setStatusFilter(string $status): void
+    {
+        $this->statusFilter = $status;
+    }
+
     #[On('echo-private:sales,.SaleCompleted')]
     public function onSaleCompleted(): void
     {
@@ -40,6 +46,7 @@ class SalesHistory extends Component
     public function render()
     {
         return view('livewire.sales.sales-history', [
+            'currencyCode' => GeneralSetting::current()->currency_code,
             'sales' => Sale::with(['cashier', 'customer', 'payment.paymentMethod'])
                 ->visibleTo(auth()->user())
                 ->when($this->search, fn ($q) => $q->where(function ($query) {

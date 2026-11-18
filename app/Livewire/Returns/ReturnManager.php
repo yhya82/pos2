@@ -39,7 +39,7 @@ class ReturnManager extends Component
 
     public string $overallReason = '';
 
-    public function mount(): void
+    public function mount(ReturnService $returnService): void
     {
         if ($this->prefillReceipt === '') {
             return;
@@ -49,7 +49,7 @@ class ReturnManager extends Component
 
         $this->mode = 'process';
         $this->saleSearch = $this->prefillReceipt;
-        $this->findSale();
+        $this->findSale($returnService);
     }
 
     public function updatingSearch(): void
@@ -130,7 +130,7 @@ class ReturnManager extends Component
      * selectSale() below is what the returnable-sales list's row action
      * uses instead.
      */
-    public function findSale(): void
+    public function findSale(ReturnService $returnService): void
     {
         $this->saleSearchError = '';
         $this->foundSaleId = null;
@@ -147,19 +147,19 @@ class ReturnManager extends Component
             return;
         }
 
-        $this->loadSaleForReturn($sale);
+        $this->loadSaleForReturn($sale, $returnService);
     }
 
-    public function selectSale(int $saleId): void
+    public function selectSale(int $saleId, ReturnService $returnService): void
     {
         $sale = Sale::visibleTo(auth()->user())->with(['lineItems.product'])->findOrFail($saleId);
 
         abort_unless(auth()->user()->canRefundSale($sale), 403);
 
-        $this->loadSaleForReturn($sale);
+        $this->loadSaleForReturn($sale, $returnService);
     }
 
-    private function loadSaleForReturn(Sale $sale): void
+    private function loadSaleForReturn(Sale $sale, ReturnService $returnService): void
     {
         $this->saleSearchError = '';
         $this->foundSaleId = null;
@@ -171,23 +171,7 @@ class ReturnManager extends Component
             return;
         }
 
-        $returnableLines = $sale->lineItems
-            ->map(function ($line) {
-                $remaining = $line->remainingReturnableQty();
-
-                return $remaining > 0 ? [
-                    'sale_line_item_id' => $line->id,
-                    'product_name' => $line->product->name,
-                    'unit_price' => (float) $line->unit_price,
-                    'max_returnable' => $remaining,
-                    'quantity' => '',
-                    'condition_type' => 'sellable',
-                    'reason' => '',
-                ] : null;
-            })
-            ->filter()
-            ->values()
-            ->all();
+        $returnableLines = $returnService->returnableLines($sale);
 
         if (empty($returnableLines)) {
             $this->saleSearchError = 'Every line on this sale has already been fully returned.';

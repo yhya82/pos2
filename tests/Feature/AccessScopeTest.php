@@ -211,10 +211,12 @@ class AccessScopeTest extends TestCase
         $manager = User::factory()->create(['role_id' => $role->id]);
         $managersSale = $this->sell($manager);
 
+        // The Refund action is a modal-opening dispatch now, not a link to
+        // the Returns page — keyed by sale id either way.
         Livewire::actingAs($manager)->test(SalesHistory::class)
             ->assertSee($this->annsSale->receipt_number)                          // can browse everything...
-            ->assertSee(route('returns.index', ['receipt' => $managersSale->receipt_number]), false)
-            ->assertDontSee(route('returns.index', ['receipt' => $this->annsSale->receipt_number]), false);   // ...but only refund their own
+            ->assertSeeHtml("confirm-refund', { saleId: {$managersSale->id} }")
+            ->assertDontSeeHtml("confirm-refund', { saleId: {$this->annsSale->id} }");   // ...but only refund their own
     }
 
     // ------------------------------------------------------------ returns

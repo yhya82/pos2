@@ -10,24 +10,26 @@
     ></div>
 
     <aside
-        class="fixed inset-y-0 left-0 z-40 w-64 flex flex-col border-e border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 transition-all duration-200 ease-in-out md:translate-x-0"
+        class="side-skin fixed inset-y-0 left-0 z-40 w-64 flex flex-col transition-all duration-200 ease-in-out md:translate-x-0"
         :class="[$store.sidebar.open ? 'translate-x-0' : '-translate-x-full', $store.sidebar.collapsed ? 'md:w-16' : 'md:w-64']"
     >
         <div
-            class="flex items-center justify-between h-16 px-6 border-b border-gray-200 dark:border-gray-700 shrink-0"
+            class="brand-bar flex items-center justify-between h-16 px-6 shrink-0"
             :class="$store.sidebar.collapsed ? 'md:justify-center md:px-2' : ''"
         >
             <a href="{{ route('dashboard') }}" wire:navigate x-on:click="$store.sidebar.open = false" class="flex items-center gap-2 min-w-0">
                 @if ($generalSettings?->logoUrl())
-                    <img src="{{ $generalSettings->logoUrl() }}" alt="" class="h-8 w-8 rounded-md object-cover shrink-0">
+                    <img src="{{ $generalSettings->logoUrl() }}" alt="" class="brand-logo">
                 @else
-                    <x-application-logo class="h-8 w-8 fill-current text-gray-800 dark:text-gray-200 shrink-0" />
+                    <span class="brand-mark">
+                        <x-application-logo class="fill-current" />
+                    </span>
                 @endif
-                <span class="font-semibold text-gray-800 dark:text-gray-100 truncate" :class="$store.sidebar.collapsed ? 'md:hidden' : ''">
+                <span class="brand-name truncate" :class="$store.sidebar.collapsed ? 'md:hidden' : ''">
                     {{ $generalSettings->business_name ?? config('app.name') }}
                 </span>
             </a>
-            <button type="button" x-on:click="$store.sidebar.open = false" class="md:hidden p-1 -mr-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+            <button type="button" x-on:click="$store.sidebar.open = false" class="brand-close md:hidden p-1 -mr-1">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -35,7 +37,14 @@
         </div>
 
         <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+            @php $lastSection = null; @endphp
+
             @foreach ($items as $item)
+                @if (($item['section'] ?? null) && $item['section'] !== $lastSection)
+                    @php $lastSection = $item['section']; @endphp
+                    <div class="nav-section-label" :class="$store.sidebar.collapsed ? 'md:hidden' : ''">{{ $lastSection }}</div>
+                @endif
+
                 @php $isLinkable = Route::has($item['route']); @endphp
 
                 @if ($isLinkable)
@@ -45,22 +54,21 @@
                         x-on:click="$store.sidebar.open = false"
                         title="{{ $item['label'] }}"
                         @class([
-                            'flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition',
-                            'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300' => request()->routeIs($item['route']),
-                            'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white' => ! request()->routeIs($item['route']),
+                            'nav-item',
+                            'active' => request()->routeIs($item['route']),
                         ])
                         :class="$store.sidebar.collapsed ? 'md:justify-center md:px-2' : ''"
                     >
-                        <x-icon :name="$item['icon']" class="h-5 w-5 shrink-0" />
+                        <span class="icon-chip"><x-icon :name="$item['icon']" /></span>
                         <span :class="$store.sidebar.collapsed ? 'md:hidden' : ''">{{ $item['label'] }}</span>
                     </a>
                 @else
                     <span
                         title="{{ $item['label'] }}"
-                        class="flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium text-gray-400 dark:text-gray-600 cursor-default"
+                        class="nav-item disabled"
                         :class="$store.sidebar.collapsed ? 'md:justify-center md:px-2' : ''"
                     >
-                        <x-icon :name="$item['icon']" class="h-5 w-5 shrink-0" />
+                        <span class="icon-chip"><x-icon :name="$item['icon']" /></span>
                         <span :class="$store.sidebar.collapsed ? 'md:hidden' : ''">{{ $item['label'] }}</span>
                     </span>
                 @endif

@@ -185,7 +185,9 @@ class DashboardRedesignTest extends TestCase
         $user = $this->userWith([['sales', 'view'], ['financials', 'view']]);
 
         Livewire::actingAs($user)->test(DashboardOverview::class)
-            ->assertSee('GMD 0.00');
+            // The code renders smaller, in its own span, so the number
+            // stays what draws the eye — not plain "GMD 0.00" text.
+            ->assertSeeHtml('<span class="ccy">GMD</span> 0.00');
     }
 
     public function test_month_view_shows_jan_through_dec_not_days_of_the_month(): void

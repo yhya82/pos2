@@ -1,8 +1,19 @@
 @php
     // One shared formatter for every money figure on this page, instead
     // of each figure deciding for itself whether to show the real
-    // configured currency code.
-    $money = fn ($amount) => $currencyCode.' '.number_format($amount, 2);
+    // configured currency code. The code renders smaller than the number
+    // itself (.ccy below — not .cur, which this page already uses for
+    // "this is the current chart bar") so the figure is still what the
+    // eye lands on. Wrapped in HtmlString so {{ }} doesn't escape the
+    // span away, same trick Blade's own e() helper already makes safe to
+    // rely on.
+    $money = fn ($amount) => new \Illuminate\Support\HtmlString(
+        '<span class="ccy">'.e($currencyCode).'</span> '.number_format($amount, 2)
+    );
+    // Plain-text form for contexts HTML can't reach, like a title
+    // attribute (the chart bars' tooltips) — a browser shows that
+    // literally, tags and all, rather than rendering them.
+    $moneyPlain = fn ($amount) => $currencyCode.' '.number_format($amount, 2);
 @endphp
 
 <div class="dash-skin">
@@ -49,7 +60,7 @@
                     @php $max = max(1, collect($salesTrend)->max('revenue')); @endphp
                     <div class="chart">
                         @foreach ($salesTrend as $day)
-                            <i class="{{ $day['day'] === $currentTrendKey ? 'cur' : '' }}" style="height: {{ max(2, round($day['revenue'] / $max * 100)) }}%" title="{{ $day['label'] }}: {{ $money($day['revenue']) }}"></i>
+                            <i class="{{ $day['day'] === $currentTrendKey ? 'cur' : '' }}" style="height: {{ max(2, round($day['revenue'] / $max * 100)) }}%" title="{{ $day['label'] }}: {{ $moneyPlain($day['revenue']) }}"></i>
                         @endforeach
                     </div>
                     <div class="axis">

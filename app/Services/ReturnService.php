@@ -31,6 +31,36 @@ use RuntimeException;
 class ReturnService
 {
     /**
+     * The lines of a sale that still have something left to return —
+     * one definition shared by every entry point into a refund (the
+     * Returns page's own sale picker, and the Sales page's per-row
+     * Refund action), rather than each re-deriving "what's left" itself.
+     * Expects $sale->lineItems.product already eager-loaded.
+     *
+     * @return array<int, array{sale_line_item_id: int, product_name: string, unit_price: float, max_returnable: float, quantity: string, condition_type: string, reason: string}>
+     */
+    public function returnableLines(Sale $sale): array
+    {
+        return $sale->lineItems
+            ->map(function ($line) {
+                $remaining = $line->remainingReturnableQty();
+
+                return $remaining > 0 ? [
+                    'sale_line_item_id' => $line->id,
+                    'product_name' => $line->product->name,
+                    'unit_price' => (float) $line->unit_price,
+                    'max_returnable' => $remaining,
+                    'quantity' => '',
+                    'condition_type' => 'sellable',
+                    'reason' => '',
+                ] : null;
+            })
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    /**
      * @param  array<int, array{sale_line_item_id: int, quantity: float|string, condition_type: string, reason?: ?string}>  $lines
      *
      * @throws RuntimeException if the sale isn't completed, nothing is selected, or a line exceeds what's still returnable

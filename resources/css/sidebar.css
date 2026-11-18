@@ -1,0 +1,72 @@
+/*
+ * The sidebar redesign — unlike pos-terminal.css/dashboard.css, this loads
+ * on every page (the sidebar is part of the shared layout, not one page's
+ * own content), so its palette is declared on .side-skin itself rather
+ * than on body: nothing else on an arbitrary page should start resolving
+ * --acc etc. just because the sidebar happens to use the same names.
+ * Dark mode follows the app's real mechanism (html.dark), not a separate
+ * toggle of its own. Same flat, boxy, Inter look as the POS/Dashboard
+ * pages — red reserved for the active nav item, not painted across the
+ * whole panel.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+.side-skin {
+    --bg: #f6f6f4; --surf: #fff; --ink: #1a1a1c; --mut: #55555b;
+    --line: #e3e3df; --soft: #efefeb; --acc: #a81c26; --acc-ink: #fff; --acc-soft: #f9e9e9;
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    background: var(--surf);
+    border-right: 1px solid var(--line);
+    color-scheme: light;
+}
+
+html.dark .side-skin {
+    --bg: #0f0f11; --surf: #18181b; --ink: #f3f3f4; --mut: #aeaeb6;
+    --line: #2a2a2f; --soft: #222226; --acc: #c93840; --acc-ink: #fff; --acc-soft: #3a1c1d;
+    color-scheme: dark;
+}
+
+.side-skin .brand-bar { border-bottom: 1px solid var(--line); }
+.side-skin .brand-mark {
+    width: 30px; height: 30px; flex-shrink: 0;
+    background: var(--acc); color: var(--acc-ink);
+    border: 1px solid var(--acc-soft);
+    display: grid; place-items: center;
+}
+.side-skin .brand-mark svg { width: 18px; height: 18px; }
+.side-skin .brand-logo { width: 30px; height: 30px; flex-shrink: 0; object-fit: cover; border: 1px solid var(--acc-soft); }
+.side-skin .brand-name { font-weight: 700; font-size: 15px; color: var(--ink); letter-spacing: -.01em; }
+.side-skin .brand-close { color: var(--mut); }
+.side-skin .brand-close:hover { color: var(--ink); }
+
+.side-skin .nav-section-label {
+    font-size: 11.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--ink);
+    padding: 14px 12px 6px;
+}
+.side-skin nav > .nav-section-label:first-child { padding-top: 4px; }
+
+.side-skin .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 12px;
+    font-size: 13.5px; font-weight: 500;
+    color: var(--mut);
+    text-decoration: none;
+    transition: background-color .1s, color .1s;
+}
+.side-skin a.nav-item:hover { background: var(--soft); color: var(--ink); }
+.side-skin .nav-item.active { background: var(--acc); color: var(--acc-ink); font-weight: 600; }
+.side-skin .nav-item.disabled { color: var(--mut); opacity: .5; cursor: default; }
+
+/* The icon sits in its own small flat chip — same idea as the Dashboard
+   page's .ic badges — instead of a bare stroke floating next to the
+   label, so each row has a clearer anchor point at a glance. */
+.side-skin .icon-chip {
+    width: 28px; height: 28px; flex-shrink: 0;
+    display: grid; place-items: center;
+    background: var(--soft);
+    color: var(--mut);
+}
+.side-skin .nav-item:hover .icon-chip { color: var(--ink); }
+.side-skin .nav-item.active .icon-chip { background: rgba(255, 255, 255, .2); color: var(--acc-ink); }
+.side-skin .icon-chip svg { width: 17px; height: 17px; flex-shrink: 0; stroke-width: 1.75; }

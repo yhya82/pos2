@@ -156,6 +156,10 @@ html.dark .dash-skin {
 .dash-skin .lbl { color: var(--mut); font-weight: 600; font-size: 12px; letter-spacing: .07em; text-transform: uppercase; }
 .dash-skin .big { font-size: 36px; font-weight: 800; letter-spacing: -.02em; line-height: 1.15; margin-top: 10px; }
 .dash-skin .mid { font-size: 28px; font-weight: 800; letter-spacing: -.02em; line-height: 1.15; margin-top: 10px; }
+/* The currency code in front of every figure — sized down relative to
+   whichever of .big/.mid it's sitting inside, so the number stays what
+   actually draws the eye. */
+.dash-skin .ccy { font-size: .5em; font-weight: 600; color: var(--mut); letter-spacing: 0; margin-right: 1px; }
 .dash-skin .mid.neg { color: var(--acc); }
 
 .dash-skin .rev { display: flex; flex-direction: column; }

@@ -1,0 +1,161 @@
+/*
+ * Sales index redesign — scoped entirely under .sales-skin so none of this
+ * (palette, resets) ever leaks onto any other page. Dark mode follows the
+ * app's real mechanism (html.dark), not a separate theme system. Same
+ * flat, boxy, Inter look as the POS/Dashboard/Sidebar redesigns — red
+ * reserved for the one real primary action (Go to POS) and the active
+ * status filter, not painted across the page.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+body {
+    --bg: #f6f6f4; --surf: #fff; --ink: #1a1a1c; --mut: #55555b;
+    --line: #e3e3df; --soft: #efefeb; --acc: #a81c26; --acc-ink: #fff; --acc-soft: #f9e9e9;
+    --ok: #1f7a52; --warn: #8a5a00;
+}
+html.dark body {
+    --bg: #0f0f11; --surf: #18181b; --ink: #f3f3f4; --mut: #aeaeb6;
+    --line: #2a2a2f; --soft: #222226; --acc: #c93840; --acc-ink: #fff; --acc-soft: #3a1c1d;
+    --ok: #3cc088; --warn: #e0a93a;
+}
+
+/* The real shared header bar, recoloured on this page only — same
+   mechanism as the POS/Dashboard pages (#app-header lives in the shared
+   layout, this stylesheet only ever loads here). */
+#app-header {
+    background: var(--acc);
+    border-color: var(--acc);
+}
+
+#app-header,
+#app-header *:not(.absolute, .absolute *) {
+    color: var(--acc-ink);
+}
+
+#app-header button:hover:not(.absolute button) {
+    background: rgba(255, 255, 255, .16);
+}
+
+.sales-skin, .sales-skin *, .sales-skin *::before, .sales-skin *::after { box-sizing: border-box; }
+.sales-skin {
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    color: var(--ink);
+    color-scheme: light;
+}
+html.dark .sales-skin { color-scheme: dark; }
+.sales-skin button, .sales-skin a { font: inherit; color: inherit; }
+.sales-skin button { cursor: pointer; border: 0; background: none; padding: 0; }
+.sales-skin a { text-decoration: none; }
+.sales-skin svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.sales-skin :focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+
+.sales-skin .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+.sales-skin .top > div:first-child { border-left: 4px solid var(--acc); padding-left: 14px; }
+.sales-skin .top h1 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
+.sales-skin .top p { margin: 2px 0 0; color: var(--mut); font-size: 13.5px; }
+
+.sales-skin .filters { background: var(--surf); border: 1px solid var(--line); padding: 14px 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px; }
+.sales-skin .search { position: relative; flex: 1 1 240px; min-width: 200px; }
+.sales-skin .search svg { position: absolute; left: 12px; top: 11px; width: 16px; height: 16px; stroke: var(--mut); pointer-events: none; }
+.sales-skin .search input { width: 100%; height: 40px; border: 1px solid var(--line); background: var(--bg); padding: 0 14px 0 36px; font: inherit; font-size: 13.5px; color: var(--ink); }
+.sales-skin .search input:focus { outline: none; border-color: var(--acc); background: var(--surf); box-shadow: 0 0 0 3px var(--acc-soft); }
+
+.sales-skin .seg { display: flex; border: 1px solid var(--line); flex-shrink: 0; }
+.sales-skin .seg button { height: 40px; padding: 0 14px; font-weight: 500; font-size: 13px; color: var(--mut); }
+.sales-skin .seg button:hover { color: var(--ink); }
+.sales-skin .seg button[aria-pressed=true] { background: var(--acc); color: var(--acc-ink); font-weight: 600; }
+
+.sales-skin .daterange { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.sales-skin .daterange span { color: var(--mut); font-size: 13px; }
+.sales-skin .daterange input[type=date] { height: 40px; border: 1px solid var(--line); background: var(--bg); padding: 0 10px; font: inherit; font-size: 13px; color: var(--ink); }
+
+.sales-skin .card { background: var(--surf); border: 1px solid var(--line); overflow-x: auto; }
+
+.sales-skin .tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.sales-skin .tbl th { text-align: left; padding: 11px 16px; font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--mut); background: var(--soft); border-bottom: 1px solid var(--line); white-space: nowrap; }
+.sales-skin .tbl th.num, .sales-skin .tbl td.num { text-align: right; }
+.sales-skin .tbl th.actions, .sales-skin .tbl td.actions { text-align: right; }
+.sales-skin .tbl td { padding: 13px 16px; border-bottom: 1px solid var(--line); color: var(--ink); white-space: nowrap; }
+.sales-skin .tbl tbody tr:last-child td { border-bottom: 0; }
+.sales-skin .tbl tbody tr:hover td { background: var(--soft); }
+.sales-skin .tbl .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-weight: 600; }
+.sales-skin .tbl .mut { color: var(--mut); }
+.sales-skin .tbl .num { font-variant-numeric: tabular-nums; font-weight: 700; }
+.sales-skin .tbl .empty { text-align: center; color: var(--mut); padding: 32px 0; white-space: normal; }
+
+/* The currency code and the AM/PM marker both render smaller than what
+   they're attached to, same idea as the Dashboard page's own .ccy — a
+   label riding along with a value, not competing with it for attention. */
+.sales-skin .ccy { font-size: 10px; font-weight: 700; color: var(--mut); letter-spacing: .02em; margin-right: 2px; }
+.sales-skin .ampm { font-size: 10px; font-weight: 600; color: var(--mut); letter-spacing: .02em; }
+
+.sales-skin .status { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 11px; }
+.sales-skin .status.ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
+.sales-skin .status.warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 16%, transparent); }
+.sales-skin .status.acc { color: var(--acc); background: var(--acc-soft); }
+
+/* Small flat buttons, same idea as the Dashboard page's row-level
+   "Restock"/"View" buttons — bordered, not solid, so a row of up to
+   three doesn't compete with the page's one real primary action (Go to
+   POS). Color alone carries the severity (neutral/amber/red). */
+.sales-skin .actionbtn {
+    display: inline-flex; align-items: center;
+    height: 28px; padding: 0 11px;
+    font-size: 12px; font-weight: 600;
+    border: 1px solid var(--line);
+    background: var(--surf);
+    color: var(--mut);
+    margin-left: 6px;
+}
+.sales-skin .actionbtn:first-child { margin-left: 0; }
+.sales-skin .actionbtn:hover { background: var(--soft); color: var(--ink); }
+.sales-skin .actionbtn.refund { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 35%, var(--line)); }
+.sales-skin .actionbtn.refund:hover { background: color-mix(in srgb, var(--warn) 10%, var(--surf)); }
+.sales-skin .actionbtn.void { color: var(--acc); border-color: var(--acc-soft); }
+.sales-skin .actionbtn.void:hover { background: var(--acc-soft); }
+
+.sales-skin .pager { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--mut); flex-wrap: wrap; gap: 8px; }
+.sales-skin .pager .pages { display: flex; gap: 4px; }
+.sales-skin .pager .pages button { width: 30px; height: 30px; border: 1px solid var(--line); color: var(--mut); font-size: 12.5px; font-weight: 600; background: var(--surf); }
+.sales-skin .pager .pages button:hover { border-color: var(--mut); color: var(--ink); }
+.sales-skin .pager .pages button[aria-current=true] { background: var(--acc); border-color: var(--acc); color: var(--acc-ink); cursor: default; }
+
+.sales-skin .btn { height: 38px; padding: 0 16px; font-weight: 600; font-size: 13px; border: 1px solid var(--line); background: var(--surf); color: var(--ink); display: inline-flex; align-items: center; gap: 6px; }
+.sales-skin .btn:hover { border-color: var(--mut); }
+.sales-skin .btn.p { background: var(--acc); color: var(--acc-ink); border-color: var(--acc); }
+.sales-skin .btn.p:hover { filter: brightness(1.08); }
+.sales-skin .btn.danger { background: var(--acc); color: var(--acc-ink); border-color: var(--acc); }
+.sales-skin .btn.danger:hover { filter: brightness(1.08); }
+
+/* ---------------------------------------------------- void/refund modals */
+/* The real Breeze <x-modal> already handles the backdrop/transitions/
+   focus-trap — this only reskins its own hardcoded surface classes
+   (rounded-lg shadow-xl bg-white/dark:bg-gray-800) flat, to match the
+   rest of this page, without touching the shared component itself. */
+.sales-skin .rounded-lg.shadow-xl.overflow-hidden {
+    border-radius: 0;
+    box-shadow: none;
+    border: 1px solid var(--line);
+    background: var(--surf);
+}
+.sales-skin .dialog .dh { padding: 20px 20px 0; }
+.sales-skin .dialog .dh h2 { margin: 0; font-size: 17px; font-weight: 800; letter-spacing: -.01em; color: var(--ink); }
+.sales-skin .dialog .dh p { margin: 8px 0 0; font-size: 13px; color: var(--mut); line-height: 1.5; }
+.sales-skin .dialog .db { padding: 16px 20px; max-height: 60vh; overflow-y: auto; }
+.sales-skin .dialog .db .error { margin: 0; font-size: 13.5px; color: var(--acc); }
+.sales-skin .dialog label { display: block; font-size: 12.5px; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
+.sales-skin .dialog textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); padding: 10px 12px; font: inherit; font-size: 13.5px; color: var(--ink); resize: vertical; }
+.sales-skin .dialog textarea:focus { outline: none; border-color: var(--acc); box-shadow: 0 0 0 3px var(--acc-soft); }
+.sales-skin .dialog .df { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 20px 20px; }
+
+/* Per-line qty/condition/reason — the refund modal's own rows, each
+   bordered rather than relying on the table's zebra/hover treatment
+   since this is a short, deliberate list, not a browsing table. */
+.sales-skin .refline { border: 1px solid var(--line); padding: 10px 12px; margin-bottom: 10px; }
+.sales-skin .refline-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.sales-skin .refline-top .mut { font-weight: 500; color: var(--mut); font-size: 12.5px; white-space: nowrap; }
+.sales-skin .refline-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+.sales-skin .refline-grid label { font-size: 11px; font-weight: 600; color: var(--mut); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .04em; }
+.sales-skin .refline-grid input, .sales-skin .refline-grid select { width: 100%; height: 34px; border: 1px solid var(--line); background: var(--bg); padding: 0 8px; font: inherit; font-size: 13px; color: var(--ink); }
+.sales-skin .refline-grid input:focus, .sales-skin .refline-grid select:focus { outline: none; border-color: var(--acc); box-shadow: 0 0 0 3px var(--acc-soft); }
+.sales-skin .dialog .f { margin-top: 14px; }

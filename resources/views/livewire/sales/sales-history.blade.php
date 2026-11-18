@@ -1,91 +1,124 @@
-<div>
-    <div class="flex flex-wrap items-center gap-3 mb-4">
-        <div class="w-full max-w-xs">
-            <x-text-input wire:model.live.debounce.300ms="search" type="search" placeholder="Search receipt # or customer..." class="w-full" />
+@php
+    // Same idea as the Dashboard page's own money figures — the currency
+    // code renders smaller than the number so the figure is still what
+    // the eye lands on. Wrapped in HtmlString so {{ }} doesn't escape the
+    // span away, same trick Blade's own e() helper already makes safe to
+    // rely on.
+    $money = fn ($amount) => new \Illuminate\Support\HtmlString(
+        '<span class="ccy">'.e($currencyCode).'</span> '.number_format($amount, 2)
+    );
+@endphp
+
+<div class="sales-skin">
+    <div class="top">
+        <div>
+            <h1>Sales</h1>
+            <p>Every completed, voided and refunded sale, store-wide</p>
         </div>
-        <select wire:model.live="statusFilter" class="rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
-            <option value="">All statuses</option>
-            <option value="completed">Completed</option>
-            <option value="voided">Voided</option>
-            <option value="refunded">Refunded</option>
-        </select>
-        <input type="date" wire:model.live="dateFrom" class="rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
-        <span class="text-gray-400 text-sm">to</span>
-        <input type="date" wire:model.live="dateTo" class="rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+        @if (auth()->user()->hasPermission('sales', 'create'))
+            <a href="{{ route('pos.index') }}" wire:navigate class="btn p">
+                <svg viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 5v14M5 12h14"/></svg>
+                Go to POS
+            </a>
+        @endif
     </div>
 
-    <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead class="bg-gray-50 dark:bg-gray-900/40">
+    <div class="filters">
+        <div class="search">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input wire:model.live.debounce.300ms="search" type="search" placeholder="Search receipt # or customer…">
+        </div>
+        <div class="seg">
+            @foreach (['' => 'All', 'completed' => 'Completed', 'voided' => 'Voided', 'refunded' => 'Refunded'] as $value => $label)
+                <button type="button" wire:click="setStatusFilter('{{ $value }}')" aria-pressed="{{ $statusFilter === $value ? 'true' : 'false' }}">{{ $label }}</button>
+            @endforeach
+        </div>
+        <div class="daterange">
+            <input type="date" wire:model.live="dateFrom">
+            <span>to</span>
+            <input type="date" wire:model.live="dateTo">
+        </div>
+    </div>
+
+    <div class="card">
+        <table class="tbl">
+            <thead>
                 <tr>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Receipt #</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Cashier</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Customer</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Payment</th>
-                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                    <th>Receipt #</th>
+                    <th>Date</th>
+                    <th>Cashier</th>
+                    <th>Customer</th>
+                    <th>Payment</th>
+                    <th class="num">Total</th>
+                    <th>Status</th>
+                    <th class="actions">Actions</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody>
                 @forelse ($sales as $sale)
                     <tr wire:key="sale-{{ $sale->id }}">
-                        <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap font-mono">{{ $sale->receipt_number }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ $sale->sale_date->format('Y-m-d H:i') }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ $sale->cashier->name }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ $sale->customer?->name ?? 'Walk-in' }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ $sale->payment?->paymentMethod->name }}</td>
-                        <td class="px-4 py-3 text-sm text-right tabular-nums text-gray-700 dark:text-gray-300 whitespace-nowrap">{{ number_format($sale->total_amount, 2) }}</td>
-                        <td class="px-4 py-3 text-sm whitespace-nowrap">
+                        <td class="mono">{{ $sale->receipt_number }}</td>
+                        <td class="mut">{{ $sale->sale_date->format('Y-m-d h:i') }} <span class="ampm">{{ $sale->sale_date->format('A') }}</span></td>
+                        <td>{{ $sale->cashier->name }}</td>
+                        <td class="mut">{{ $sale->customer?->name ?? 'Walk-in' }}</td>
+                        <td>{{ $sale->payment?->paymentMethod->name }}</td>
+                        <td class="num">{{ $money($sale->total_amount) }}</td>
+                        <td>
                             <span @class([
-                                'inline-flex px-2 py-0.5 rounded-full text-xs font-medium',
-                                'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' => $sale->status === 'completed',
-                                'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300' => $sale->status === 'voided',
-                                'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300' => $sale->status === 'refunded',
-                            ])>
-                                {{ ucfirst($sale->status) }}
-                            </span>
+                                'status',
+                                'ok' => $sale->status === 'completed',
+                                'acc' => $sale->status === 'voided',
+                                'warn' => $sale->status === 'refunded',
+                            ])>{{ ucfirst($sale->status) }}</span>
                         </td>
-                        <td class="px-4 py-3 text-sm text-right whitespace-nowrap space-x-3">
-                            <a href="{{ route('sales.receipt', $sale) }}" target="_blank" class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium">Receipt</a>
+                        <td class="actions">
+                            <a href="{{ route('sales.receipt', $sale) }}" target="_blank" class="actionbtn">Receipt</a>
                             @if ($sale->status === 'completed' && auth()->user()->hasPermission('returns', 'create') && auth()->user()->canRefundSale($sale) && \App\Models\ModuleSetting::enabled('return_management'))
-                                <a href="{{ route('returns.index', ['receipt' => $sale->receipt_number]) }}" wire:navigate class="text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300 font-medium">Refund</a>
+                                <button type="button" wire:click="$dispatch('confirm-refund', { saleId: {{ $sale->id }} })" class="actionbtn refund">Refund</button>
                             @endif
                             @if ($sale->status === 'completed' && auth()->user()->hasPermission('sales', 'update'))
-                                <button wire:click="confirmVoid({{ $sale->id }})" class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 font-medium">Void</button>
+                                <button type="button" wire:click="confirmVoid({{ $sale->id }})" class="actionbtn void">Void</button>
                             @endif
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No sales found.</td>
+                        <td colspan="8" class="empty">No sales found.</td>
                     </tr>
                 @endforelse
             </tbody>
         </table>
-        <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
-            {{ $sales->links() }}
+        <div class="pager">
+            <span>Showing {{ $sales->firstItem() ?? 0 }}–{{ $sales->lastItem() ?? 0 }} of {{ $sales->total() }}</span>
+            @if ($sales->hasPages())
+                <div class="pages">
+                    @foreach ($sales->getUrlRange(max(1, $sales->currentPage() - 2), min($sales->lastPage(), $sales->currentPage() + 2)) as $page => $url)
+                        <button type="button" wire:click="gotoPage({{ $page }})" aria-current="{{ $page === $sales->currentPage() ? 'true' : 'false' }}">{{ $page }}</button>
+                    @endforeach
+                </div>
+            @endif
         </div>
     </div>
 
     <x-modal name="confirm-void-sale" max-width="sm">
-        <form wire:submit="void" class="p-6">
-            <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">Void Sale</h2>
-            <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                This permanently reverses the sale's inventory and, if it was a credit sale, the customer's balance. This cannot be undone.
-            </p>
+        <form wire:submit="void" class="dialog">
+            <div class="dh">
+                <h2>Void sale</h2>
+                <p>This permanently reverses the sale's inventory and, if it was a credit sale, the customer's balance. This cannot be undone.</p>
+            </div>
 
-            <div class="mt-4">
-                <x-input-label for="void_reason" value="Reason" />
-                <textarea wire:model="voidReason" id="void_reason" rows="2" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+            <div class="db">
+                <label for="void_reason">Reason</label>
+                <textarea wire:model="voidReason" id="void_reason" rows="2" placeholder="Why this sale is being voided"></textarea>
                 <x-input-error :messages="$errors->get('voidReason')" class="mt-2" />
             </div>
 
-            <div class="mt-6 flex justify-end gap-3">
-                <x-secondary-button x-on:click="$dispatch('close')">Cancel</x-secondary-button>
-                <x-danger-button type="submit">Void Sale</x-danger-button>
+            <div class="df">
+                <button type="button" class="btn" x-on:click="$dispatch('close')">Cancel</button>
+                <button type="submit" class="btn danger">Void sale</button>
             </div>
         </form>
     </x-modal>
+
+    <livewire:sales.refund-modal />
 </div>

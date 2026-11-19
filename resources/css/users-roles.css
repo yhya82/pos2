@@ -1,0 +1,184 @@
+/*
+ * Users / Roles & Permissions / User Profile redesign — scoped entirely
+ * under .users-roles-skin so none of this (palette, resets) ever leaks
+ * onto any other page. Same flat, boxy, Inter look as the rest of the
+ * app. The one deliberate new use of color here: permission checkboxes
+ * colored by what the action DOES (view=neutral, create=green,
+ * update=amber, delete=red) — the same CRUD-danger convention this app
+ * already uses for action buttons elsewhere (Mark Ordered=green,
+ * Cancel/Delete=red), just applied to a checkbox grid instead of
+ * buttons. Still just the three tokens used everywhere else, never a
+ * fourth hue invented for this page.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+body {
+    --bg: #f6f6f4; --surf: #fff; --ink: #1a1a1c; --mut: #55555b;
+    --line: #e3e3df; --soft: #efefeb; --acc: #a81c26; --acc-ink: #fff; --acc-soft: #f9e9e9;
+    --ok: #1f7a52; --ok-soft: #e7f3ed; --warn: #8a5a00; --warn-soft: #f8eedc;
+}
+html.dark body {
+    --bg: #0f0f11; --surf: #18181b; --ink: #f3f3f4; --mut: #aeaeb6;
+    --line: #2a2a2f; --soft: #222226; --acc: #c93840; --acc-ink: #fff; --acc-soft: #3a1c1d;
+    --ok: #3cc088; --ok-soft: #173327; --warn: #e0a93a; --warn-soft: #3a2f10;
+}
+
+#app-header { background: var(--acc); border-color: var(--acc); }
+#app-header, #app-header *:not(.absolute, .absolute *) { color: var(--acc-ink); }
+#app-header button:hover:not(.absolute button) { background: rgba(255, 255, 255, .16); }
+
+main { background: var(--bg); }
+
+.users-roles-skin, .users-roles-skin *, .users-roles-skin *::before, .users-roles-skin *::after { box-sizing: border-box; }
+.users-roles-skin {
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    color: var(--ink);
+    color-scheme: light;
+}
+html.dark .users-roles-skin { color-scheme: dark; }
+.users-roles-skin button, .users-roles-skin a { font: inherit; color: inherit; }
+.users-roles-skin button { cursor: pointer; border: 0; background: none; padding: 0; }
+.users-roles-skin a { text-decoration: none; }
+.users-roles-skin svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.users-roles-skin :focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+
+.users-roles-skin .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+.users-roles-skin .top > div:first-child { border-left: 4px solid var(--acc); padding-left: 14px; }
+.users-roles-skin .top h1 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
+.users-roles-skin .top p { margin: 2px 0 0; color: var(--mut); font-size: 13.5px; }
+
+.users-roles-skin .filters { background: var(--surf); border: 1px solid var(--line); padding: 14px 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px; }
+.users-roles-skin .search { position: relative; flex: 1 1 240px; min-width: 200px; }
+.users-roles-skin .search svg { position: absolute; left: 12px; top: 11px; width: 16px; height: 16px; stroke: var(--mut); pointer-events: none; }
+.users-roles-skin .search input { width: 100%; height: 40px; border: 1px solid var(--line); background: var(--bg); padding: 0 14px 0 36px; font: inherit; font-size: 13.5px; color: var(--ink); }
+.users-roles-skin .search input:focus { outline: none; border-color: var(--acc); background: var(--surf); box-shadow: 0 0 0 3px var(--acc-soft); }
+
+.users-roles-skin .card { background: var(--surf); border: 1px solid var(--line); overflow-x: auto; }
+
+.users-roles-skin .tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.users-roles-skin .tbl th { text-align: left; padding: 11px 16px; font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--mut); background: var(--soft); border-bottom: 1px solid var(--line); white-space: nowrap; }
+.users-roles-skin .tbl th.num, .users-roles-skin .tbl td.num { text-align: right; }
+.users-roles-skin .tbl th.actions, .users-roles-skin .tbl td.actions { text-align: right; }
+.users-roles-skin .tbl td { padding: 11px 16px; border-bottom: 1px solid var(--line); color: var(--ink); vertical-align: middle; }
+.users-roles-skin .tbl tbody tr:last-child td { border-bottom: 0; }
+.users-roles-skin .tbl tbody tr:hover td { background: var(--soft); }
+.users-roles-skin .tbl .mut { color: var(--mut); }
+.users-roles-skin .tbl .link { background: none; color: var(--ink); font-weight: 600; }
+.users-roles-skin .tbl .link:hover { color: var(--acc); }
+.users-roles-skin .tbl .empty { text-align: center; color: var(--mut); padding: 32px 0; white-space: normal; }
+
+.users-roles-skin .who { display: flex; align-items: center; gap: 10px; }
+.users-roles-skin .avatar { width: 32px; height: 32px; flex-shrink: 0; background: var(--acc-soft); color: var(--acc); display: grid; place-items: center; font-size: 12px; font-weight: 800; letter-spacing: -.02em; }
+.users-roles-skin .who .nm { font-weight: 600; color: var(--ink); }
+.users-roles-skin .who .un { font-size: 11.5px; color: var(--mut); margin-top: 1px; }
+
+.users-roles-skin .rolechip { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--ink); }
+.users-roles-skin .rolechip svg { width: 12px; height: 12px; stroke-width: 2; color: var(--mut); flex-shrink: 0; }
+
+.users-roles-skin .status { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 11px; }
+.users-roles-skin .status.ok { color: var(--ok); background: var(--ok-soft); }
+.users-roles-skin .status.plain { color: var(--mut); background: var(--soft); }
+
+.users-roles-skin .actionbtn { display: inline-flex; align-items: center; height: 26px; padding: 0 10px; font-size: 11.5px; font-weight: 600; border: 1px solid var(--line); background: var(--surf); color: var(--mut); margin-left: 5px; }
+.users-roles-skin .actionbtn:first-child { margin-left: 0; }
+.users-roles-skin .actionbtn:hover { background: var(--soft); color: var(--ink); }
+.users-roles-skin .actionbtn.danger { color: var(--acc); border-color: var(--acc-soft); }
+.users-roles-skin .actionbtn.danger:hover { background: var(--acc-soft); }
+
+.users-roles-skin .pager { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--mut); flex-wrap: wrap; gap: 8px; }
+.users-roles-skin .pager .pages { display: flex; gap: 4px; }
+.users-roles-skin .pager .pages button { width: 30px; height: 30px; border: 1px solid var(--line); color: var(--mut); font-size: 12.5px; font-weight: 600; background: var(--surf); }
+.users-roles-skin .pager .pages button:hover { border-color: var(--mut); color: var(--ink); }
+.users-roles-skin .pager .pages button[aria-current=true] { background: var(--acc); border-color: var(--acc); color: var(--acc-ink); cursor: default; }
+
+.users-roles-skin .btn { height: 38px; padding: 0 16px; font-weight: 600; font-size: 13px; border: 1px solid var(--line); background: var(--surf); color: var(--ink); display: inline-flex; align-items: center; gap: 6px; }
+.users-roles-skin .btn:hover { border-color: var(--mut); }
+.users-roles-skin .btn.p { background: var(--acc); color: var(--acc-ink); border-color: var(--acc); }
+.users-roles-skin .btn.p:hover { filter: brightness(1.08); }
+.users-roles-skin .btn.danger { background: var(--acc); color: var(--acc-ink); border-color: var(--acc); }
+.users-roles-skin .btn.danger:hover { filter: brightness(1.08); }
+
+/* ------------------------------------------------------------- form/f */
+.users-roles-skin .f { margin-bottom: 16px; }
+.users-roles-skin .f:last-child { margin-bottom: 0; }
+.users-roles-skin .f label { display: block; font-size: 12.5px; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
+.users-roles-skin .f label .req { color: var(--acc); font-weight: 700; margin-left: 3px; }
+.users-roles-skin .f input, .users-roles-skin .f select, .users-roles-skin .f textarea { width: 100%; height: 40px; border: 1px solid var(--line); background: var(--bg); padding: 0 12px; font: inherit; font-size: 13.5px; color: var(--ink); }
+.users-roles-skin .f textarea { height: auto; padding: 10px 12px; resize: vertical; }
+.users-roles-skin .f input:focus, .users-roles-skin .f select:focus, .users-roles-skin .f textarea:focus { outline: none; border-color: var(--acc); box-shadow: 0 0 0 3px var(--acc-soft); }
+.users-roles-skin .f .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.users-roles-skin .f .hint { font-size: 11.5px; color: var(--mut); margin-top: 5px; }
+.users-roles-skin .f .prefix { display: flex; align-items: center; gap: 8px; }
+.users-roles-skin .f .prefix span { color: var(--mut); font-size: 13.5px; flex-shrink: 0; }
+.users-roles-skin .f select {
+    appearance: none; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2355555b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center; background-size: 13px; padding-right: 34px;
+}
+html.dark .users-roles-skin .f select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23aeaeb6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+}
+
+/* --------------------------------------------------------- permissions */
+.users-roles-skin .permhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
+.users-roles-skin .permhead .lbl { font-size: 12.5px; font-weight: 600; color: var(--ink); }
+.users-roles-skin .permlegend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 11px; color: var(--mut); margin-bottom: 12px; }
+.users-roles-skin .permlegend span { display: inline-flex; align-items: center; gap: 5px; }
+.users-roles-skin .permlegend i { width: 9px; height: 9px; display: inline-block; flex-shrink: 0; }
+.users-roles-skin .permlegend i.view { background: var(--mut); }
+.users-roles-skin .permlegend i.create { background: var(--ok); }
+.users-roles-skin .permlegend i.update { background: var(--warn); }
+.users-roles-skin .permlegend i.delete { background: var(--acc); }
+
+.users-roles-skin .permmod { border: 1px solid var(--line); margin-bottom: 8px; }
+.users-roles-skin .permmod:last-child { margin-bottom: 0; }
+.users-roles-skin .permmod-h { display: flex; align-items: center; gap: 9px; padding: 9px 12px; background: var(--soft); border-bottom: 1px solid var(--line); font-size: 12.5px; font-weight: 700; }
+.users-roles-skin .permmod-h .ic { width: 22px; height: 22px; flex-shrink: 0; background: var(--surf); border: 1px solid var(--line); color: var(--mut); display: grid; place-items: center; }
+.users-roles-skin .permmod-h .ic svg { width: 12px; height: 12px; stroke-width: 1.8; }
+.users-roles-skin .permmod-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 12px; }
+
+.users-roles-skin .permchk { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 11px; border: 1px solid var(--line); background: var(--surf); font-size: 12px; font-weight: 600; color: var(--mut); cursor: pointer; }
+.users-roles-skin .permchk input { position: absolute; opacity: 0; width: 0; height: 0; }
+.users-roles-skin .permchk .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); flex-shrink: 0; }
+/* :has() instead of a server-computed class — the color reacts the
+   instant a box is (un)checked, no Livewire round trip needed for a
+   purely visual state that the deferred wire:model already tracks. */
+.users-roles-skin .permchk.view:has(input:checked) { border-color: var(--mut); color: var(--ink); background: var(--soft); }
+.users-roles-skin .permchk.view:has(input:checked) .dot { background: var(--mut); }
+.users-roles-skin .permchk.create:has(input:checked) { border-color: var(--ok); color: var(--ok); background: var(--ok-soft); }
+.users-roles-skin .permchk.create:has(input:checked) .dot { background: var(--ok); }
+.users-roles-skin .permchk.update:has(input:checked) { border-color: var(--warn); color: var(--warn); background: var(--warn-soft); }
+.users-roles-skin .permchk.update:has(input:checked) .dot { background: var(--warn); }
+.users-roles-skin .permchk.delete:has(input:checked) { border-color: var(--acc); color: var(--acc); background: var(--acc-soft); }
+.users-roles-skin .permchk.delete:has(input:checked) .dot { background: var(--acc); }
+
+/* ---------------------------------------------- shared slide-over, reskinned */
+.users-roles-skin .shadow-xl.flex.flex-col { background: var(--surf); border-left: 1px solid var(--line); box-shadow: none; border-radius: 0; }
+.users-roles-skin .border-b.shrink-0 { padding: 16px 20px; border-color: var(--line); }
+.users-roles-skin .border-b.shrink-0 h2 { font-size: 16px; font-weight: 800; letter-spacing: -.01em; color: var(--ink); }
+.users-roles-skin .border-b.shrink-0 button { color: var(--mut); }
+.users-roles-skin .border-b.shrink-0 button:hover { color: var(--ink); }
+.users-roles-skin .flex-1.overflow-y-auto { padding: 20px; }
+.users-roles-skin .border-t.shrink-0 { padding: 16px 20px; border-color: var(--line); }
+
+/* -------------------------------------------------- centered dialogs */
+.users-roles-skin .rounded-lg.shadow-xl.overflow-hidden { border-radius: 0; box-shadow: none; border: 1px solid var(--line); background: var(--surf); }
+.users-roles-skin .dialog .dh { padding: 20px 20px 0; }
+.users-roles-skin .dialog .dh h2 { margin: 0; font-size: 17px; font-weight: 800; letter-spacing: -.01em; color: var(--ink); }
+.users-roles-skin .dialog .dh p { margin: 8px 0 0; font-size: 13px; color: var(--mut); line-height: 1.5; }
+.users-roles-skin .dialog .df { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 20px 20px; }
+
+/* ------------------------------------------------------- profile card */
+.users-roles-skin .profile-head { position: relative; background: var(--surf); border: 1px solid var(--line); border-top: 3px solid var(--acc); padding: 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 18px; margin-bottom: 16px; }
+.users-roles-skin .profile-head .avatar { width: 56px; height: 56px; font-size: 18px; }
+.users-roles-skin .profile-head .nm { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.users-roles-skin .profile-head h2 { margin: 0; font-size: 19px; font-weight: 800; letter-spacing: -.02em; }
+.users-roles-skin .profile-head .meta { margin: 5px 0 0; color: var(--mut); font-size: 13px; display: flex; align-items: center; flex-wrap: wrap; gap: 0; }
+.users-roles-skin .profile-head .figs { margin-left: auto; text-align: right; }
+.users-roles-skin .profile-head .figs .lbl { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mut); }
+.users-roles-skin .profile-head .figs .val { font-size: 15px; font-weight: 800; margin-top: 3px; }
+
+.users-roles-skin .cardhead { display: flex; align-items: center; gap: 10px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+.users-roles-skin .cardhead .ic { width: 30px; height: 30px; flex-shrink: 0; background: var(--acc-soft); color: var(--acc); display: grid; place-items: center; }
+.users-roles-skin .cardhead .ic svg { width: 15px; height: 15px; stroke-width: 1.7; }
+.users-roles-skin .cardhead h3 { margin: 0; font-size: 14px; font-weight: 800; }

@@ -1,72 +1,74 @@
-<div>
-    <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 p-4 mb-4">
-        <div class="flex flex-wrap items-start justify-between gap-4">
-            <div>
-                <div class="flex items-center gap-2">
-                    <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ $user->name }}</h2>
-                    <span @class([
-                        'inline-flex px-2 py-0.5 rounded-full text-xs font-medium',
-                        'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' => $user->status === 'active',
-                        'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' => $user->status === 'inactive',
-                    ])>{{ ucfirst($user->status) }}</span>
-                </div>
-                <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                    {{ '@'.$user->username }} · {{ $user->role->name }}
-                    @if ($user->email) · {{ $user->email }} @endif
-                    @if ($user->phone) · {{ $user->formattedPhone() }} @endif
-                </p>
-            </div>
+@php
+    $initials = collect(preg_split('/\s+/', trim($user->name)))->filter()->map(fn ($part) => mb_strtoupper(mb_substr($part, 0, 1)))->take(2)->implode('');
+@endphp
 
-            <div class="text-right">
-                <div class="text-xs text-gray-500 dark:text-gray-400">Last Login</div>
-                <div class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ $user->last_login_at?->format('Y-m-d H:i') ?? 'Never' }}</div>
+<div class="users-roles-skin">
+    <div class="profile-head">
+        <span class="avatar">{{ $initials ?: '?' }}</span>
+        <div>
+            <div class="nm">
+                <h2>{{ $user->name }}</h2>
+                <span @class(['status', 'ok' => $user->status === 'active', 'plain' => $user->status !== 'active'])>{{ ucfirst($user->status) }}</span>
             </div>
+            <div class="meta">
+                <span class="rolechip" style="margin-right:6px;"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/></svg>{{ $user->role->name }}</span>
+                &middot; @{{ $user->username }}
+                @if ($user->email) &middot; {{ $user->email }} @endif
+                @if ($user->phone) &middot; {{ $user->formattedPhone() }} @endif
+            </div>
+        </div>
+        <div class="figs">
+            <div class="lbl">Last Login</div>
+            <div class="val">{{ $user->last_login_at?->format('Y-m-d H:i') ?? 'Never' }}</div>
         </div>
     </div>
 
     @if ($canEdit)
-        <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 p-4 mb-4 max-w-2xl">
-            <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-4">Account Details</h3>
-            <form wire:submit="save" class="space-y-4">
-                <div>
-                    <x-input-label for="profile_name" value="Name" />
-                    <x-text-input wire:model="name" id="profile_name" class="block mt-1 w-full" />
+        <div class="card" style="max-width:640px;">
+            <div class="cardhead">
+                <span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5"/></svg></span>
+                <h3>Account Details</h3>
+            </div>
+            <form wire:submit="save" style="padding:20px;">
+                <div class="f">
+                    <label for="profile_name">Name<span class="req">*</span></label>
+                    <input type="text" wire:model="name" id="profile_name">
                     <x-input-error :messages="$errors->get('name')" class="mt-2" />
                 </div>
 
-                <div class="grid grid-cols-2 gap-4">
+                <div class="f grid2">
                     <div>
-                        <x-input-label for="profile_username" value="Username" />
-                        <x-text-input wire:model="username" id="profile_username" class="block mt-1 w-full" />
+                        <label for="profile_username">Username<span class="req">*</span></label>
+                        <input type="text" wire:model="username" id="profile_username">
                         <x-input-error :messages="$errors->get('username')" class="mt-2" />
                     </div>
                     <div>
-                        <x-input-label for="profile_email" value="Email" />
-                        <x-text-input wire:model="email" id="profile_email" type="email" class="block mt-1 w-full" />
+                        <label for="profile_email">Email</label>
+                        <input type="email" wire:model="email" id="profile_email">
                         <x-input-error :messages="$errors->get('email')" class="mt-2" />
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4">
+                <div class="f grid2">
                     <div>
-                        <x-input-label for="profile_phone" value="Phone" />
-                        <div class="mt-1 flex items-center gap-2">
-                            <span class="text-sm text-gray-500 dark:text-gray-400">+220</span>
-                            <x-text-input wire:model="phone" id="profile_phone" placeholder="831234567" maxlength="9" class="block w-full" />
+                        <label for="profile_phone">Phone<span class="req">*</span></label>
+                        <div class="prefix">
+                            <span>+220</span>
+                            <input type="text" wire:model="phone" id="profile_phone" placeholder="831234567" maxlength="9" inputmode="numeric">
                         </div>
                         <x-input-error :messages="$errors->get('phone')" class="mt-2" />
                     </div>
                     <div>
-                        <x-input-label for="profile_password" value="New Password (optional)" />
-                        <x-text-input wire:model="password" id="profile_password" type="password" class="block mt-1 w-full" />
+                        <label for="profile_password">New Password (optional)</label>
+                        <input type="password" wire:model="password" id="profile_password" autocomplete="new-password">
                         <x-input-error :messages="$errors->get('password')" class="mt-2" />
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4">
+                <div class="f grid2" style="margin-bottom:0;">
                     <div>
-                        <x-input-label for="profile_role" value="Role" />
-                        <select wire:model="roleId" id="profile_role" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <label for="profile_role">Role<span class="req">*</span></label>
+                        <select wire:model="roleId" id="profile_role">
                             @foreach ($roles as $role)
                                 <option value="{{ $role->id }}">{{ $role->name }}</option>
                             @endforeach
@@ -74,8 +76,8 @@
                         <x-input-error :messages="$errors->get('roleId')" class="mt-2" />
                     </div>
                     <div>
-                        <x-input-label for="profile_status" value="Status" />
-                        <select wire:model="status" id="profile_status" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <label for="profile_status">Status<span class="req">*</span></label>
+                        <select wire:model="status" id="profile_status">
                             <option value="active">Active</option>
                             <option value="inactive">Inactive</option>
                         </select>
@@ -83,8 +85,8 @@
                     </div>
                 </div>
 
-                <div class="flex justify-end">
-                    <x-primary-button type="submit">Save</x-primary-button>
+                <div style="display:flex; justify-content:flex-end; margin-top:20px;">
+                    <button type="submit" class="btn p">Save</button>
                 </div>
             </form>
         </div>

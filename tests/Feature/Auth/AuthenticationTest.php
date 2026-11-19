@@ -97,7 +97,7 @@ class AuthenticationTest extends TestCase
 
         Livewire::test(LogoutButton::class)
             ->call('logout')
-            ->assertRedirect('/');
+            ->assertRedirect('/login');
 
         $this->assertGuest();
     }

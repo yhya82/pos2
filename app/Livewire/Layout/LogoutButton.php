@@ -11,7 +11,7 @@ class LogoutButton extends Component
     {
         $logout();
 
-        $this->redirect('/', navigate: true);
+        $this->redirect(route('login'), navigate: true);
     }
 
     public function render()

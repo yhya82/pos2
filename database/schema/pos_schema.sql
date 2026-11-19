@@ -1485,8 +1485,8 @@ INSERT INTO notification_settings (category, is_enabled) VALUES
 
 INSERT INTO payment_methods (name, code, is_enabled) VALUES
   ('Cash', 'cash', TRUE),
-  ('Mobile Money', 'mobile_money', TRUE),
-  ('Bank Transfer', 'bank_transfer', TRUE),
+  ('Aps', 'mobile_money', TRUE),
+  ('Wave', 'bank_transfer', TRUE),
   ('Credit', 'credit', TRUE);
 
 -- ============================================================================

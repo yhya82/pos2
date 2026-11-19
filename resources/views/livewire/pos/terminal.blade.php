@@ -91,7 +91,7 @@
                         :disabled="isOutOfStock(product)"
                         @click="addToCart(product)"
                     >
-                        <span class="cube">
+                        <span class="cube" :class="product.image_url ? 'has-img' : ''">
                             <template x-if="cartQty(product.id) > 0"><span class="badge" x-text="cartQty(product.id)"></span></template>
                             <img x-show="product.image_url" :src="product.image_url" :alt="product.name" x-cloak>
                             <svg x-show="!product.image_url" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="m21 16-5-5-8 8"/></svg>
@@ -197,7 +197,7 @@
 
                 <div class="f" x-show="isCredit() && selectedCustomer()" x-cloak>
                     <p class="text-xs" :style="creditWouldExceedLimit() ? 'color:var(--acc)' : ''">
-                        Available credit: <span x-text="selectedCustomer() ? formatMoney(selectedCustomer().credit_limit - selectedCustomer().outstanding_balance) : ''"></span>
+                        Available credit after this sale: <span x-text="selectedCustomer() ? formatMoney(selectedCustomer().credit_limit - selectedCustomer().outstanding_balance - total()) : ''"></span>
                     </p>
                 </div>
 
@@ -240,7 +240,7 @@
                 <div class="tot"><span>Total</span><b><i x-text="currencyCode"></i><span x-text="money(total())"></span></b></div>
             </div>
 
-            <button type="button" class="go" :disabled="processing || cart.length === 0" @click="completeSale()">
+            <button type="button" class="go" :disabled="processing || cart.length === 0 || (isCredit() && !customerId)" @click="completeSale()">
                 <span x-text="goLabel()"></span>
             </button>
         </aside>
@@ -736,7 +736,17 @@
                 this.receiptTimers.push(setTimeout(() => { this.receiptStage = 'complete'; }, reduced ? 200 : 3050));
 
                 this.$nextTick(() => {
-                    this.$refs.newSaleBtn?.focus();
+                    // Auto-focusing "New sale" lets a keyboard-only cashier
+                    // just hit Enter to move on — but with a barcode scanner
+                    // in use, scanning the next item while this is still open
+                    // sends its own trailing Enter keystroke, which a focused
+                    // <button> treats as a click: the receipt would close
+                    // itself the instant that scan lands, not from anyone
+                    // actually choosing "New sale". Leaving focus alone when
+                    // scanning is enabled keeps that keystroke harmless.
+                    if (!this.barcodeScannerEnabled) {
+                        this.$refs.newSaleBtn?.focus();
+                    }
                     this.fitReceipt();
                 });
             },

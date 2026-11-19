@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Reports;
 
+use App\Models\GeneralSetting;
 use App\Models\ModuleSetting;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\On;
@@ -126,6 +127,8 @@ class ReportViewer extends Component
             'groupedReports' => $grouped,
             'currentReport' => $this->selectedReport ? $reports[$this->selectedReport] : null,
             'rows' => $this->selectedReport ? $this->queryFor($this->selectedReport) : null,
+            'stats' => $this->selectedReport ? $this->statsFor($this->selectedReport) : null,
+            'currencyCode' => GeneralSetting::current()->currency_code,
         ]);
     }
 
@@ -142,6 +145,7 @@ class ReportViewer extends Component
         $all = [
             'daily_sales' => [
                 'label' => 'Daily Sales Summary', 'group' => 'Sales', 'visible' => $user->hasPermission('sales', 'view'),
+                'icon' => 'bar-chart', 'tone' => 'ok', 'hint' => "Revenue, discounts and transaction counts, one row per day",
                 'dateColumn' => 'sale_day',
                 'columns' => [
                     ['key' => 'sale_day', 'label' => 'Date'],
@@ -153,6 +157,7 @@ class ReportViewer extends Component
             ],
             'sales_by_cashier' => [
                 'label' => 'Sales by Cashier', 'group' => 'Sales', 'visible' => $user->hasPermission('sales', 'view'),
+                'icon' => 'user', 'hint' => 'Revenue and transaction counts broken down by cashier and day',
                 'dateColumn' => 'sale_day',
                 'columns' => [
                     ['key' => 'cashier_name', 'label' => 'Cashier'],
@@ -163,6 +168,7 @@ class ReportViewer extends Component
             ],
             'sales_by_payment_method' => [
                 'label' => 'Sales by Payment Method', 'group' => 'Sales', 'visible' => $user->hasPermission('sales', 'view'),
+                'icon' => 'card', 'hint' => 'Revenue and transaction counts broken down by payment method and day',
                 'dateColumn' => 'sale_day',
                 'columns' => [
                     ['key' => 'payment_method_name', 'label' => 'Payment Method'],
@@ -175,6 +181,7 @@ class ReportViewer extends Component
             // cashier can process sales but doesn't see store-wide profit.
             'realized_profit' => [
                 'label' => 'Profit Report', 'group' => 'Sales', 'visible' => $user->hasPermission('sales', 'view') && $user->canSeeFinancials(),
+                'icon' => 'trending-up', 'tone' => 'ok', 'hint' => 'Revenue, cost and margin per product, net of discounts and refunds',
                 'columns' => [
                     ['key' => 'product_name', 'label' => 'Product'],
                     ['key' => 'quantity_sold', 'label' => 'Qty Sold', 'align' => 'right'],
@@ -186,6 +193,7 @@ class ReportViewer extends Component
             ],
             'discounts' => [
                 'label' => 'Discount Report', 'group' => 'Sales', 'visible' => $user->hasPermission('sales', 'view'),
+                'icon' => 'tag', 'tone' => 'warn', 'hint' => 'Every sale with a discount applied, header and line amounts',
                 'dateColumn' => 'sale_date',
                 'columns' => [
                     ['key' => 'receipt_number', 'label' => 'Receipt #'],
@@ -197,6 +205,7 @@ class ReportViewer extends Component
             ],
             'refunds' => [
                 'label' => 'Refund Report', 'group' => 'Sales', 'visible' => $returnsEnabled && $user->hasPermission('returns', 'view'),
+                'icon' => 'corner-up-left', 'tone' => 'warn', 'hint' => 'Every return processed, linked back to its original sale',
                 'dateColumn' => 'created_at',
                 'columns' => [
                     ['key' => 'return_number', 'label' => 'Return #'],
@@ -208,6 +217,7 @@ class ReportViewer extends Component
             ],
             'low_stock' => [
                 'label' => 'Low Stock', 'group' => 'Inventory', 'visible' => $user->hasPermission('inventory', 'view'),
+                'icon' => 'alert-triangle', 'tone' => 'warn', 'hint' => 'Products at or below their minimum stock level',
                 'columns' => [
                     ['key' => 'product_name', 'label' => 'Product'],
                     ['key' => 'qty_on_hand', 'label' => 'Qty On Hand', 'align' => 'right'],
@@ -216,6 +226,7 @@ class ReportViewer extends Component
             ],
             'out_of_stock' => [
                 'label' => 'Out of Stock', 'group' => 'Inventory', 'visible' => $user->hasPermission('inventory', 'view'),
+                'icon' => 'x-circle', 'tone' => 'danger', 'hint' => "Products with nothing left on hand",
                 'columns' => [
                     ['key' => 'product_name', 'label' => 'Product'],
                     ['key' => 'qty_on_hand', 'label' => 'Qty On Hand', 'align' => 'right'],
@@ -223,6 +234,7 @@ class ReportViewer extends Component
             ],
             'inventory_valuation' => [
                 'label' => 'Inventory Valuation', 'group' => 'Inventory', 'visible' => $user->hasPermission('inventory', 'view'),
+                'icon' => 'layers', 'tone' => 'ok', 'hint' => "What's on hand right now, valued at cost and at selling price",
                 'columns' => [
                     ['key' => 'product_name', 'label' => 'Product'],
                     ['key' => 'qty_on_hand', 'label' => 'Qty', 'align' => 'right'],
@@ -233,6 +245,7 @@ class ReportViewer extends Component
             ],
             'product_performance' => [
                 'label' => 'Product Performance', 'group' => 'Inventory', 'visible' => $user->hasPermission('products', 'view'),
+                'icon' => 'trending-up', 'tone' => 'ok', 'hint' => 'A sortable, all-time ranking — no date filter on this one',
                 'sortable' => true,
                 'columns' => [
                     ['key' => 'product_name', 'label' => 'Product'],
@@ -246,6 +259,7 @@ class ReportViewer extends Component
             // and what each supplier still owes for it.
             'receiving_losses' => [
                 'label' => 'Receiving Losses', 'group' => 'Inventory', 'visible' => $purchasingEnabled,
+                'icon' => 'package-x', 'tone' => 'danger', 'hint' => 'Goods that arrived damaged or never arrived, and what suppliers still owe for it',
                 'dateColumn' => 'created_at',
                 'columns' => [
                     ['key' => 'created_at', 'label' => 'Date'],
@@ -261,6 +275,7 @@ class ReportViewer extends Component
             ],
             'supplier_claims' => [
                 'label' => 'Supplier Claims', 'group' => 'Financial', 'visible' => $purchasingEnabled,
+                'icon' => 'shield', 'tone' => 'warn', 'hint' => 'What each supplier still owes, has credited, or has had waived',
                 'dateColumn' => 'created_at',
                 'columns' => [
                     ['key' => 'supplier_name', 'label' => 'Supplier'],
@@ -273,6 +288,7 @@ class ReportViewer extends Component
             ],
             'credit_balances' => [
                 'label' => 'Outstanding Customer Balances', 'group' => 'Financial', 'visible' => $creditEnabled && $user->hasPermission('customers', 'view'),
+                'icon' => 'wallet', 'tone' => 'warn', 'hint' => 'Who owes the business, and how much credit they have left',
                 'columns' => [
                     ['key' => 'customer_name', 'label' => 'Customer'],
                     ['key' => 'credit_limit', 'label' => 'Credit Limit', 'align' => 'right', 'money' => true],
@@ -369,5 +385,123 @@ class ReportViewer extends Component
         }
 
         return $query->paginate(15);
+    }
+
+    /**
+     * A quick glance at the range's totals before scanning the table row by
+     * row — only for reports that already show a date range in the UI
+     * (isset($report['dateColumn'])), so Product Performance and the other
+     * date-less reports never get one. Every figure here is a fresh,
+     * unpaginated aggregate over the same filtered rows the table itself
+     * reads, not a sum of just the current page.
+     *
+     * @return array<int, array{label: string, value: float|int, format: string, tone?: string, sub?: string}>|null
+     */
+    private function statsFor(string $key): ?array
+    {
+        $report = $this->availableReports()[$key] ?? null;
+
+        if (! $report || ! isset($report['dateColumn'])) {
+            return null;
+        }
+
+        $dateFilter = fn ($query, string $column) => $query->when(
+            $this->dateFrom && $this->dateTo,
+            fn ($q) => $q->whereBetween($column, [$this->dateFrom, $this->dateTo.' 23:59:59'])
+        );
+
+        if ($key === 'receiving_losses') {
+            $row = $dateFilter(DB::table('receiving_issues'), 'created_at')
+                ->selectRaw('COUNT(*) AS issue_count, COALESCE(SUM(loss_value), 0) AS total_loss, COALESCE(SUM(credited_amount), 0) AS total_credited')
+                ->first();
+
+            return [
+                ['label' => 'Total loss (cost)', 'value' => (float) $row->total_loss, 'format' => 'money', 'tone' => 'warn', 'icon' => 'package-x'],
+                ['label' => 'Credited', 'value' => (float) $row->total_credited, 'format' => 'money', 'tone' => 'ok', 'icon' => 'card'],
+                ['label' => 'Issues', 'value' => (int) $row->issue_count, 'format' => 'int', 'icon' => 'user'],
+            ];
+        }
+
+        if ($key === 'supplier_claims') {
+            $row = $dateFilter(DB::table('receiving_issues'), 'created_at')
+                ->selectRaw("COUNT(DISTINCT supplier_id) AS supplier_count,
+                    COALESCE(SUM(CASE WHEN claim_status = 'owed' THEN loss_value ELSE 0 END), 0) AS total_owed,
+                    COALESCE(SUM(credited_amount), 0) AS total_credited,
+                    COALESCE(SUM(loss_value), 0) AS total_claimed")
+                ->first();
+
+            return [
+                ['label' => 'Still owed', 'value' => (float) $row->total_owed, 'format' => 'money', 'tone' => 'warn', 'icon' => 'shield'],
+                ['label' => 'Credited', 'value' => (float) $row->total_credited, 'format' => 'money', 'tone' => 'ok', 'icon' => 'card'],
+                ['label' => 'Total claimed', 'value' => (float) $row->total_claimed, 'format' => 'money', 'icon' => 'bar-chart'],
+                ['label' => 'Suppliers with claims', 'value' => (int) $row->supplier_count, 'format' => 'int', 'icon' => 'user'],
+            ];
+        }
+
+        $view = match ($key) {
+            'daily_sales' => 'v_daily_sales_summary',
+            'sales_by_cashier' => 'v_sales_by_cashier',
+            'sales_by_payment_method' => 'v_sales_by_payment_method',
+            'discounts' => 'v_discount_report',
+            'refunds' => 'v_refund_report',
+            default => null,
+        };
+
+        if (! $view) {
+            return null;
+        }
+
+        $base = fn () => $dateFilter(DB::table($view), $report['dateColumn']);
+
+        if ($key === 'daily_sales') {
+            $row = $base()->selectRaw('COUNT(*) AS day_count, COALESCE(SUM(transaction_count), 0) AS total_transactions, COALESCE(SUM(total_discounts), 0) AS total_discounts, COALESCE(SUM(total_revenue), 0) AS total_revenue')->first();
+            $days = max(1, (int) $row->day_count);
+
+            return [
+                ['label' => 'Revenue', 'value' => (float) $row->total_revenue, 'format' => 'money', 'tone' => 'ok', 'sub' => 'this range', 'icon' => 'bar-chart'],
+                ['label' => 'Transactions', 'value' => (int) $row->total_transactions, 'format' => 'int', 'sub' => round($row->total_transactions / $days, 1).' / day', 'icon' => 'user'],
+                ['label' => 'Discounts given', 'value' => (float) $row->total_discounts, 'format' => 'money', 'tone' => 'warn', 'icon' => 'tag'],
+                ['label' => 'Avg daily revenue', 'value' => (float) $row->total_revenue / $days, 'format' => 'money', 'sub' => "this range's average", 'icon' => 'card'],
+            ];
+        }
+
+        if ($key === 'sales_by_cashier') {
+            $row = $base()->selectRaw('COALESCE(SUM(transaction_count), 0) AS total_transactions, COALESCE(SUM(total_revenue), 0) AS total_revenue')->first();
+
+            return [
+                ['label' => 'Revenue', 'value' => (float) $row->total_revenue, 'format' => 'money', 'tone' => 'ok', 'icon' => 'bar-chart'],
+                ['label' => 'Transactions', 'value' => (int) $row->total_transactions, 'format' => 'int', 'icon' => 'user'],
+            ];
+        }
+
+        if ($key === 'sales_by_payment_method') {
+            $row = $base()->selectRaw('COALESCE(SUM(transaction_count), 0) AS total_transactions, COALESCE(SUM(total_amount), 0) AS total_amount')->first();
+
+            return [
+                ['label' => 'Amount', 'value' => (float) $row->total_amount, 'format' => 'money', 'tone' => 'ok', 'icon' => 'bar-chart'],
+                ['label' => 'Transactions', 'value' => (int) $row->total_transactions, 'format' => 'int', 'icon' => 'user'],
+            ];
+        }
+
+        if ($key === 'discounts') {
+            $row = $base()->selectRaw('COUNT(*) AS sale_count, COALESCE(SUM(header_discount_amount), 0) AS total_header, COALESCE(SUM(total_line_discounts), 0) AS total_line')->first();
+
+            return [
+                ['label' => 'Header discounts', 'value' => (float) $row->total_header, 'format' => 'money', 'tone' => 'warn', 'icon' => 'tag'],
+                ['label' => 'Line discounts', 'value' => (float) $row->total_line, 'format' => 'money', 'tone' => 'warn', 'icon' => 'tag'],
+                ['label' => 'Discounted sales', 'value' => (int) $row->sale_count, 'format' => 'int', 'icon' => 'user'],
+            ];
+        }
+
+        if ($key === 'refunds') {
+            $row = $base()->selectRaw('COUNT(*) AS refund_count, COALESCE(SUM(refund_amount), 0) AS total_refunded')->first();
+
+            return [
+                ['label' => 'Total refunded', 'value' => (float) $row->total_refunded, 'format' => 'money', 'tone' => 'warn', 'icon' => 'corner-up-left'],
+                ['label' => 'Refunds', 'value' => (int) $row->refund_count, 'format' => 'int', 'icon' => 'user'],
+            ];
+        }
+
+        return null;
     }
 }

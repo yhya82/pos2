@@ -2,7 +2,7 @@
     <div class="top">
         <div>
             <h1>Purchase Orders</h1>
-            <p>Every order placed with a supplier — draft, ordered, received or cancelled</p>
+            <p>Every order placed with a supplier , draft, ordered, received or cancelled</p>
         </div>
         @if (auth()->user()->hasPermission('purchase_orders', 'create'))
             <button type="button" wire:click="create" class="btn p">

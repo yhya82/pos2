@@ -1,0 +1,57 @@
+/*
+ * The bell lives in the shared app header on every page (not just the
+ * Notifications page), so unlike every other module's CSS file this one
+ * loads globally — it can only touch the .notif-bell/.notif-panel it
+ * owns, never #app-header or <main>, which would otherwise repaint
+ * every other page's header whether or not that page has its own
+ * redesign loaded. Palette tokens are redeclared here for the same
+ * reason every other module file does it: self-contained, so the bell
+ * still looks right even on a page with no module CSS of its own.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+body {
+    --bg: #f6f6f4; --surf: #fff; --ink: #1a1a1c; --mut: #55555b;
+    --line: #e3e3df; --soft: #efefeb; --acc: #a81c26; --acc-ink: #fff; --acc-soft: #f9e9e9;
+}
+html.dark body {
+    --bg: #0f0f11; --surf: #18181b; --ink: #f3f3f4; --mut: #aeaeb6;
+    --line: #2a2a2f; --soft: #222226; --acc: #c93840; --acc-ink: #fff; --acc-soft: #3a1c1d;
+}
+
+.notif-bell, .notif-bell *, .notif-bell *::before, .notif-bell *::after,
+.notif-panel, .notif-panel *, .notif-panel *::before, .notif-panel *::after { box-sizing: border-box; }
+.notif-bell, .notif-panel { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif; }
+.notif-panel button, .notif-panel a { font: inherit; }
+.notif-panel button { cursor: pointer; border: 0; background: none; padding: 0; text-align: left; }
+.notif-panel a { text-decoration: none; }
+.notif-bell svg, .notif-panel svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+
+.notif-bell { position: relative; color: var(--mut); }
+.notif-bell:hover { color: var(--ink); }
+.notif-bell svg { width: 24px; height: 24px; }
+.notif-bell .cnt { position: absolute; top: -5px; right: -6px; min-width: 16px; height: 16px; padding: 0 4px; background: var(--acc); color: var(--acc-ink); font-size: 10px; font-weight: 800; display: grid; place-items: center; line-height: 1; }
+
+.notif-panel { position: absolute; right: 0; margin-top: 8px; width: 320px; background: var(--surf); border: 1px solid var(--line); z-index: 50; color: var(--ink); }
+.notif-panel .ph { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.notif-panel .ph span { font-size: 13px; font-weight: 800; }
+.notif-panel .ph button { font-size: 11.5px; font-weight: 600; color: var(--acc); }
+.notif-panel .ph button:hover { text-decoration: underline; }
+
+.notif-panel .list { max-height: 384px; overflow-y: auto; }
+.notif-panel .item { width: 100%; padding: 11px 14px; border-bottom: 1px solid var(--line); }
+.notif-panel .item:last-child { border-bottom: 0; }
+.notif-panel .item:hover { background: var(--soft); }
+.notif-panel .row1 { display: flex; align-items: center; gap: 7px; }
+/* Every item here is unread by definition (the query only fetches
+   unread ones), so the dot is always filled — no read/unread variant
+   needed, unlike the full Notifications list which shows both. */
+.notif-panel .dot { width: 6px; height: 6px; flex-shrink: 0; background: var(--acc); }
+.notif-panel .cat { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--mut); }
+.notif-panel .time { font-size: 11px; color: var(--mut); margin-left: auto; white-space: nowrap; }
+.notif-panel .msg { font-size: 13px; color: var(--ink); margin: 4px 0 0; line-height: 1.4; }
+.notif-panel .empty { padding: 24px 14px; text-align: center; font-size: 13px; color: var(--mut); }
+
+.notif-panel .pf { padding: 10px 14px; border-top: 1px solid var(--line); text-align: center; }
+.notif-panel .pf a { font-size: 12.5px; font-weight: 600; color: var(--acc); }
+.notif-panel .pf a:hover { text-decoration: underline; }

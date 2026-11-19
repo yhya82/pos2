@@ -2,7 +2,7 @@
     <div class="top">
         <div>
             <h1>Users</h1>
-            <p>Everyone with a login — their role decides what they can do</p>
+            <p>Everyone with a login,their role decides what they can do</p>
         </div>
         @if (auth()->user()->hasPermission('users', 'create'))
             <button type="button" wire:click="create" class="btn p">

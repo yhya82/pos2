@@ -72,6 +72,14 @@ html.dark .dash-skin {
     background: rgba(255, 255, 255, .16);
 }
 
+/* The real <main> wrapper keeps its own padding around this page's
+   content but never had its background recolored — in dark mode that
+   left a strip of Tailwind's own bluish dark-gray showing around this
+   page's near-black surfaces. */
+main {
+    background: var(--bg);
+}
+
 .dash-skin {
     background: var(--bg);
     color: var(--ink);

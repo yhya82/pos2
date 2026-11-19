@@ -1,52 +1,59 @@
-<div>
-    <div class="flex items-center justify-between gap-4 mb-4">
-        <div class="flex items-center gap-3">
-            <select wire:model.live="categoryFilter" class="rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
-                <option value="">All categories</option>
-                <option value="inventory">Inventory</option>
-                <option value="sales">Sales</option>
-                <option value="customer">Customer</option>
-                <option value="user_system">System</option>
-            </select>
-            <select wire:model.live="readFilter" class="rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
-                <option value="">All</option>
-                <option value="unread">Unread</option>
-                <option value="read">Read</option>
-            </select>
+<div class="notifications-skin">
+    <div class="top">
+        <div>
+            <h1>Notifications</h1>
+            <p>Inventory, sales, customer and system alerts</p>
         </div>
-
         @if ($unreadCount > 0)
-            <x-secondary-button wire:click="markAllRead">Mark all read</x-secondary-button>
+            <button type="button" wire:click="markAllRead" class="btn p">
+                <svg viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M5 13l4 4L19 7"/></svg>
+                Mark all read
+            </button>
         @endif
     </div>
 
-    <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 divide-y divide-gray-100 dark:divide-gray-700">
+    <div class="filters">
+        <span class="lbl">Category</span>
+        <select wire:model.live="categoryFilter">
+            <option value="">All categories</option>
+            <option value="inventory">Inventory</option>
+            <option value="sales">Sales</option>
+            <option value="customer">Customer</option>
+            <option value="user_system">System</option>
+        </select>
+        <span class="lbl">Status</span>
+        <select wire:model.live="readFilter">
+            <option value="">All</option>
+            <option value="unread">Unread</option>
+            <option value="read">Read</option>
+        </select>
+    </div>
+
+    <div class="nlist">
         @forelse ($notifications as $notification)
-            <button
-                wire:click="markRead({{ $notification->id }})"
-                class="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 flex items-start gap-3"
-            >
-                <span @class([
-                    'mt-1.5 inline-block w-2 h-2 rounded-full shrink-0',
-                    'bg-indigo-500' => ! $notification->is_read,
-                    'bg-gray-300 dark:bg-gray-600' => $notification->is_read,
-                ])></span>
-                <div class="min-w-0 flex-1">
-                    <div class="flex items-center gap-2">
-                        <span class="text-xs uppercase tracking-wide text-gray-400 font-medium">{{ str($notification->category)->headline() }}</span>
-                        <span class="text-xs text-gray-400">{{ $notification->created_at->format('Y-m-d H:i') }} · {{ $notification->created_at->diffForHumans() }}</span>
-                    </div>
-                    <p @class(['text-sm mt-0.5', 'text-gray-900 dark:text-gray-100 font-medium' => ! $notification->is_read, 'text-gray-600 dark:text-gray-400' => $notification->is_read])>
-                        {{ $notification->message }}
-                    </p>
+            <button type="button" wire:click="markRead({{ $notification->id }})" @class(['nitem', 'unread' => ! $notification->is_read])>
+                <span class="ndot"></span>
+                <div style="flex:1; min-width:0;">
+                    <div class="ncat">{{ str($notification->category)->headline() }}</div>
+                    <div class="nmsg">{{ $notification->message }}</div>
                 </div>
+                <div class="ntime">{{ $notification->created_at->format('Y-m-d g:i A') }}<br><span class="mut">{{ $notification->created_at->diffForHumans() }}</span></div>
             </button>
         @empty
-            <p class="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">No notifications found.</p>
+            <div class="empty">No notifications found.</div>
         @endforelse
     </div>
 
-    <div class="mt-4">
-        {{ $notifications->links() }}
-    </div>
+    @if ($notifications->hasPages() || $notifications->total() > 0)
+        <div class="pager">
+            <span>Showing {{ $notifications->firstItem() ?? 0 }}–{{ $notifications->lastItem() ?? 0 }} of {{ $notifications->total() }}</span>
+            @if ($notifications->hasPages())
+                <div class="pages">
+                    @foreach ($notifications->getUrlRange(max(1, $notifications->currentPage() - 2), min($notifications->lastPage(), $notifications->currentPage() + 2)) as $page => $url)
+                        <button type="button" wire:click="gotoPage({{ $page }})" aria-current="{{ $page === $notifications->currentPage() ? 'true' : 'false' }}">{{ $page }}</button>
+                    @endforeach
+                </div>
+            @endif
+        </div>
+    @endif
 </div>

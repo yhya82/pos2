@@ -1,382 +1,354 @@
 @php
     $sections = [
-        'general' => ['label' => 'General Settings', 'icon' => 'cog'],
-        'store' => ['label' => 'Store Information', 'icon' => 'truck'],
-        'sales' => ['label' => 'Sales Settings', 'icon' => 'banknotes'],
-        'inventory' => ['label' => 'Inventory Settings', 'icon' => 'archive-box'],
-        'modules' => ['label' => 'Module Management', 'icon' => 'cube'],
-        'hardware' => ['label' => 'Hardware & Printing', 'icon' => 'clipboard-check'],
-        'notifications' => ['label' => 'Notification Settings', 'icon' => 'bell'],
-        'security' => ['label' => 'Security Settings', 'icon' => 'shield-check'],
-        'backup' => ['label' => 'Backup & Restore', 'icon' => 'document-text'],
-        'appearance' => ['label' => 'Appearance Settings', 'icon' => 'user-circle'],
+        'general' => ['label' => 'General Settings', 'icon' => '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>'],
+        'store' => ['label' => 'Store Information', 'icon' => '<rect x="2" y="7" width="12" height="9"/><path d="M14 10h4l3 3v3h-7z"/><circle cx="6.5" cy="18" r="1.6"/><circle cx="16.5" cy="18" r="1.6"/>'],
+        'sales' => ['label' => 'Sales Settings', 'icon' => '<path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2V3z"/><path d="M8 8h8M8 12h8M8 16h5"/>'],
+        'inventory' => ['label' => 'Inventory Settings', 'icon' => '<path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 12l9 4 9-4"/><path d="M3 17l9 4 9-4"/>'],
+        'modules' => ['label' => 'Module Management', 'icon' => '<path d="M12 2l8 4.5v9L12 20l-8-4.5v-9z"/><path d="M4 6.5l8 4.5 8-4.5M12 11v9"/>'],
+        'hardware' => ['label' => 'Hardware & Printing', 'icon' => '<rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M8 7h8M8 11h8M8 15h5"/>'],
+        'notifications' => ['label' => 'Notification Settings', 'icon' => '<path d="M6 10a6 6 0 1112 0c0 4 1.5 5.5 1.5 5.5h-15S6 14 6 10z"/><path d="M10 19a2 2 0 004 0"/>'],
+        'security' => ['label' => 'Security Settings', 'icon' => '<path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/><path d="M9 12l2 2 4-4"/>'],
+        'backup' => ['label' => 'Backup & Restore', 'icon' => '<path d="M3 15a9 3 0 0018 0V6a9 3 0 00-18 0v9z"/><path d="M3 6a9 3 0 0018 0"/>'],
+        'appearance' => ['label' => 'Appearance Settings', 'icon' => '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/>'],
     ];
 @endphp
 
-<div class="grid grid-cols-1 lg:grid-cols-4 gap-4 items-start">
-    <div class="lg:col-span-1 bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 p-3 space-y-1">
-        @foreach ($sections as $key => $section)
-            <button
-                wire:click="setSection('{{ $key }}')"
-                @class([
-                    'w-full text-left flex items-center gap-2.5 rounded-md px-3 py-2 text-sm',
-                    'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 font-medium' => $activeSection === $key,
-                    'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700' => $activeSection !== $key,
-                ])
-            >
-                <x-icon :name="$section['icon']" class="h-4 w-4 shrink-0" />
-                {{ $section['label'] }}
-            </button>
-        @endforeach
+<div class="settings-skin">
+    <div class="top">
+        <div>
+            <h1>Settings</h1>
+            <p>Store info, sales rules, modules, hardware and security organized by area</p>
+        </div>
     </div>
 
-    <div class="lg:col-span-3 bg-white dark:bg-gray-800 shadow-sm rounded-xl ring-1 ring-gray-900/5 dark:ring-white/10 p-6">
+    <div class="settlayout">
+        <nav class="settnav">
+            @foreach ($sections as $key => $section)
+                <button type="button" wire:click="setSection('{{ $key }}')" @class(['active' => $activeSection === $key])>
+                    <span class="ic">{!! '<svg viewBox="0 0 24 24">'.$section['icon'].'</svg>' !!}</span>
+                    {{ $section['label'] }}
+                </button>
+            @endforeach
+        </nav>
 
-        {{-- ============================== GENERAL ============================== --}}
-        @if ($activeSection === 'general')
-            <form wire:submit="saveGeneral" class="space-y-4 max-w-lg">
-                <h3 class="font-semibold text-gray-800 dark:text-gray-100">General Settings</h3>
+        <div class="settpanel">
+            <div class="cardhead">
+                <span class="ic">{!! '<svg viewBox="0 0 24 24">'.$sections[$activeSection]['icon'].'</svg>' !!}</span>
+                <div><h2>{{ $sections[$activeSection]['label'] }}</h2></div>
+            </div>
 
-                <div>
-                    <x-input-label value="Store Logo" />
-                    <div class="flex flex-wrap items-center gap-4 mt-1">
-                        <div class="h-16 w-16 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center overflow-hidden shrink-0">
-                            @if ($logo)
-                                <img src="{{ $logo->temporaryUrl() }}" class="h-full w-full object-cover">
-                            @elseif ($general['business_logo_url'])
-                                <img src="{{ $generalSettings->logoUrl() }}" class="h-full w-full object-cover">
-                            @else
-                                <x-icon name="cube" class="h-8 w-8 text-gray-400 dark:text-gray-500" />
-                            @endif
-                        </div>
-                        <div class="flex flex-col gap-1 min-w-0 max-w-full">
-                            <input type="file" wire:model="logo" accept="image/*" class="text-sm text-gray-600 dark:text-gray-400 max-w-full">
-                            @if ($general['business_logo_url'] && ! $logo)
-                                <button type="button" wire:click="removeLogo" class="text-xs text-red-600 dark:text-red-400 hover:underline self-start">Remove logo</button>
-                            @endif
-                            <x-input-error :messages="$errors->get('logo')" class="mt-1" />
-                        </div>
-                    </div>
-                </div>
-
-                <div>
-                    <x-input-label value="Business Name" />
-                    <x-text-input wire:model="general.business_name" class="block mt-1 w-full" />
-                    <x-input-error :messages="$errors->get('general.business_name')" class="mt-2" />
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <x-input-label value="Contact Phone" />
-                        <div class="mt-1 flex items-center gap-2">
-                            <span class="text-sm text-gray-500 dark:text-gray-400">+220</span>
-                            <x-text-input wire:model="general.contact_phone" placeholder="831234567" maxlength="9" inputmode="numeric" class="block w-full" />
-                        </div>
-                        @if ($contactPhoneNeedsUpdate)
-                            <p class="mt-1 text-xs text-amber-700 dark:text-amber-300">
-                                @if ($legacyContactPhone !== '')
-                                    On file: {{ $legacyContactPhone }} — that isn't a full number. Enter the 9 digits.
+            {{-- ============================== GENERAL ============================== --}}
+            @if ($activeSection === 'general')
+                <form wire:submit="saveGeneral" class="cardbody">
+                    <div class="f">
+                        <label>Store Logo</label>
+                        <div class="logo-pick">
+                            <span class="box">
+                                @if ($logo)
+                                    <img src="{{ $logo->temporaryUrl() }}">
+                                @elseif ($general['business_logo_url'])
+                                    <img src="{{ $generalSettings->logoUrl() }}">
                                 @else
-                                    No store phone number is set yet. It's printed on receipts.
+                                    <svg viewBox="0 0 24 24"><path d="M12 2l8 4.5v9L12 20l-8-4.5v-9z"/><path d="M4 6.5l8 4.5 8-4.5M12 11v9"/></svg>
                                 @endif
-                            </p>
-                        @endif
-                        <x-input-error :messages="$errors->get('general.contact_phone')" class="mt-2" />
+                            </span>
+                            <div>
+                                <input type="file" wire:model="logo" accept="image/*">
+                                @if ($general['business_logo_url'] && ! $logo)
+                                    <div><button type="button" wire:click="removeLogo" class="removelogo">Remove logo</button></div>
+                                @endif
+                                <x-input-error :messages="$errors->get('logo')" class="mt-1" />
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <x-input-label value="Contact Email" />
-                        <x-text-input wire:model="general.contact_email" type="email" class="block mt-1 w-full" />
-                        <x-input-error :messages="$errors->get('general.contact_email')" class="mt-2" />
+
+                    <div class="f">
+                        <label>Business Name<span class="req">*</span></label>
+                        <input type="text" wire:model="general.business_name">
+                        <x-input-error :messages="$errors->get('general.business_name')" class="mt-2" />
                     </div>
-                </div>
-                <div>
-                    <x-input-label value="Address" />
-                    <textarea wire:model="general.address" rows="2" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
-                </div>
-                <div class="grid grid-cols-3 gap-4">
-                    <div>
-                        <x-input-label value="Currency Code" />
-                        <x-text-input wire:model="general.currency_code" class="block mt-1 w-full" maxlength="3" />
-                        <x-input-error :messages="$errors->get('general.currency_code')" class="mt-2" />
+
+                    <div class="f grid2">
+                        <div>
+                            <label>Contact Phone<span class="req">*</span></label>
+                            <div class="prefix">
+                                <span>+220</span>
+                                <input type="text" wire:model="general.contact_phone" placeholder="831234567" maxlength="9" inputmode="numeric">
+                            </div>
+                            @if ($contactPhoneNeedsUpdate)
+                                <div class="hint warn">
+                                    @if ($legacyContactPhone !== '')
+                                        On file: {{ $legacyContactPhone }} — that isn't a full number. Enter the 9 digits.
+                                    @else
+                                        No store phone number is set yet. It's printed on receipts.
+                                    @endif
+                                </div>
+                            @endif
+                            <x-input-error :messages="$errors->get('general.contact_phone')" class="mt-2" />
+                        </div>
+                        <div>
+                            <label>Contact Email</label>
+                            <input type="email" wire:model="general.contact_email">
+                            <x-input-error :messages="$errors->get('general.contact_email')" class="mt-2" />
+                        </div>
                     </div>
-                    <div>
-                        <x-input-label value="Date Format" />
-                        <x-text-input wire:model="general.date_format" class="block mt-1 w-full" />
+
+                    <div class="f">
+                        <label>Address</label>
+                        <textarea wire:model="general.address" rows="2"></textarea>
                     </div>
-                    <div>
-                        <x-input-label value="Time Format" />
-                        <select wire:model="general.time_format" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="24h">24h</option>
-                            <option value="12h">12h</option>
-                        </select>
+
+                    <div class="f grid3">
+                        <div>
+                            <label>Currency Code<span class="req">*</span></label>
+                            <input type="text" wire:model="general.currency_code" maxlength="3">
+                            <x-input-error :messages="$errors->get('general.currency_code')" class="mt-2" />
+                        </div>
+                        <div>
+                            <label>Date Format<span class="req">*</span></label>
+                            <input type="text" wire:model="general.date_format">
+                        </div>
+                        <div>
+                            <label>Time Format<span class="req">*</span></label>
+                            <select wire:model="general.time_format">
+                                <option value="24h">24h</option>
+                                <option value="12h">12h</option>
+                            </select>
+                        </div>
                     </div>
-                </div>
-                <div class="flex items-center gap-4">
-                    <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                        <input type="checkbox" wire:model.live="general.tax_enabled" class="rounded border-gray-300 dark:border-gray-700 dark:bg-gray-900 text-indigo-600 focus:ring-indigo-500">
-                        Tax Enabled
+
+                    <label class="check">
+                        <input type="checkbox" wire:model.live="general.tax_enabled">
+                        <span>Tax Enabled</span>
                     </label>
-                    <div x-show="$wire.general.tax_enabled" class="flex-1">
-                        <x-text-input wire:model="general.tax_rate" placeholder="Tax rate %" class="block w-full" />
+                    <div class="f" x-show="$wire.general.tax_enabled" x-cloak style="max-width:220px;">
+                        <label>Tax Rate (%)<span class="req">*</span></label>
+                        <input type="text" wire:model="general.tax_rate" placeholder="Tax rate %">
                         <x-input-error :messages="$errors->get('general.tax_rate')" class="mt-2" />
                     </div>
-                </div>
-                <div class="flex justify-end">
-                    <x-primary-button type="submit">Save</x-primary-button>
-                </div>
-            </form>
-        @endif
 
-        {{-- ============================== STORE ============================== --}}
-        @if ($activeSection === 'store')
-            <form wire:submit="saveStore" class="space-y-4 max-w-lg">
-                <h3 class="font-semibold text-gray-800 dark:text-gray-100">Store Information</h3>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <x-input-label value="Opening Time" />
-                        <input type="time" wire:model="store.opening_time" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        <x-input-error :messages="$errors->get('store.opening_time')" class="mt-2" />
+                    <div class="formfoot">
+                        <button type="submit" class="btn p">Save</button>
                     </div>
-                    <div>
-                        <x-input-label value="Closing Time" />
-                        <input type="time" wire:model="store.closing_time" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        <x-input-error :messages="$errors->get('store.closing_time')" class="mt-2" />
-                    </div>
-                </div>
-                <div>
-                    <x-input-label value="Receipt Business Info" />
-                    <textarea wire:model="store.receipt_business_info" rows="3" placeholder="Printed at the top of every receipt" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
-                </div>
-                <div class="flex justify-end">
-                    <x-primary-button type="submit">Save</x-primary-button>
-                </div>
-            </form>
-        @endif
+                </form>
+            @endif
 
-        {{-- ============================== SALES ============================== --}}
-        @if ($activeSection === 'sales')
-            <form wire:submit="saveSales" class="space-y-4 max-w-lg">
-                <h3 class="font-semibold text-gray-800 dark:text-gray-100">Sales Settings</h3>
-                <div>
-                    <x-input-label value="Default Payment Method" />
-                    <select wire:model="sales.default_payment_method_id" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        <option value="">None</option>
-                        @foreach ($paymentMethods as $method)
-                            <option value="{{ $method->id }}">{{ $method->name }}</option>
+            {{-- ============================== STORE ============================== --}}
+            @if ($activeSection === 'store')
+                <form wire:submit="saveStore" class="cardbody">
+                    <div class="f grid2">
+                        <div>
+                            <label>Opening Time</label>
+                            <input type="time" wire:model="store.opening_time">
+                            <x-input-error :messages="$errors->get('store.opening_time')" class="mt-2" />
+                        </div>
+                        <div>
+                            <label>Closing Time</label>
+                            <input type="time" wire:model="store.closing_time">
+                            <x-input-error :messages="$errors->get('store.closing_time')" class="mt-2" />
+                        </div>
+                    </div>
+                    <div class="f" style="margin-bottom:0;">
+                        <label>Receipt Business Info</label>
+                        <textarea wire:model="store.receipt_business_info" rows="3" placeholder="Printed at the top of every receipt"></textarea>
+                    </div>
+                    <div class="formfoot">
+                        <button type="submit" class="btn p">Save</button>
+                    </div>
+                </form>
+            @endif
+
+            {{-- ============================== SALES ============================== --}}
+            @if ($activeSection === 'sales')
+                <form wire:submit="saveSales" class="cardbody">
+                    <div class="f" style="margin-bottom:0;">
+                        <label>Default Payment Method</label>
+                        <select wire:model="sales.default_payment_method_id">
+                            <option value="">None</option>
+                            @foreach ($paymentMethods as $method)
+                                <option value="{{ $method->id }}">{{ $method->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="formfoot">
+                        <button type="submit" class="btn p">Save</button>
+                    </div>
+                </form>
+            @endif
+
+            {{-- ============================== INVENTORY ============================== --}}
+            @if ($activeSection === 'inventory')
+                <form wire:submit="saveInventory" class="cardbody">
+                    <div class="f">
+                        <label>Low Stock Default Threshold<span class="req">*</span></label>
+                        <input type="text" wire:model="inventory.low_stock_default_threshold">
+                        <x-input-error :messages="$errors->get('inventory.low_stock_default_threshold')" class="mt-2" />
+                    </div>
+                    <div class="f grid3">
+                        <div>
+                            <label>Expiry Alert 1 (days)<span class="req">*</span></label>
+                            <input type="text" wire:model="inventory.expiry_alert_days_1">
+                        </div>
+                        <div>
+                            <label>Expiry Alert 2 (days)<span class="req">*</span></label>
+                            <input type="text" wire:model="inventory.expiry_alert_days_2">
+                        </div>
+                        <div>
+                            <label>Expiry Alert 3 (days)<span class="req">*</span></label>
+                            <input type="text" wire:model="inventory.expiry_alert_days_3">
+                        </div>
+                    </div>
+                    <p class="hint" style="margin-bottom:16px;">The daily expiry sweep raises a notification for a batch when its days-to-expiry matches any of these three windows.</p>
+                    <div class="formfoot">
+                        <button type="submit" class="btn p">Save</button>
+                    </div>
+                </form>
+            @endif
+
+            {{-- ============================== MODULES ============================== --}}
+            @if ($activeSection === 'modules')
+                <div class="cardbody">
+                    <p class="hint" style="margin-bottom:16px;">Turning a module off hides its sidebar item and blocks its routes for everyone, immediately.</p>
+                    <div class="togglelist">
+                        @foreach ($moduleToggles as $moduleName => $enabled)
+                            <div class="toggle-row">
+                                <span class="tt">{{ str($moduleName)->headline() }}</span>
+                                <button type="button" wire:click="toggleModule('{{ $moduleName }}')" @class(['toggle', 'on' => $enabled]) aria-label="Toggle {{ str($moduleName)->headline() }}">
+                                    <span class="knob"></span>
+                                </button>
+                            </div>
                         @endforeach
-                    </select>
+                    </div>
                 </div>
-                <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                    <input type="checkbox" wire:model="sales.allow_negative_stock_sale" class="rounded border-gray-300 dark:border-gray-700 dark:bg-gray-900 text-indigo-600 focus:ring-indigo-500">
-                    Allow selling past available stock
-                </label>
-                <div class="flex justify-end">
-                    <x-primary-button type="submit">Save</x-primary-button>
-                </div>
-            </form>
-        @endif
+            @endif
 
-        {{-- ============================== INVENTORY ============================== --}}
-        @if ($activeSection === 'inventory')
-            <form wire:submit="saveInventory" class="space-y-4 max-w-lg">
-                <h3 class="font-semibold text-gray-800 dark:text-gray-100">Inventory Settings</h3>
-                <div>
-                    <x-input-label value="Low Stock Default Threshold" />
-                    <x-text-input wire:model="inventory.low_stock_default_threshold" class="block mt-1 w-full" />
-                    <x-input-error :messages="$errors->get('inventory.low_stock_default_threshold')" class="mt-2" />
-                </div>
-                <div class="grid grid-cols-3 gap-4">
-                    <div>
-                        <x-input-label value="Expiry Alert 1 (days)" />
-                        <x-text-input wire:model="inventory.expiry_alert_days_1" class="block mt-1 w-full" />
+            {{-- ============================== HARDWARE ============================== --}}
+            @if ($activeSection === 'hardware')
+                <form wire:submit="saveHardware" class="cardbody">
+                    <label class="check">
+                        <input type="checkbox" wire:model="hardware.barcode_scanner_enabled">
+                        <span>Barcode Scanner Enabled</span>
+                    </label>
+                    <label class="check">
+                        <input type="checkbox" wire:model="hardware.auto_print_receipt">
+                        <span>Auto-Print Receipt</span>
+                    </label>
+                    <div class="f">
+                        <label>Default Printer</label>
+                        <input type="text" wire:model="hardware.default_printer_name">
                     </div>
-                    <div>
-                        <x-input-label value="Expiry Alert 2 (days)" />
-                        <x-text-input wire:model="inventory.expiry_alert_days_2" class="block mt-1 w-full" />
+                    <div class="f" style="margin-bottom:0;">
+                        <label>Paper Size</label>
+                        <select wire:model.live="hardware.paper_size">
+                            <option value="58mm">58mm (thermal)</option>
+                            <option value="80mm">80mm (thermal)</option>
+                            <option value="A4">A4 (regular printer)</option>
+                        </select>
                     </div>
-                    <div>
-                        <x-input-label value="Expiry Alert 3 (days)" />
-                        <x-text-input wire:model="inventory.expiry_alert_days_3" class="block mt-1 w-full" />
+                    <div class="formfoot">
+                        <a href="{{ route('settings.print-test', ['paper_size' => $hardware['paper_size']]) }}" target="_blank" class="testprint">
+                            <svg viewBox="0 0 24 24" style="width:15px;height:15px;"><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M8 7h8M8 11h8M8 15h5"/></svg>
+                            Test Print
+                        </a>
+                        <button type="submit" class="btn p">Save</button>
                     </div>
-                </div>
-                <p class="text-xs text-gray-500 dark:text-gray-400">The daily expiry sweep raises a notification for a batch when its days-to-expiry matches any of these three windows.</p>
-                <div class="flex justify-end">
-                    <x-primary-button type="submit">Save</x-primary-button>
-                </div>
-            </form>
-        @endif
+                </form>
+            @endif
 
-        {{-- ============================== MODULES ============================== --}}
-        @if ($activeSection === 'modules')
-            <div class="space-y-4 max-w-lg">
-                <h3 class="font-semibold text-gray-800 dark:text-gray-100">Module Management</h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400">Turning a module off hides its sidebar item and blocks its routes for everyone, immediately.</p>
-                <div class="divide-y divide-gray-100 dark:divide-gray-700 border border-gray-100 dark:border-gray-700 rounded-md">
-                    @foreach ($moduleToggles as $moduleName => $enabled)
-                        <div class="flex items-center justify-between px-4 py-3">
-                            <span class="text-sm text-gray-700 dark:text-gray-300">{{ str($moduleName)->headline() }}</span>
-                            <button
-                                wire:click="toggleModule('{{ $moduleName }}')"
-                                @class(['relative inline-flex h-6 w-11 items-center rounded-full transition', 'bg-indigo-600' => $enabled, 'bg-gray-300 dark:bg-gray-600' => ! $enabled])
-                            >
-                                <span @class(['inline-block h-4 w-4 transform rounded-full bg-white transition', 'translate-x-6' => $enabled, 'translate-x-1' => ! $enabled])></span>
-                            </button>
+            {{-- ============================== NOTIFICATIONS ============================== --}}
+            @if ($activeSection === 'notifications')
+                <div class="cardbody">
+                    <p class="hint" style="margin-bottom:16px;">Turns off that category of alert even if the Notifications module overall is enabled.</p>
+                    <div class="togglelist">
+                        @foreach ($notificationToggles as $category => $enabled)
+                            <div class="toggle-row">
+                                <span class="tt">{{ str($category)->headline() }}</span>
+                                <button type="button" wire:click="toggleNotificationCategory('{{ $category }}')" @class(['toggle', 'on' => $enabled]) aria-label="Toggle {{ str($category)->headline() }}">
+                                    <span class="knob"></span>
+                                </button>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
+            {{-- ============================== SECURITY ============================== --}}
+            @if ($activeSection === 'security')
+                <form wire:submit="saveSecurity" class="cardbody">
+                    <div class="f grid2">
+                        <div>
+                            <label>Session Timeout (minutes)<span class="req">*</span></label>
+                            <input type="text" wire:model="security.session_timeout_minutes">
+                            <x-input-error :messages="$errors->get('security.session_timeout_minutes')" class="mt-2" />
                         </div>
-                    @endforeach
-                </div>
-            </div>
-        @endif
-
-        {{-- ============================== HARDWARE ============================== --}}
-        @if ($activeSection === 'hardware')
-            <form wire:submit="saveHardware" class="space-y-4 max-w-lg">
-                <h3 class="font-semibold text-gray-800 dark:text-gray-100">Hardware & Printing</h3>
-                <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                    <input type="checkbox" wire:model="hardware.barcode_scanner_enabled" class="rounded border-gray-300 dark:border-gray-700 dark:bg-gray-900 text-indigo-600 focus:ring-indigo-500">
-                    Barcode Scanner Enabled
-                </label>
-                <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                    <input type="checkbox" wire:model="hardware.auto_print_receipt" class="rounded border-gray-300 dark:border-gray-700 dark:bg-gray-900 text-indigo-600 focus:ring-indigo-500">
-                    Auto-Print Receipt
-                </label>
-                <div>
-                    <x-input-label value="Default Printer" />
-                    <x-text-input wire:model="hardware.default_printer_name" class="block mt-1 w-full" />
-                </div>
-                <div>
-                    <x-input-label value="Paper Size" />
-                    <select wire:model.live="hardware.paper_size" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        <option value="58mm">58mm (thermal)</option>
-                        <option value="80mm">80mm (thermal)</option>
-                        <option value="A4">A4 (regular printer)</option>
-                    </select>
-                </div>
-                <div class="flex items-center justify-between">
-                    <a
-                        href="{{ route('settings.print-test', ['paper_size' => $hardware['paper_size']]) }}"
-                        target="_blank"
-                        class="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
-                    >
-                        <x-icon name="clipboard-check" class="h-4 w-4" />
-                        Test Print
-                    </a>
-                    <x-primary-button type="submit">Save</x-primary-button>
-                </div>
-            </form>
-        @endif
-
-        {{-- ============================== NOTIFICATIONS ============================== --}}
-        @if ($activeSection === 'notifications')
-            <div class="space-y-4 max-w-lg">
-                <h3 class="font-semibold text-gray-800 dark:text-gray-100">Notification Settings</h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400">Turns off that category of alert even if the Notifications module overall is enabled.</p>
-                <div class="divide-y divide-gray-100 dark:divide-gray-700 border border-gray-100 dark:border-gray-700 rounded-md">
-                    @foreach ($notificationToggles as $category => $enabled)
-                        <div class="flex items-center justify-between px-4 py-3">
-                            <span class="text-sm text-gray-700 dark:text-gray-300">{{ str($category)->headline() }}</span>
-                            <button
-                                wire:click="toggleNotificationCategory('{{ $category }}')"
-                                @class(['relative inline-flex h-6 w-11 items-center rounded-full transition', 'bg-indigo-600' => $enabled, 'bg-gray-300 dark:bg-gray-600' => ! $enabled])
-                            >
-                                <span @class(['inline-block h-4 w-4 transform rounded-full bg-white transition', 'translate-x-6' => $enabled, 'translate-x-1' => ! $enabled])></span>
-                            </button>
+                        <div>
+                            <label>Max Failed Login Attempts<span class="req">*</span></label>
+                            <input type="text" wire:model="security.max_failed_login_attempts">
+                            <x-input-error :messages="$errors->get('security.max_failed_login_attempts')" class="mt-2" />
                         </div>
-                    @endforeach
-                </div>
-            </div>
-        @endif
-
-        {{-- ============================== SECURITY ============================== --}}
-        @if ($activeSection === 'security')
-            <form wire:submit="saveSecurity" class="space-y-4 max-w-lg">
-                <h3 class="font-semibold text-gray-800 dark:text-gray-100">Security Settings</h3>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <x-input-label value="Session Timeout (minutes)" />
-                        <x-text-input wire:model="security.session_timeout_minutes" class="block mt-1 w-full" />
-                        <x-input-error :messages="$errors->get('security.session_timeout_minutes')" class="mt-2" />
+                        <div>
+                            <label>Lockout Duration (minutes)<span class="req">*</span></label>
+                            <input type="text" wire:model="security.lockout_duration_minutes">
+                            <x-input-error :messages="$errors->get('security.lockout_duration_minutes')" class="mt-2" />
+                        </div>
+                        <div>
+                            <label>Password Minimum Length<span class="req">*</span></label>
+                            <input type="text" wire:model="security.password_min_length">
+                            <x-input-error :messages="$errors->get('security.password_min_length')" class="mt-2" />
+                        </div>
                     </div>
-                    <div>
-                        <x-input-label value="Max Failed Login Attempts" />
-                        <x-text-input wire:model="security.max_failed_login_attempts" class="block mt-1 w-full" />
-                        <x-input-error :messages="$errors->get('security.max_failed_login_attempts')" class="mt-2" />
-                    </div>
-                    <div>
-                        <x-input-label value="Lockout Duration (minutes)" />
-                        <x-text-input wire:model="security.lockout_duration_minutes" class="block mt-1 w-full" />
-                        <x-input-error :messages="$errors->get('security.lockout_duration_minutes')" class="mt-2" />
-                    </div>
-                    <div>
-                        <x-input-label value="Password Min Length" />
-                        <x-text-input wire:model="security.password_min_length" class="block mt-1 w-full" />
-                        <x-input-error :messages="$errors->get('security.password_min_length')" class="mt-2" />
-                    </div>
-                    <div>
-                        <x-input-label value="Password Reset Token TTL (minutes)" />
-                        <x-text-input wire:model="security.password_reset_token_ttl_minutes" class="block mt-1 w-full" />
+                    <div class="f" style="max-width:260px;">
+                        <label>Password Reset Token TTL (minutes)<span class="req">*</span></label>
+                        <input type="text" wire:model="security.password_reset_token_ttl_minutes">
                         <x-input-error :messages="$errors->get('security.password_reset_token_ttl_minutes')" class="mt-2" />
                     </div>
-                </div>
-                <div class="flex justify-end">
-                    <x-primary-button type="submit">Save</x-primary-button>
-                </div>
-            </form>
-        @endif
+                    <div class="formfoot">
+                        <button type="submit" class="btn p">Save</button>
+                    </div>
+                </form>
+            @endif
 
-        {{-- ============================== BACKUP & RESTORE ============================== --}}
-        @if ($activeSection === 'backup')
-            <div class="space-y-4">
-                <h3 class="font-semibold text-gray-800 dark:text-gray-100">Backup & Restore</h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400 max-w-lg">
-                    Running an actual backup (mysqldump, off-host storage) is a server-side operation, not something this page triggers directly —
-                    it's handled by the backup/restore/verify scripts documented for deployment. This shows the history those scripts leave behind.
-                </p>
-                <div class="overflow-x-auto border border-gray-100 dark:border-gray-700 rounded-md">
-                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                        <thead class="bg-gray-50 dark:bg-gray-900/40">
-                            <tr>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Scope</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Created</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Completed</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-                            @forelse ($recentBackups as $backup)
-                                <tr>
-                                    <td class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300">{{ $backup->scope }}</td>
-                                    <td class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300">{{ ucfirst($backup->status) }}</td>
-                                    <td class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">{{ $backup->created_at->format('Y-m-d H:i') }}</td>
-                                    <td class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">{{ $backup->completed_at?->format('Y-m-d H:i') ?? '—' }}</td>
-                                </tr>
-                            @empty
-                                <tr><td colspan="4" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">No backups recorded yet.</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
+            {{-- ============================== BACKUP & RESTORE ============================== --}}
+            @if ($activeSection === 'backup')
+                <div class="cardbody wide">
+                    <p class="hint" style="margin-bottom:16px; max-width:640px;">Running an actual backup (mysqldump, off-host storage) is a server-side operation, not something this page triggers directly — it's handled by the backup/restore/verify scripts documented for deployment. This shows the history those scripts leave behind.</p>
+                    <div class="card">
+                        <table class="tbl">
+                            <thead>
+                                <tr><th>Scope</th><th>Status</th><th>Created</th><th>Completed</th></tr>
+                            </thead>
+                            <tbody>
+                                @forelse ($recentBackups as $backup)
+                                    <tr>
+                                        <td>{{ $backup->scope }}</td>
+                                        <td>
+                                            <span @class(['status', 'ok' => $backup->status === 'completed', 'acc' => $backup->status === 'failed', 'warn' => $backup->status === 'pending'])>{{ ucfirst($backup->status) }}</span>
+                                        </td>
+                                        <td class="mut">{{ $backup->created_at->format('Y-m-d H:i') }}</td>
+                                        <td class="mut">{{ $backup->completed_at?->format('Y-m-d H:i') ?? '—' }}</td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="4" class="empty">No backups recorded yet.</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>
-        @endif
+            @endif
 
-        {{-- ============================== APPEARANCE ============================== --}}
-        @if ($activeSection === 'appearance')
-            <div class="space-y-4 max-w-lg">
-                <h3 class="font-semibold text-gray-800 dark:text-gray-100">Appearance Settings</h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400">Saved to your account — this only affects your own view, and applies immediately.</p>
-                <div class="grid grid-cols-3 gap-3">
-                    @foreach (['light' => 'Light', 'dark' => 'Dark', 'system' => 'System'] as $value => $label)
-                        <button
-                            wire:click="saveTheme('{{ $value }}')"
-                            @class([
-                                'rounded-lg border-2 px-4 py-3 text-sm font-medium text-center transition',
-                                'border-indigo-500 text-indigo-700 dark:text-indigo-300' => $theme === $value,
-                                'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-gray-300' => $theme !== $value,
-                            ])
-                        >
-                            {{ $label }}
-                        </button>
-                    @endforeach
+            {{-- ============================== APPEARANCE ============================== --}}
+            @if ($activeSection === 'appearance')
+                <div class="cardbody">
+                    <p class="hint" style="margin-bottom:16px;">Saved to your account — this only affects your own view, and applies immediately.</p>
+                    <div class="themepick">
+                        @foreach (['light' => 'Light', 'dark' => 'Dark', 'system' => 'System'] as $value => $label)
+                            <button type="button" wire:click="saveTheme('{{ $value }}')" @class(['themeopt', 'active' => $theme === $value])>
+                                {{ $label }}
+                            </button>
+                        @endforeach
+                    </div>
                 </div>
-            </div>
-        @endif
+            @endif
+        </div>
     </div>
 </div>

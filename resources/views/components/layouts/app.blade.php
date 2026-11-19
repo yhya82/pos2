@@ -23,7 +23,7 @@
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
-        @vite(['resources/css/app.css', 'resources/css/sidebar.css', 'resources/js/app.js'])
+        @vite(['resources/css/app.css', 'resources/css/sidebar.css', 'resources/css/notifications-bell.css', 'resources/js/app.js'])
         @stack('head')
     </head>
     <body

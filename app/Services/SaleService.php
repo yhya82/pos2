@@ -14,7 +14,6 @@ use App\Models\Product;
 use App\Models\Receipt;
 use App\Models\Sale;
 use App\Models\SaleLineItemBatch;
-use App\Models\SalesSetting;
 use App\Models\StoreSetting;
 use App\Models\User;
 use App\Events\SaleCompleted;
@@ -61,12 +60,11 @@ class SaleService
                 }
             }
 
-            $salesSettings = SalesSetting::current();
             $generalSettings = GeneralSetting::current();
 
             $this->assertWholeQuantities($cartLines);
 
-            [$lineData, $subtotal] = $this->buildLines($cartLines, $salesSettings);
+            [$lineData, $subtotal] = $this->buildLines($cartLines);
 
             // No discounts on a sale: the price is the product's (a promotion set on
             // the product is part of that price). The parameters remain only so
@@ -184,7 +182,7 @@ class SaleService
      *
      * @return array{0: array<int, array{product: Product, quantity: float, unit_price: float, subtotal: float, allocations: array<int, array{batch: Batch, qty: float}>, line_discount_type: string, line_discount_amount: float}>, 1: float}
      */
-    private function buildLines(array $cartLines, SalesSetting $salesSettings): array
+    private function buildLines(array $cartLines): array
     {
         $lineData = [];
         $subtotal = 0.0;
@@ -246,11 +244,6 @@ class SaleService
                 $allocations[] = ['batch' => $batch, 'qty' => $take];
                 $remaining -= $take;
             }
-
-            // If $remaining > 0 here, allow_negative_stock_sale let the sale
-            // through with more stock committed than batches can back —
-            // the shortfall isn't allocated to any batch. That's a known,
-            // monitored gap (v_integrity_line_batch_mismatch), not a bug.
 
             $lineData[] = [
                 'product' => $product,

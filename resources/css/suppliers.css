@@ -22,6 +22,12 @@ html.dark body {
 #app-header, #app-header *:not(.absolute, .absolute *) { color: var(--acc-ink); }
 #app-header button:hover:not(.absolute button) { background: rgba(255, 255, 255, .16); }
 
+/* The real <main> wrapper keeps its own padding around this page's
+   content but never had its background recolored — in dark mode that
+   left a strip of Tailwind's own bluish dark-gray showing around this
+   page's near-black surfaces. */
+main { background: var(--bg); }
+
 .suppliers-skin, .suppliers-skin *, .suppliers-skin *::before, .suppliers-skin *::after { box-sizing: border-box; }
 .suppliers-skin {
     font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;

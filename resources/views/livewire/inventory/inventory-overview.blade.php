@@ -402,9 +402,9 @@
                                 <option value="percentage">Percentage Off</option>
                             </select>
                             @if ($bulkDiscountType === 'percentage')
-                                <div class="hint">A % taken off each product's own price — e.g. 20% off <span class="ccy">GMD</span> 10.00 becomes <span class="ccy">GMD</span> 8.00. The cut scales with price, so it's the same percentage across every selected product even if they're priced differently.</div>
+                                <div class="hint">A % taken off each product's own price. e.g. 20% off <span class="ccy">GMD</span> 10.00 becomes <span class="ccy">GMD</span> 8.00. The cut scales with price, so it's the same percentage across every selected product even if they're priced differently.</div>
                             @else
-                                <div class="hint">A flat amount subtracted from the price — e.g. <span class="ccy">GMD</span> 3.00 off <span class="ccy">GMD</span> 10.00 becomes <span class="ccy">GMD</span> 7.00. Every selected product drops by the same amount, not the same percentage.</div>
+                                <div class="hint">A flat amount subtracted from the price. e.g. <span class="ccy">GMD</span> 3.00 off <span class="ccy">GMD</span> 10.00 becomes <span class="ccy">GMD</span> 7.00. Every selected product drops by the same amount, not the same percentage.</div>
                             @endif
                             <x-input-error :messages="$errors->get('bulkDiscountType')" class="mt-2" />
                         </div>

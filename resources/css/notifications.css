@@ -1,0 +1,73 @@
+/*
+ * Notifications (full list) redesign — scoped entirely under
+ * .notifications-skin so none of this (palette, resets) ever leaks
+ * onto any other page. Same flat, boxy, Inter look as the rest of the
+ * app. The bell dropdown in the header is a separate, globally-loaded
+ * stylesheet (notifications-bell.css) since it renders on every page,
+ * not just this one.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+body {
+    --bg: #f6f6f4; --surf: #fff; --ink: #1a1a1c; --mut: #55555b;
+    --line: #e3e3df; --soft: #efefeb; --acc: #a81c26; --acc-ink: #fff; --acc-soft: #f9e9e9;
+}
+html.dark body {
+    --bg: #0f0f11; --surf: #18181b; --ink: #f3f3f4; --mut: #aeaeb6;
+    --line: #2a2a2f; --soft: #222226; --acc: #c93840; --acc-ink: #fff; --acc-soft: #3a1c1d;
+}
+
+#app-header { background: var(--acc); border-color: var(--acc); }
+#app-header, #app-header *:not(.absolute, .absolute *) { color: var(--acc-ink); }
+#app-header button:hover:not(.absolute button) { background: rgba(255, 255, 255, .16); }
+
+main { background: var(--bg); }
+
+.notifications-skin, .notifications-skin *, .notifications-skin *::before, .notifications-skin *::after { box-sizing: border-box; }
+.notifications-skin {
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    color: var(--ink);
+    color-scheme: light;
+}
+html.dark .notifications-skin { color-scheme: dark; }
+.notifications-skin button, .notifications-skin a { font: inherit; color: inherit; }
+.notifications-skin button { cursor: pointer; border: 0; background: none; padding: 0; text-align: left; }
+.notifications-skin a { text-decoration: none; }
+.notifications-skin svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+
+.notifications-skin .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+.notifications-skin .top > div:first-child { border-left: 4px solid var(--acc); padding-left: 14px; }
+.notifications-skin .top h1 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
+.notifications-skin .top p { margin: 2px 0 0; color: var(--mut); font-size: 13.5px; }
+
+.notifications-skin .filters { background: var(--surf); border: 1px solid var(--line); padding: 14px 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px; }
+.notifications-skin .filters .lbl { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--mut); margin-right: 2px; }
+.notifications-skin .filters select { height: 38px; border: 1px solid var(--line); background: var(--bg); padding: 0 12px; font: inherit; font-size: 13px; color: var(--ink);
+    appearance: none; -webkit-appearance: none; padding-right: 32px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2355555b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 10px center; background-size: 12px;
+}
+
+.notifications-skin .btn { height: 38px; padding: 0 16px; font-weight: 600; font-size: 13px; border: 1px solid var(--line); background: var(--surf); color: var(--ink); display: inline-flex; align-items: center; gap: 6px; }
+.notifications-skin .btn:hover { border-color: var(--mut); }
+.notifications-skin .btn.p { background: var(--acc); color: var(--acc-ink); border-color: var(--acc); }
+.notifications-skin .btn.p:hover { filter: brightness(1.08); }
+
+.notifications-skin .nlist { background: var(--surf); border: 1px solid var(--line); }
+.notifications-skin .nitem { display: flex; gap: 12px; padding: 13px 16px; border-bottom: 1px solid var(--line); align-items: flex-start; width: 100%; }
+.notifications-skin .nitem:last-child { border-bottom: 0; }
+.notifications-skin .nitem:hover { background: var(--soft); }
+.notifications-skin .ndot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); flex-shrink: 0; margin-top: 6px; }
+.notifications-skin .nitem.unread .ndot { background: var(--acc); }
+.notifications-skin .ncat { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--mut); }
+.notifications-skin .nmsg { font-size: 13.5px; color: var(--mut); margin-top: 3px; }
+.notifications-skin .nitem.unread .nmsg { color: var(--ink); font-weight: 600; }
+.notifications-skin .ntime { font-size: 11.5px; color: var(--ink); font-weight: 600; flex-shrink: 0; white-space: nowrap; text-align: right; line-height: 1.5; }
+.notifications-skin .ntime .mut { color: var(--mut); font-weight: 400; }
+.notifications-skin .empty { text-align: center; color: var(--mut); padding: 32px 0; font-size: 13.5px; }
+
+.notifications-skin .pager { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border: 1px solid var(--line); border-top: 0; background: var(--surf); font-size: 12.5px; color: var(--mut); flex-wrap: wrap; gap: 8px; }
+.notifications-skin .pager .pages { display: flex; gap: 4px; }
+.notifications-skin .pager .pages button { width: 30px; height: 30px; border: 1px solid var(--line); color: var(--mut); font-size: 12.5px; font-weight: 600; background: var(--surf); }
+.notifications-skin .pager .pages button:hover { border-color: var(--mut); color: var(--ink); }
+.notifications-skin .pager .pages button[aria-current=true] { background: var(--acc); border-color: var(--acc); color: var(--acc-ink); cursor: default; }

@@ -357,4 +357,16 @@ class WholeQuantitiesTest extends TestCase
 
         $this->assertSame($before, (string) SalesSetting::current()->fresh()->max_discount_percentage, 'the old stored value is left as it was');
     }
+
+    public function test_the_negative_stock_sale_setting_is_gone_from_settings_and_saving_leaves_it_alone(): void
+    {
+        $before = (string) SalesSetting::current()->allow_negative_stock_sale;
+
+        Livewire::actingAs($this->admin)->test(SettingsManager::class)
+            ->assertDontSee('Allow selling past available stock')
+            ->call('saveSales')
+            ->assertHasNoErrors();
+
+        $this->assertSame($before, (string) SalesSetting::current()->fresh()->allow_negative_stock_sale, 'the old stored value is left as it was');
+    }
 }

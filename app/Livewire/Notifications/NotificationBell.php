@@ -53,8 +53,11 @@ class NotificationBell extends Component
 
         return view('livewire.notifications.notification-bell', [
             'unreadCount' => SystemNotification::unreadCountFor($user),
+            // Unread only — matches the badge count exactly, and anything
+            // already handled is still on the full Notifications list
+            // (with its own Read/Unread/All filter) a click away.
             'recent' => $this->open
-                ? SystemNotification::visibleTo($user)->orderByDesc('created_at')->limit(8)->get()
+                ? SystemNotification::visibleTo($user)->where('is_read', false)->orderByDesc('created_at')->limit(8)->get()
                 : collect(),
         ]);
     }

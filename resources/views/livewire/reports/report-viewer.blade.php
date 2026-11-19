@@ -22,7 +22,7 @@
     <div class="top">
         <div>
             <h1>Reports</h1>
-            <p>Every reporting view already built into the schema — grouped by area, filtered by date</p>
+            <p>Every reporting view already built into the schema ,grouped by area, filtered by date</p>
         </div>
     </div>
 

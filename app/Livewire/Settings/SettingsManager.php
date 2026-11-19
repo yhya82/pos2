@@ -101,7 +101,6 @@ class SettingsManager extends Component
         $sales = SalesSetting::current();
         $this->sales = [
             'default_payment_method_id' => $sales?->default_payment_method_id,
-            'allow_negative_stock_sale' => (bool) $sales?->allow_negative_stock_sale,
         ];
 
         $inventory = InventorySetting::current();
@@ -229,7 +228,6 @@ class SettingsManager extends Component
 
         $validated = $this->validate([
             'sales.default_payment_method_id' => ['nullable', 'exists:payment_methods,id'],
-            'sales.allow_negative_stock_sale' => ['boolean'],
         ])['sales'];
 
         SalesSetting::current()->update($validated + ['updated_by' => auth()->id()]);

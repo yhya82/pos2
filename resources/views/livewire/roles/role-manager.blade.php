@@ -28,7 +28,7 @@
     <div class="top">
         <div>
             <h1>Roles</h1>
-            <p>What each role can see and do — assign permissions by module</p>
+            <p>What each role can see and do assign permissions by module</p>
         </div>
         @if (auth()->user()->hasPermission('roles', 'create'))
             <button type="button" wire:click="create" class="btn p">

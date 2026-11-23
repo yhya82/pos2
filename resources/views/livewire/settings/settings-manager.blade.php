@@ -32,10 +32,12 @@
         </nav>
 
         <div class="settpanel">
-            <div class="cardhead">
-                <span class="ic">{!! '<svg viewBox="0 0 24 24">'.$sections[$activeSection]['icon'].'</svg>' !!}</span>
-                <div><h2>{{ $sections[$activeSection]['label'] }}</h2></div>
-            </div>
+            @unless ($activeSection === 'security')
+                <div class="cardhead">
+                    <span class="ic">{!! '<svg viewBox="0 0 24 24">'.$sections[$activeSection]['icon'].'</svg>' !!}</span>
+                    <div><h2>{{ $sections[$activeSection]['label'] }}</h2></div>
+                </div>
+            @endunless
 
             {{-- ============================== GENERAL ============================== --}}
             @if ($activeSection === 'general')
@@ -274,38 +276,375 @@
 
             {{-- ============================== SECURITY ============================== --}}
             @if ($activeSection === 'security')
-                <form wire:submit="saveSecurity" class="cardbody">
-                    <div class="f grid2">
-                        <div>
-                            <label>Session Timeout (minutes)<span class="req">*</span></label>
-                            <input type="text" wire:model="security.session_timeout_minutes">
-                            <x-input-error :messages="$errors->get('security.session_timeout_minutes')" class="mt-2" />
+                @php
+                    $isAdmin = auth()->user()->isAdministrator();
+                    $circumference = 2 * M_PI * 52;
+                    $scoreOffset = $circumference * (1 - $securityScore['score'] / 100);
+                @endphp
+                <div class="cardbody wide">
+
+                    <div class="secbanner">
+                        <div class="bl">
+                            <span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg></span>
+                            <div>
+                                <h2>Security Center</h2>
+                                <p>Security monitoring and management</p>
+                            </div>
                         </div>
-                        <div>
-                            <label>Max Failed Login Attempts<span class="req">*</span></label>
-                            <input type="text" wire:model="security.max_failed_login_attempts">
-                            <x-input-error :messages="$errors->get('security.max_failed_login_attempts')" class="mt-2" />
-                        </div>
-                        <div>
-                            <label>Lockout Duration (minutes)<span class="req">*</span></label>
-                            <input type="text" wire:model="security.lockout_duration_minutes">
-                            <x-input-error :messages="$errors->get('security.lockout_duration_minutes')" class="mt-2" />
-                        </div>
-                        <div>
-                            <label>Password Minimum Length<span class="req">*</span></label>
-                            <input type="text" wire:model="security.password_min_length">
-                            <x-input-error :messages="$errors->get('security.password_min_length')" class="mt-2" />
+                        <div class="br">
+                            <button type="button" class="btn" wire:click="editPasswordPolicy"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Password Policy</button>
+                            <button type="button" class="btn" wire:click="$refresh"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>Refresh</button>
                         </div>
                     </div>
-                    <div class="f" style="max-width:260px;">
-                        <label>Password Reset Token TTL (minutes)<span class="req">*</span></label>
-                        <input type="text" wire:model="security.password_reset_token_ttl_minutes">
-                        <x-input-error :messages="$errors->get('security.password_reset_token_ttl_minutes')" class="mt-2" />
+
+                    <div class="scorecard">
+                        <div class="shead">
+                            <h3>Security Score</h3>
+                            <p>Reflects how strict the current settings are — see "Improve your score" below to raise it.</p>
+                        </div>
+
+                        <div class="ring">
+                            <svg viewBox="0 0 120 120">
+                                <circle class="track" cx="60" cy="60" r="52" fill="none" stroke-width="10"/>
+                                <circle class="fill {{ $securityScore['tone'] }}" cx="60" cy="60" r="52" fill="none" stroke-width="10" stroke-dasharray="{{ $circumference }}" stroke-dashoffset="{{ $scoreOffset }}" stroke-linecap="round"/>
+                            </svg>
+                            <div class="num"><b>{{ $securityScore['score'] }}</b><span>out of 100</span></div>
+                        </div>
+
+                        <div class="metrics">
+                            <div class="row"><span>Password policy strength</span><b class="{{ $securityPasswordStrength['tone'] }}">{{ $securityPasswordStrength['label'] }}</b></div>
+                            <div class="row"><span>New-device logins (24h)</span><b class="{{ $securityStats['new_devices'] > 0 ? 'warn' : 'ok' }}">{{ $securityStats['new_devices'] }}</b></div>
+                            <div class="row"><span>Failed logins (24h)</span><b class="{{ $securityStats['failed_logins'] > 0 ? 'warn' : 'mut' }}">{{ $securityStats['failed_logins'] }}</b></div>
+                        </div>
+
+                        <div class="decor"><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="9"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
                     </div>
-                    <div class="formfoot">
-                        <button type="submit" class="btn p">Save</button>
+
+                    <div class="sectabs">
+                        <button type="button" wire:click="setSecurityTab('overview')" @class(['active' => $securityTab === 'overview'])><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Overview</button>
+                        <button type="button" wire:click="setSecurityTab('policy')" @class(['active' => $securityTab === 'policy'])><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Policy</button>
+                        @if ($isAdmin)
+                            <button type="button" wire:click="setSecurityTab('devices')" @class(['active' => $securityTab === 'devices'])><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12"/><path d="M8 20h8M12 16v4"/></svg>Devices<span class="ct">{{ $securityStats['devices'] }}</span></button>
+                            <button type="button" wire:click="setSecurityTab('activity')" @class(['active' => $securityTab === 'activity'])><svg viewBox="0 0 24 24"><path d="M5 19V11"/><path d="M12 19V5"/><path d="M19 19v-7"/><path d="M3 19h18"/></svg>Login activity</button>
+                            <button type="button" wire:click="setSecurityTab('threats')" @class(['active' => $securityTab === 'threats'])><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>Threats<span class="ct">{{ count($securityThreats ?? []) }}</span></button>
+                            <button type="button" wire:click="setSecurityTab('people')" @class(['active' => $securityTab === 'people'])><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>People</button>
+                        @endif
                     </div>
-                </form>
+
+                    {{-- ----------------------------- Overview tab ----------------------------- --}}
+                    @if ($securityTab === 'overview')
+                        <div class="stattiles">
+                            <div class="stile"><span class="ic {{ $securityStats['failed_logins'] > 0 ? 'warn' : 'plain' }}"><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></span><b>{{ $securityStats['failed_logins'] }}</b><span>Failed logins (24h)</span></div>
+                            <div class="stile"><span class="ic {{ $securityStats['locked'] > 0 ? 'acc' : 'plain' }}"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span><b>{{ $securityStats['locked'] }}</b><span>Locked right now</span></div>
+                            <div class="stile"><span class="ic plain"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12"/><path d="M8 20h8M12 16v4"/></svg></span><b>{{ $securityStats['devices'] }}</b><span>Signed-in devices</span></div>
+                            <div class="stile"><span class="ic {{ $securityStats['new_devices'] > 0 ? 'warn' : 'ok' }}"><svg viewBox="0 0 24 24"><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21v-8h6v8"/></svg></span><b>{{ $securityStats['new_devices'] }}</b><span>New-device logins (24h)</span></div>
+                            <div class="stile"><span class="ic {{ $securityStats['expiring_soon'] > 0 ? 'warn' : 'plain' }}"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span><b>{{ $securityStats['expiring_soon'] }}</b><span>Expiring in 7 days</span></div>
+                            <div class="stile"><span class="ic {{ $securityStats['expired'] > 0 ? 'acc' : 'plain' }}"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span><b>{{ $securityStats['expired'] }}</b><span>Expired passwords</span></div>
+                        </div>
+
+                        <div class="suggest">
+                            <div class="sh">
+                                <span class="ic"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 22h4M12 2a6 6 0 0 0-4 10.5c.6.5 1 1.3 1 2.1V15h6v-.4c0-.8.4-1.6 1-2.1A6 6 0 0 0 12 2z"/></svg></span>
+                                <div>
+                                    <h4>Improve your score</h4>
+                                    <p>Each of these adds points to the Security Score.</p>
+                                </div>
+                            </div>
+                            @if (count($securitySuggestions))
+                                <div class="grid">
+                                    @foreach ($securitySuggestions as $tip)
+                                        <div class="item"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>{{ $tip }}</div>
+                                    @endforeach
+                                </div>
+                            @else
+                                <div class="allgood">Every scored setting is already at its strongest option.</div>
+                            @endif
+                            <p class="note">Two-factor authentication is planned for a later update.</p>
+                            <div class="suggestfoot">
+                                <button type="button" class="btn p" wire:click="editPasswordPolicy"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Edit Password Policy</button>
+                            </div>
+                        </div>
+                    @endif
+
+                    {{-- ------------------------------- Policy tab ------------------------------ --}}
+                    @if ($securityTab === 'policy')
+                        <div class="polwrap">
+                            <div class="card polcard">
+                                <div class="pochead">
+                                    <div>
+                                        <h3>Current password policy</h3>
+                                        <p>Applies everywhere a password is set — self-service, admin reset, and the forgot-password link.</p>
+                                    </div>
+                                    <button type="button" class="iconbtn" wire:click="openPolicyEditor" aria-label="Edit password policy" title="Edit password policy">
+                                        <svg viewBox="0 0 24 24"><path d="M17 3a2.8 2.8 0 0 1 4 4L7 21l-4 1 1-4z"/></svg>
+                                    </button>
+                                </div>
+                                <div class="poldisplay">
+                                    <div class="prow"><span>Minimum length</span><b>{{ $security['password_min_length'] }} characters</b></div>
+                                    <div class="prow"><span>Require uppercase letter (A–Z)</span><b class="{{ $security['password_require_uppercase'] ? 'ok' : 'mut' }}">{{ $security['password_require_uppercase'] ? 'Yes' : 'No' }}</b></div>
+                                    <div class="prow"><span>Require lowercase letter (a–z)</span><b class="{{ $security['password_require_lowercase'] ? 'ok' : 'mut' }}">{{ $security['password_require_lowercase'] ? 'Yes' : 'No' }}</b></div>
+                                    <div class="prow"><span>Require a number (0–9)</span><b class="{{ $security['password_require_number'] ? 'ok' : 'mut' }}">{{ $security['password_require_number'] ? 'Yes' : 'No' }}</b></div>
+                                    <div class="prow"><span>Require a symbol (e.g. ! @ # $)</span><b class="{{ $security['password_require_symbol'] ? 'ok' : 'mut' }}">{{ $security['password_require_symbol'] ? 'Yes' : 'No' }}</b></div>
+                                    <div class="prow"><span>Password History</span><b>{{ $security['password_history_count'] }} passwords</b></div>
+                                    <div class="prow"><span>Password expiry</span><b>{{ $security['password_expiry_days'] > 0 ? $security['password_expiry_days'].' days' : 'Off' }}</b></div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn p" wire:click="openPolicyEditor"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Create Policy</button>
+                        </div>
+
+                        <x-modal name="password-policy-form">
+                            <div class="dialog">
+                                <div class="dh">
+                                    <h2>Password Policy</h2>
+                                    <p>These rules apply to every password set anywhere in the app — self-service, admin reset, and the forgot-password link.</p>
+                                </div>
+                                <form wire:submit="saveSecurity">
+                                    <div class="db">
+                                        <div class="subhead" style="margin-top:0;">Password requirements</div>
+                                        <div class="f" style="max-width:260px;">
+                                            <label>Password Minimum Length<span class="req">*</span></label>
+                                            <input type="text" wire:model.live.debounce.400ms="security.password_min_length">
+                                            <x-input-error :messages="$errors->get('security.password_min_length')" class="mt-2" />
+                                        </div>
+                                        <div class="checkgrid">
+                                            <label class="check">
+                                                <input type="checkbox" wire:model.live="security.password_require_uppercase">
+                                                <span>Require an uppercase letter (A–Z)</span>
+                                            </label>
+                                            <label class="check">
+                                                <input type="checkbox" wire:model.live="security.password_require_lowercase">
+                                                <span>Require a lowercase letter (a–z)</span>
+                                            </label>
+                                            <label class="check">
+                                                <input type="checkbox" wire:model.live="security.password_require_number">
+                                                <span>Require a number (0–9)</span>
+                                            </label>
+                                            <label class="check">
+                                                <input type="checkbox" wire:model.live="security.password_require_symbol">
+                                                <span>Require a symbol (e.g. ! @ # $)</span>
+                                            </label>
+                                        </div>
+
+                                        <div class="subhead">Reuse &amp; expiry</div>
+                                        <div class="secgrid">
+                                            <div class="f">
+                                                <label>Password History<span class="req">*</span></label>
+                                                <input type="text" wire:model.live.debounce.400ms="security.password_history_count">
+                                                <div class="hint">Blocks reusing any of the last N passwords. 0 disables this.</div>
+                                                <x-input-error :messages="$errors->get('security.password_history_count')" class="mt-2" />
+                                            </div>
+                                            <div class="f">
+                                                <label>Password Expires After (days)<span class="req">*</span></label>
+                                                <input type="text" wire:model.live.debounce.400ms="security.password_expiry_days">
+                                                <div class="hint">Forces a password change at next login once this many days have passed. 0 disables this.</div>
+                                                <x-input-error :messages="$errors->get('security.password_expiry_days')" class="mt-2" />
+                                            </div>
+                                        </div>
+
+                                        <div class="subhead">Login &amp; lockout</div>
+                                        <div class="secgrid">
+                                            <div class="f">
+                                                <label>Session Timeout (minutes)<span class="req">*</span></label>
+                                                <input type="text" wire:model.live.debounce.400ms="security.session_timeout_minutes">
+                                                <x-input-error :messages="$errors->get('security.session_timeout_minutes')" class="mt-2" />
+                                            </div>
+                                            <div class="f">
+                                                <label>Max Failed Login Attempts<span class="req">*</span></label>
+                                                <input type="text" wire:model.live.debounce.400ms="security.max_failed_login_attempts">
+                                                <x-input-error :messages="$errors->get('security.max_failed_login_attempts')" class="mt-2" />
+                                            </div>
+                                            <div class="f">
+                                                <label>Lockout Duration (minutes)<span class="req">*</span></label>
+                                                <input type="text" wire:model.live.debounce.400ms="security.lockout_duration_minutes">
+                                                <x-input-error :messages="$errors->get('security.lockout_duration_minutes')" class="mt-2" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="df">
+                                        <button type="button" class="btn" wire:click="closePolicyEditor">Cancel</button>
+                                        <button type="submit" class="btn p">Save Policy</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </x-modal>
+                    @endif
+
+                    {{-- ------------------------------- Devices tab ------------------------------ --}}
+                    @if ($securityTab === 'devices' && $isAdmin)
+                        <div class="toolrow">
+                            <div>
+                                <h3>Signed-in devices</h3>
+                                <p>Every device currently signed in, across every user — "Online now" reflects who's actually connected right now, not just who hasn't timed out yet.</p>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <table class="tbl">
+                                <thead>
+                                    <tr><th>User</th><th>Status</th><th>Device</th><th>IP Address</th><th>Signed in</th><th>Expires</th><th></th></tr>
+                                </thead>
+                                <tbody>
+                                    @forelse ($securityDevices as $sess)
+                                        @php
+                                            $isCurrent = $sess->token_hash === hash('sha256', session()->getId());
+                                            $isOnline = in_array($sess->user_id, $onlineUserIds, true);
+                                        @endphp
+                                        <tr>
+                                            <td>{{ $sess->user?->name ?? 'Unknown' }}@if ($isCurrent)<span class="tag">this device</span>@endif</td>
+                                            <td><span class="status {{ $isOnline ? 'ok' : '' }}">{{ $isOnline ? 'Online now' : 'Away' }}</span></td>
+                                            <td class="mut">{{ \Illuminate\Support\Str::limit($sess->user_agent ?? '—', 42) }}</td>
+                                            <td class="mut">{{ $sess->ip_address }}</td>
+                                            <td class="mut">{{ $sess->created_at->format('Y-m-d H:i') }}</td>
+                                            <td class="mut">{{ $sess->expires_at->diffForHumans() }}</td>
+                                            <td>
+                                                @unless ($isCurrent)
+                                                    <button type="button" class="rvk" wire:click="revokeDevice({{ $sess->id }})" wire:confirm="Revoke this session? That device will be signed out."><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Revoke</button>
+                                                @endunless
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr><td colspan="7" class="empty">No one is currently signed in.</td></tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
+
+                    {{-- --------------------------- Login activity tab --------------------------- --}}
+                    @if ($securityTab === 'activity' && $isAdmin)
+                        <div class="toolrow">
+                            <div>
+                                <h3>Login activity</h3>
+                                <p>Logins, failures, logouts and password changes — the most recent 50 security events.</p>
+                            </div>
+                            <a class="more" href="{{ route('audit-logs.index', ['tab' => 'security']) }}" wire:navigate>View full Audit Log →</a>
+                        </div>
+                        <div class="card">
+                            <table class="tbl">
+                                <thead>
+                                    <tr><th>Time</th><th>Email</th><th>Event</th><th>Attempts</th><th>IP Address</th></tr>
+                                </thead>
+                                <tbody>
+                                    @forelse ($securityActivity as $log)
+                                        @php
+                                            $detail = $log->new_value ?? [];
+                                            $tone = match (true) {
+                                                in_array($log->action, \App\Models\AuditLog::OK_ACTIONS, true) => 'ok',
+                                                in_array($log->action, \App\Models\AuditLog::WARN_ACTIONS, true) => 'warn',
+                                                in_array($log->action, \App\Models\AuditLog::SERIOUS_ACTIONS, true) => 'acc',
+                                                default => null,
+                                            };
+                                        @endphp
+                                        <tr>
+                                            <td class="mut">{{ $log->created_at->format('Y-m-d H:i:s') }}</td>
+                                            <td>{{ $log->user?->email ?? ($detail['email'] ?? '—') }}</td>
+                                            <td>@if($tone)<span class="status {{ $tone }}">{{ str($log->action)->replace('_', ' ')->ucfirst() }}</span>@else{{ str($log->action)->replace('_', ' ')->ucfirst() }}@endif</td>
+                                            <td class="mut">{{ $detail['attempts'] ?? '—' }}</td>
+                                            <td class="mut">{{ $log->ip_address }}</td>
+                                        </tr>
+                                    @empty
+                                        <tr><td colspan="5" class="empty">No security events recorded yet.</td></tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
+
+                    {{-- ------------------------------- Threats tab ------------------------------- --}}
+                    @if ($securityTab === 'threats' && $isAdmin)
+                        <div class="toolrow">
+                            <div>
+                                <h3>Flagged for a look</h3>
+                                <p>A curated, higher-severity slice of the security log — tampering, denied requests, lockouts and new-device logins.</p>
+                            </div>
+                            <a class="more" href="{{ route('audit-logs.index', ['tab' => 'security']) }}" wire:navigate>View full Audit Log →</a>
+                        </div>
+                        @if (count($securityThreats))
+                            <div class="threatlist">
+                                @foreach ($securityThreats as $log)
+                                    @php
+                                        $detail = $log->new_value ?? [];
+                                        $warnTone = in_array($log->action, \App\Models\AuditLog::WARN_ACTIONS, true);
+                                        $label = match ($log->action) {
+                                            'tamper_ignored' => 'Tampered value ignored',
+                                            'access_denied' => 'Access denied',
+                                            'account_locked' => 'Account locked',
+                                            'login_new_device' => 'New-device login flagged',
+                                            'password_reused_blocked' => 'Password reuse blocked',
+                                            default => str($log->action)->replace('_', ' ')->ucfirst(),
+                                        };
+                                    @endphp
+                                    <div class="threatrow {{ $warnTone ? 'warn' : '' }}">
+                                        <span class="ic"><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></span>
+                                        <div class="tx">
+                                            <b>{{ $label }}</b>
+                                            <span>{{ $detail['email'] ?? ($log->user?->email ?? '') }}</span>
+                                        </div>
+                                        <div class="meta">{{ $log->created_at->format('Y-m-d H:i') }}<br>{{ $log->user?->name ?? 'System' }}</div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @else
+                            <p class="hint">Nothing flagged — no tampering, denials, lockouts or new-device logins recorded yet.</p>
+                        @endif
+                    @endif
+
+                    {{-- -------------------------------- People tab -------------------------------- --}}
+                    @if ($securityTab === 'people' && $isAdmin)
+                        <div class="toolrow">
+                            <div>
+                                <h3>Who looks risky</h3>
+                                <p>The last 7 days' security-relevant counts per person — not sales, voids or refunds, which stay on the Audit Logs "Who did what" tab.</p>
+                            </div>
+                            <a class="more" href="{{ route('audit-logs.index', ['tab' => 'people']) }}" wire:navigate>View full Audit Log →</a>
+                        </div>
+                        <div class="card">
+                            <table class="tbl">
+                                <thead>
+                                    <tr>
+                                        <th>Person</th>
+                                        <th class="num">Failed logins</th>
+                                        <th class="num">Denied</th>
+                                        <th class="num">Tampering</th>
+                                        <th class="num">New devices</th>
+                                        <th class="num">Reuse blocked</th>
+                                        <th>Status</th>
+                                        <th>Last seen</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse ($securityPeople as $p)
+                                        @php
+                                            $flagged = $p->failed_logins >= \App\Models\AuditLog::FLAG_FAILED_LOGINS
+                                                || $p->denied >= \App\Models\AuditLog::FLAG_DENIED
+                                                || $p->tampering >= 1
+                                                || $p->new_devices >= \App\Models\AuditLog::FLAG_NEW_DEVICES
+                                                || $p->reuse_blocked >= \App\Models\AuditLog::FLAG_REUSE_BLOCKED
+                                                || $p->lockouts >= 1;
+                                            $lockedNow = $p->locked_until && \Illuminate\Support\Carbon::parse($p->locked_until)->isFuture();
+                                        @endphp
+                                        <tr @class(['arow-serious' => $flagged])>
+                                            <td>
+                                                <span style="font-weight:700;">{{ $p->name }}</span>
+                                                @if ($flagged)<span class="needslook"><svg viewBox="0 0 24 24" style="width:10px;height:10px;"><path d="M12 3.5L2.5 20h19L12 3.5z"/><path d="M12 10v4.5"/></svg>Needs a look</span>@endif
+                                                @if ($p->role)<div class="mut" style="font-size:11.5px; font-weight:400;">{{ $p->role }}</div>@endif
+                                            </td>
+                                            <td class="num">{{ (int) $p->failed_logins }}</td>
+                                            <td class="num">{{ (int) $p->denied }}</td>
+                                            <td class="num">{{ (int) $p->tampering }}</td>
+                                            <td class="num">{{ (int) $p->new_devices }}</td>
+                                            <td class="num">{{ (int) $p->reuse_blocked }}</td>
+                                            <td><span class="status {{ $lockedNow ? 'acc' : 'ok' }}">{{ $lockedNow ? 'Locked now' : 'Active' }}</span></td>
+                                            <td class="mut mono">{{ \Illuminate\Support\Carbon::parse($p->last_seen)->format('Y-m-d H:i') }}</td>
+                                        </tr>
+                                    @empty
+                                        <tr><td colspan="8" class="empty">No security events in the last 7 days.</td></tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
+
+                </div>
             @endif
 
             {{-- ============================== BACKUP & RESTORE ============================== --}}

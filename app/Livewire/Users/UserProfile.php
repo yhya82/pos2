@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\Role;
 use App\Models\SecuritySetting;
 use App\Models\User;
+use App\Rules\PasswordPolicy;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
@@ -35,6 +36,8 @@ class UserProfile extends Component
 
     public string $password = '';
 
+    public string $currentPassword = '';
+
     public function mount(User $user): void
     {
         $this->authorizeAction('users', 'view');
@@ -50,17 +53,25 @@ class UserProfile extends Component
 
     protected function rules(): array
     {
-        $passwordMin = SecuritySetting::current()->password_min_length;
-
-        return [
+        $rules = [
             'name' => ['required', 'string', 'max:150'],
             'username' => ['required', 'string', 'max:100', Rule::unique('users', 'username')->ignore($this->userId)],
             'email' => ['nullable', 'string', 'email', 'max:150', Rule::unique('users', 'email')->ignore($this->userId)],
             'phone' => ['required', 'digits:9'],
             'roleId' => ['required', 'exists:roles,id'],
             'status' => ['required', 'in:active,inactive'],
-            'password' => ['nullable', 'string', "min:{$passwordMin}"],
+            'password' => ['nullable', 'string', new PasswordPolicy(User::find($this->userId))],
         ];
+
+        // Only when this page is showing your OWN account and you're
+        // actually changing the password — current_password checks the
+        // authenticated user's password, which only means something when
+        // the profile being edited IS the authenticated user.
+        if ((int) $this->userId === auth()->id() && filled($this->password)) {
+            $rules['currentPassword'] = ['required', 'string', 'current_password'];
+        }
+
+        return $rules;
     }
 
     protected function messages(): array
@@ -99,16 +110,22 @@ class UserProfile extends Component
             'status' => $validated['status'],
         ];
 
-        if (filled($this->password)) {
-            $attributes['password_hash'] = $this->password;
-        }
-
         $previous = $user->only(['name', 'username', 'email', 'phone', 'role_id', 'status']);
         $user->update($attributes);
+
+        if (filled($this->password)) {
+            // An admin resetting someone else's password has no session
+            // of their own on this account to protect, so every one of
+            // this user's sessions gets revoked. Editing your own account
+            // keeps this session alive instead.
+            $isOwnAccount = (int) $user->id === auth()->id();
+            $user->setPassword($this->password, $isOwnAccount ? session()->getId() : null);
+        }
 
         AuditLog::record('update', 'users', 'User', $user->id, $previous, $user->only(['name', 'username', 'email', 'phone', 'role_id', 'status']));
 
         $this->password = '';
+        $this->currentPassword = '';
         $this->dispatch('flash-message', message: 'User updated.', variant: 'success');
     }
 
@@ -120,6 +137,7 @@ class UserProfile extends Component
             'user' => $user,
             'canEdit' => auth()->user()->hasPermission('users', 'update'),
             'roles' => Role::where('status', 'active')->orderBy('name')->get(),
+            'passwordPolicyHint' => SecuritySetting::current()->passwordPolicyHint(),
         ]);
     }
 }

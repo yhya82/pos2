@@ -62,4 +62,21 @@ class LoginSession extends Model
             ->whereNull('revoked_at')
             ->update(['revoked_at' => now()]);
     }
+
+    /**
+     * Force-logout on password change: every other device/tab this user
+     * was signed into stops working on its next request (caught by
+     * EnsureSessionNotExpired, same as a real timeout). $exceptSessionId
+     * is the session doing the changing, if any — a self-service change
+     * shouldn't log the person out of the very session they used to make
+     * it; an admin resetting someone else's password has no such session
+     * to protect, so every one of that user's sessions is revoked.
+     */
+    public static function revokeAllFor(int $userId, ?string $exceptSessionId = null): void
+    {
+        static::where('user_id', $userId)
+            ->when($exceptSessionId, fn ($q) => $q->where('token_hash', '!=', hash('sha256', $exceptSessionId)))
+            ->whereNull('revoked_at')
+            ->update(['revoked_at' => now()]);
+    }
 }

@@ -49,6 +49,28 @@ html.dark .login-skin {
 .login-skin .f input { width: 100%; height: 44px; border: 1px solid var(--line); background: var(--bg); padding: 0 14px; font: inherit; font-size: 14px; color: var(--ink); }
 .login-skin .f input:focus { outline: none; border-color: var(--acc); box-shadow: 0 0 0 3px var(--acc-soft); background: var(--surf); }
 
+/* The real error markup here is <x-input-error>'s own <ul><li> (its
+   default red-600 Tailwind classes are left alone on every other
+   redesigned page in this app) — restyled just on this page to match
+   the flat/boxy system instead, as a small accent-barred line rather
+   than a plain red list. */
+.login-skin .f ul { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.login-skin .f ul li { font-size: 12.5px; font-weight: 600; color: var(--acc); line-height: 1.5; border-left: 2px solid var(--acc); padding-left: 9px; }
+
+.login-skin .pwfield { position: relative; }
+.login-skin .pwfield input { padding-right: 44px; }
+.login-skin .eyebtn { position: absolute; top: 0; right: 0; width: 44px; height: 44px; display: grid; place-items: center; color: var(--mut); }
+.login-skin .eyebtn:hover { color: var(--ink); }
+.login-skin .eyebtn svg { width: 18px; height: 18px; }
+
+.login-skin .pwfield.shake { animation: login-shake .45s; }
+@keyframes login-shake {
+    10%, 90% { transform: translateX(-2px); }
+    20%, 80% { transform: translateX(4px); }
+    30%, 50%, 70% { transform: translateX(-6px); }
+    40%, 60% { transform: translateX(6px); }
+}
+
 .login-skin .formrow { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 22px; }
 .login-skin .forgot { font-size: 10px; color: var(--mut); }
 .login-skin .forgot:hover { color: var(--acc); }

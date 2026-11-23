@@ -21,7 +21,6 @@ use App\Models\User;
 use App\Services\SaleService;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Livewire;
 use Livewire\Volt\Volt;
 use Tests\Concerns\RefreshesDatabaseWithViews;
@@ -111,7 +110,6 @@ class AuditTrailTest extends TestCase
 
         foreach (range(1, 5) as $i) {
             $this->attemptLogin($user->email, 'wrong-'.$i);
-            RateLimiter::clear(strtolower($user->email).'|127.0.0.1');
         }
 
         $this->assertSame(1, $this->security('account_locked')->where('user_id', $user->id)->count());
@@ -132,20 +130,6 @@ class AuditTrailTest extends TestCase
         $this->attemptLogin($user->email, 'password');
 
         $this->assertSame('account deactivated', $this->security('login_blocked')->firstOrFail()->new_value['reason']);
-    }
-
-    public function test_the_ip_throttle_is_logged(): void
-    {
-        $user = User::factory()->create();
-        $key = strtolower($user->email).'|127.0.0.1';
-
-        foreach (range(1, 5) as $i) {
-            RateLimiter::hit($key);
-        }
-
-        $this->attemptLogin($user->email, 'password');
-
-        $this->assertSame(1, $this->security('rate_limited')->count());
     }
 
     public function test_logging_out_is_logged(): void
@@ -396,6 +380,16 @@ class AuditTrailTest extends TestCase
             ->assertDontSee('Products');
     }
 
+    public function test_a_revoked_session_shows_who_revoked_it_and_is_toned_ok(): void
+    {
+        AuditLog::security('session_revoked', $this->clerk->id, ['revoked_by' => $this->admin->id], 'User');
+
+        Livewire::actingAs($this->admin)->test(AuditLogViewer::class)
+            ->call('setTab', 'security')
+            ->assertSee('Session revoked')
+            ->assertSee('Revoked by '.$this->admin->name);
+    }
+
     public function test_the_activity_tab_still_shows_everything_including_security_events(): void
     {
         $this->attemptLogin('intruder@example.com', 'guess');
@@ -420,12 +414,13 @@ class AuditTrailTest extends TestCase
         $this->assertSame(1, $alerts['denied']);
         $this->assertSame(1, $alerts['tampering']);
         $this->assertSame(1, $alerts['locked']);
+        $this->assertSame(0, $alerts['new_devices']);
     }
 
     public function test_a_quiet_day_says_so(): void
     {
         Livewire::actingAs($this->admin)->test(AuditLogViewer::class)
-            ->assertSee('No failed logins, denied requests or tampering.');
+            ->assertSee('No failed logins, denied requests, tampering, or new-device logins.');
     }
 
     public function test_who_did_what_summarises_each_person_and_flags_the_worrying_ones(): void

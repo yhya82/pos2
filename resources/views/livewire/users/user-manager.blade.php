@@ -64,6 +64,7 @@
                             <td class="actions">
                                 @if (auth()->user()->hasPermission('users', 'update'))
                                     <button type="button" wire:click="edit({{ $user->id }})" class="actionbtn">Edit</button>
+                                    <button type="button" wire:click="changePassword({{ $user->id }})" class="actionbtn warn"><svg viewBox="0 0 24 24"><path d="M21 2l-9.6 9.6"/><path d="M15.5 7.5l3 3"/><circle cx="7.5" cy="15.5" r="5.5"/></svg>Change Password</button>
                                 @endif
                                 @if (auth()->user()->hasPermission('users', 'delete'))
                                     <button type="button" wire:click="confirmDeactivate({{ $user->id }})" class="actionbtn danger">
@@ -141,9 +142,19 @@
                 </div>
             </div>
 
+            @if ($editingUserId && (int) $editingUserId === auth()->id())
+                <div class="f">
+                    <label for="user_current_password">Current Password<span class="req">*</span></label>
+                    <input type="password" wire:model="currentPassword" id="user_current_password" autocomplete="current-password">
+                    <div class="hint">Only needed if you're changing your own password below.</div>
+                    <x-input-error :messages="$errors->get('currentPassword')" class="mt-2" />
+                </div>
+            @endif
+
             <div class="f" style="margin-bottom:0;">
                 <label for="user_password">{{ $editingUserId ? 'New Password (leave blank to keep current)' : 'Password' }}@unless ($editingUserId)<span class="req">*</span>@endunless</label>
                 <input type="password" wire:model="password" id="user_password" autocomplete="new-password">
+                <div class="hint">{{ $passwordPolicyHint }}</div>
                 <x-input-error :messages="$errors->get('password')" class="mt-2" />
             </div>
         </form>
@@ -164,6 +175,40 @@
                 <button type="button" class="btn" x-on:click="$dispatch('close')">Cancel</button>
                 <button type="button" wire:click="toggleStatus" class="btn danger">Confirm</button>
             </div>
+        </div>
+    </x-modal>
+
+    <x-modal name="change-password" max-width="sm">
+        <div class="dialog">
+            <div class="dh">
+                <h2>Change Password</h2>
+                @if ($passwordUserId === auth()->id())
+                    <p>Sets a new password for your own account. Every other device you're currently signed into will be signed out — this one stays signed in.</p>
+                @else
+                    <p>Sets a new password for {{ $passwordUserName }} right away — they won't need to know the old one, and every other device they're currently signed into will be signed out.</p>
+                @endif
+            </div>
+            <form wire:submit="savePassword">
+                <div class="db">
+                    @if ($passwordUserId === auth()->id())
+                        <div class="f">
+                            <label for="current_password">Current Password<span class="req">*</span></label>
+                            <input type="password" wire:model="currentPassword" id="current_password" autocomplete="current-password">
+                            <x-input-error :messages="$errors->get('currentPassword')" class="mt-2" />
+                        </div>
+                    @endif
+                    <div class="f" style="margin-bottom:0;">
+                        <label for="new_password">New Password<span class="req">*</span></label>
+                        <input type="password" wire:model="newPassword" id="new_password" autocomplete="new-password">
+                        <div class="hint">{{ $passwordPolicyHint }}</div>
+                        <x-input-error :messages="$errors->get('newPassword')" class="mt-2" />
+                    </div>
+                </div>
+                <div class="df">
+                    <button type="button" class="btn" x-on:click="$dispatch('close')">Cancel</button>
+                    <button type="submit" class="btn p">Save</button>
+                </div>
+            </form>
         </div>
     </x-modal>
 </div>

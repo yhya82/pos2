@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Append-only (DB triggers block UPDATE/DELETE on this table). Settings
@@ -15,6 +17,45 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class AuditLog extends Model
 {
     const UPDATED_AT = null;
+
+    /**
+     * Severity groupings for the security module's own event types —
+     * shared by Audit Logs' tone mapping (Activity and Security tabs) and
+     * the Security Center's Login Activity/Threats tabs, so the exact
+     * same action is never colored differently depending which page it's
+     * viewed from. 'create', 'update', 'void', 'delete', 'adjustment',
+     * 'receive', 'payment', 'approve' are other modules' actions and stay
+     * hardcoded at each tone-match call site — these only cover the
+     * module-agnostic ones security events need.
+     */
+    const OK_ACTIONS = ['login', 'password_changed', 'session_revoked'];
+
+    const SERIOUS_ACTIONS = ['tamper_ignored', 'access_denied', 'account_locked'];
+
+    const WARN_ACTIONS = ['login_failed', 'login_blocked', 'session_expired', 'login_new_device', 'password_reused_blocked'];
+
+    /**
+     * The curated, higher-severity subset shown on the Security Center's
+     * Threats tab — every one of these is also in SERIOUS_ACTIONS or
+     * WARN_ACTIONS above, so its tone there already matches this list's
+     * severity without being redefined a second time.
+     */
+    const THREAT_ACTIONS = ['tamper_ignored', 'access_denied', 'account_locked', 'login_new_device', 'password_reused_blocked'];
+
+    /**
+     * "Needs a look" thresholds for a person's per-period counts — shared
+     * by Audit Logs' "Who did what" tab and the Security Center's People
+     * tab, so the same person isn't flagged on one page and not the
+     * other. Tampering and any lockout flag at 1 (no threshold needed:
+     * both are already serious on their own).
+     */
+    const FLAG_FAILED_LOGINS = 5;
+
+    const FLAG_DENIED = 3;
+
+    const FLAG_NEW_DEVICES = 3;
+
+    const FLAG_REUSE_BLOCKED = 3;
 
     protected $fillable = [
         'user_id',
@@ -115,6 +156,34 @@ class AuditLog extends Model
     public static function tamperIgnored(string $what, array $attempted, array $applied): void
     {
         static::security('tamper_ignored', auth()->id(), ['what' => $what, 'attempted' => $attempted, 'applied' => $applied], 'User');
+    }
+
+    /**
+     * The rolling-window security counts shown on both Audit Logs' alert
+     * bar and the Security Center's score card/stat tiles — one
+     * definition so "failed logins" etc. always means the same query in
+     * both places, not two hand-rolled SUM(...) statements that can
+     * quietly drift apart.
+     *
+     * @return array{failed_logins: int, denied: int, tampering: int, new_devices: int}
+     */
+    public static function securityCounts(Carbon $since): array
+    {
+        $counts = DB::table('audit_logs')
+            ->where('module', 'security')
+            ->where('created_at', '>=', $since)
+            ->selectRaw("SUM(action IN ('login_failed','login_blocked')) AS failed_logins,
+                SUM(action = 'access_denied') AS denied,
+                SUM(action = 'tamper_ignored') AS tampering,
+                SUM(action = 'login_new_device') AS new_devices")
+            ->first();
+
+        return [
+            'failed_logins' => (int) ($counts->failed_logins ?? 0),
+            'denied' => (int) ($counts->denied ?? 0),
+            'tampering' => (int) ($counts->tampering ?? 0),
+            'new_devices' => (int) ($counts->new_devices ?? 0),
+        ];
     }
 
     public static function record(string $action, string $module, string $recordType, int $recordId, ?array $previous = null, ?array $new = null): void

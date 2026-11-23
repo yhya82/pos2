@@ -28,11 +28,6 @@ class AuditLogViewer extends Component
 {
     use WithPagination, AuthorizesModuleActions;
 
-    /** After this many in the period, a person is flagged for a look. */
-    private const FLAG_FAILED_LOGINS = 5;
-
-    private const FLAG_DENIED = 3;
-
     #[Url]
     public string $tab = 'activity';
 
@@ -144,8 +139,10 @@ class AuditLogViewer extends Component
             'users' => User::orderBy('name')->get(['id', 'name']),
             'alerts' => $this->alerts(),
             'peopleFrom' => $this->peopleRange()[0],
-            'flagFailedLogins' => self::FLAG_FAILED_LOGINS,
-            'flagDenied' => self::FLAG_DENIED,
+            'flagFailedLogins' => AuditLog::FLAG_FAILED_LOGINS,
+            'flagDenied' => AuditLog::FLAG_DENIED,
+            'flagNewDevices' => AuditLog::FLAG_NEW_DEVICES,
+            'flagReuseBlocked' => AuditLog::FLAG_REUSE_BLOCKED,
         ]);
     }
 
@@ -168,24 +165,11 @@ class AuditLogViewer extends Component
      * now — shown above every tab so an administrator sees trouble without
      * having to go looking for it.
      *
-     * @return array{failed_logins: int, denied: int, tampering: int, locked: int}
+     * @return array{failed_logins: int, denied: int, tampering: int, locked: int, new_devices: int}
      */
     private function alerts(): array
     {
-        $since = now()->subDay();
-
-        $counts = DB::table('audit_logs')
-            ->where('module', 'security')
-            ->where('created_at', '>=', $since)
-            ->selectRaw("SUM(action IN ('login_failed','login_blocked','rate_limited')) AS failed_logins,
-                SUM(action = 'access_denied') AS denied,
-                SUM(action = 'tamper_ignored') AS tampering")
-            ->first();
-
-        return [
-            'failed_logins' => (int) ($counts->failed_logins ?? 0),
-            'denied' => (int) ($counts->denied ?? 0),
-            'tampering' => (int) ($counts->tampering ?? 0),
+        return AuditLog::securityCounts(now()->subDay()) + [
             'locked' => User::where('locked_until', '>', now())->count(),
         ];
     }
@@ -221,12 +205,20 @@ class AuditLogViewer extends Component
                 SUM(a.action = 'void') AS voids,
                 SUM(a.module = 'returns' AND a.action = 'create') AS refunds,
                 SUM(a.action = 'login') AS logins,
-                SUM(a.action IN ('login_failed','login_blocked','rate_limited')) AS failed_logins,
+                SUM(a.action IN ('login_failed','login_blocked')) AS failed_logins,
                 SUM(a.action = 'access_denied') AS denied,
                 SUM(a.action = 'tamper_ignored') AS tampering,
+                SUM(a.action = 'login_new_device') AS new_devices,
+                SUM(a.action = 'password_reused_blocked') AS reuse_blocked,
+                SUM(a.action = 'account_locked') AS lockouts,
                 MAX(a.created_at) AS last_seen")
             ->groupBy('a.user_id', 'u.name', 'r.name')
-            ->orderByRaw('(SUM(a.action = \'tamper_ignored\') * 100 + SUM(a.action = \'access_denied\') * 10 + SUM(a.action IN (\'login_failed\',\'login_blocked\',\'rate_limited\'))) DESC')
+            ->orderByRaw("(SUM(a.action = 'tamper_ignored') * 100
+                + SUM(a.action = 'access_denied') * 10
+                + SUM(a.action = 'account_locked') * 20
+                + SUM(a.action IN ('login_failed','login_blocked'))
+                + SUM(a.action = 'login_new_device') * 2
+                + SUM(a.action = 'password_reused_blocked') * 2) DESC")
             ->orderByDesc('actions')
             ->get();
     }

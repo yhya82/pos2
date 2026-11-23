@@ -1,5 +1,5 @@
 @php
-    $hasAlerts = $alerts['failed_logins'] > 0 || $alerts['denied'] > 0 || $alerts['tampering'] > 0 || $alerts['locked'] > 0;
+    $hasAlerts = $alerts['failed_logins'] > 0 || $alerts['denied'] > 0 || $alerts['tampering'] > 0 || $alerts['locked'] > 0 || $alerts['new_devices'] > 0;
 @endphp
 
 <div class="audit-skin">
@@ -17,12 +17,13 @@
             <div class="astat"><b>{{ $alerts['denied'] }}</b>&nbsp;access {{ $alerts['denied'] === 1 ? 'denial' : 'denials' }}</div>
             <div class="astat"><b>{{ $alerts['tampering'] }}</b>&nbsp;tampered {{ $alerts['tampering'] === 1 ? 'value' : 'values' }} ignored</div>
             <div class="astat"><b>{{ $alerts['locked'] }}</b>&nbsp;{{ $alerts['locked'] === 1 ? 'account' : 'accounts' }} locked now</div>
+            <div class="astat"><b>{{ $alerts['new_devices'] }}</b>&nbsp;new-device {{ $alerts['new_devices'] === 1 ? 'login' : 'logins' }}</div>
             @if ($tab !== 'security')
                 <span class="spacer"></span>
                 <button type="button" wire:click="setTab('security')">Review security events</button>
             @endif
         @else
-            <span>No failed logins, denied requests or tampering.</span>
+            <span>No failed logins, denied requests, tampering, or new-device logins.</span>
         @endif
     </div>
 
@@ -127,11 +128,11 @@
                     @forelse ($logs as $log)
                         @php
                             $isSecurity = $log->module === 'security';
-                            $serious = in_array($log->action, ['tamper_ignored', 'access_denied', 'account_locked'], true);
-                            $warn = in_array($log->action, ['login_failed', 'login_blocked', 'rate_limited', 'session_expired'], true);
+                            $serious = in_array($log->action, \App\Models\AuditLog::SERIOUS_ACTIONS, true);
+                            $warn = in_array($log->action, \App\Models\AuditLog::WARN_ACTIONS, true);
                             $detail = $log->new_value ?? [];
                             $tone = match (true) {
-                                in_array($log->action, ['create', 'login'], true) => 'ok',
+                                $log->action === 'create' || in_array($log->action, \App\Models\AuditLog::OK_ACTIONS, true) => 'ok',
                                 $log->action === 'update' => 'plain',
                                 $serious || in_array($log->action, ['void', 'delete'], true) => 'acc',
                                 $warn || $log->action === 'adjustment' => 'warn',
@@ -150,8 +151,10 @@
                                         {{ $detail['method'] ?? '' }} {{ $detail['component'] ?? ($detail['path'] ?? '') }}@if (! empty($detail['call'])) → {{ $detail['call'] }}@endif @if (! empty($detail['why'])) ({{ $detail['why'] }})@endif
                                     @elseif ($log->action === 'tamper_ignored')
                                         {{ $detail['what'] ?? '' }}
-                                    @elseif (in_array($log->action, ['login_failed', 'login_blocked', 'rate_limited', 'account_locked']))
+                                    @elseif (in_array($log->action, ['login_failed', 'login_blocked', 'account_locked']))
                                         {{ $detail['email'] ?? '' }}@if (isset($detail['known_account']) && ! $detail['known_account']) <span style="color:var(--acc);">(no such account)</span>@endif @if (! empty($detail['reason'])) — {{ $detail['reason'] }}@endif
+                                    @elseif ($log->action === 'session_revoked')
+                                        Revoked by {{ \App\Models\User::find($detail['revoked_by'] ?? null)?->name ?? 'an administrator' }}
                                     @else
                                         {{ $detail['email'] ?? '' }}
                                     @endif
@@ -214,7 +217,7 @@
     @if ($people !== null)
         <div class="notetext">
             {{ $dateFrom || $dateTo ? 'For the dates chosen above.' : 'The last 7 days — pick dates above to change it.' }}
-            People with {{ $flagFailedLogins }}+ failed logins, {{ $flagDenied }}+ denied requests, or any ignored tampering are flagged.
+            People with {{ $flagFailedLogins }}+ failed logins, {{ $flagDenied }}+ denied requests, {{ $flagNewDevices }}+ new-device logins, {{ $flagReuseBlocked }}+ blocked password reuses, any lockout, or any ignored tampering are flagged.
         </div>
         <div class="card" style="margin-top:0;">
             <table class="tbl">
@@ -229,12 +232,22 @@
                         <th class="num">Failed logins</th>
                         <th class="num">Denied</th>
                         <th class="num">Tampering</th>
+                        <th class="num">New devices</th>
+                        <th class="num">Reuse blocked</th>
+                        <th class="num">Lockouts</th>
                         <th>Last seen</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse ($people as $p)
-                        @php $flagged = $p->failed_logins >= $flagFailedLogins || $p->denied >= $flagDenied || $p->tampering >= 1; @endphp
+                        @php
+                            $flagged = $p->failed_logins >= $flagFailedLogins
+                                || $p->denied >= $flagDenied
+                                || $p->tampering >= 1
+                                || $p->new_devices >= $flagNewDevices
+                                || $p->reuse_blocked >= $flagReuseBlocked
+                                || $p->lockouts >= 1;
+                        @endphp
                         <tr wire:key="person-{{ $p->user_id ?? 'none' }}" @class(['arow-serious' => $flagged])>
                             <td>
                                 <span style="font-weight:700;">{{ $p->name }}</span>
@@ -249,10 +262,13 @@
                             <td @class(['num', 'flagged' => $p->failed_logins >= $flagFailedLogins])>{{ (int) $p->failed_logins }}</td>
                             <td @class(['num', 'flagged' => $p->denied >= $flagDenied])>{{ (int) $p->denied }}</td>
                             <td @class(['num', 'flagged' => $p->tampering >= 1])>{{ (int) $p->tampering }}</td>
+                            <td @class(['num', 'flagged' => $p->new_devices >= $flagNewDevices])>{{ (int) $p->new_devices }}</td>
+                            <td @class(['num', 'flagged' => $p->reuse_blocked >= $flagReuseBlocked])>{{ (int) $p->reuse_blocked }}</td>
+                            <td @class(['num', 'flagged' => $p->lockouts >= 1])>{{ (int) $p->lockouts }}</td>
                             <td class="mut mono">{{ \Illuminate\Support\Carbon::parse($p->last_seen)->format('Y-m-d H:i') }}</td>
                         </tr>
                     @empty
-                        <tr><td colspan="10" class="empty">No activity in this period.</td></tr>
+                        <tr><td colspan="13" class="empty">No activity in this period.</td></tr>
                     @endforelse
                 </tbody>
             </table>

@@ -1,10 +1,10 @@
 <?php
 
+use App\Models\User;
+use App\Rules\PasswordPolicy;
 use Illuminate\Auth\Events\PasswordReset;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Session;
-use Illuminate\Validation\Rules;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
 use Livewire\Volt\Component;
@@ -35,7 +35,7 @@ new #[Layout('layouts.guest')] class extends Component
         $this->validate([
             'token' => ['required'],
             'email' => ['required', 'string', 'email'],
-            'password' => ['required', 'string', 'confirmed', Rules\Password::defaults()],
+            'password' => ['required', 'string', 'confirmed', new PasswordPolicy(User::where('email', $this->email)->first())],
         ]);
 
         // Here we will attempt to reset the user's password. If it is successful we
@@ -44,9 +44,9 @@ new #[Layout('layouts.guest')] class extends Component
         $status = Password::reset(
             $this->only('email', 'password', 'password_confirmation', 'token'),
             function ($user) {
-                $user->forceFill([
-                    'password_hash' => Hash::make($this->password),
-                ])->save();
+                // No session of theirs to protect — a forgot-password
+                // reset happens while signed out everywhere.
+                $user->setPassword($this->password);
 
                 event(new PasswordReset($user));
             }

@@ -61,9 +61,19 @@
                     <div>
                         <label for="profile_password">New Password (optional)</label>
                         <input type="password" wire:model="password" id="profile_password" autocomplete="new-password">
+                        <div class="hint">{{ $passwordPolicyHint }}</div>
                         <x-input-error :messages="$errors->get('password')" class="mt-2" />
                     </div>
                 </div>
+
+                @if ((int) $userId === auth()->id())
+                    <div class="f">
+                        <label for="profile_current_password">Current Password<span class="req">*</span></label>
+                        <input type="password" wire:model="currentPassword" id="profile_current_password" autocomplete="current-password">
+                        <div class="hint">Only needed if you're changing your own password above.</div>
+                        <x-input-error :messages="$errors->get('currentPassword')" class="mt-2" />
+                    </div>
+                @endif
 
                 <div class="f grid2" style="margin-bottom:0;">
                     <div>

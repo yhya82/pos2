@@ -22,4 +22,10 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function () {
     Volt::route('confirm-password', 'pages.auth.confirm-password')
         ->name('password.confirm');
+
+    // Where EnsurePasswordNotExpired sends a signed-in user once
+    // security_settings.password_expiry_days has passed since their
+    // last password change.
+    Volt::route('force-password-change', 'pages.auth.force-password-change')
+        ->name('password.force-change');
 });

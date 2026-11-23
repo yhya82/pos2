@@ -1,8 +1,7 @@
 <?php
 
+use App\Rules\PasswordPolicy;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 use Livewire\Volt\Component;
 
@@ -20,7 +19,7 @@ new class extends Component
         try {
             $validated = $this->validate([
                 'current_password' => ['required', 'string', 'current_password'],
-                'password' => ['required', 'string', Password::defaults(), 'confirmed'],
+                'password' => ['required', 'string', 'confirmed', new PasswordPolicy(Auth::user())],
             ]);
         } catch (ValidationException $e) {
             $this->reset('current_password', 'password', 'password_confirmation');
@@ -28,9 +27,9 @@ new class extends Component
             throw $e;
         }
 
-        Auth::user()->update([
-            'password_hash' => Hash::make($validated['password']),
-        ]);
+        // Keeps this session alive — self-service shouldn't log you out
+        // of the very session you used to make the change.
+        Auth::user()->setPassword($validated['password'], session()->getId());
 
         $this->reset('current_password', 'password', 'password_confirmation');
 

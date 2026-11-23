@@ -19,6 +19,11 @@ class ReceiptController extends Controller
 
         $receipt = $sale->receipt()->firstOrFail();
 
+        // Live, not from the snapshot — a refund can happen long after the
+        // original receipt was frozen, same as the existing VOIDED banner
+        // already reads $sale->status live rather than from the snapshot.
+        $sale->load(['lineItems.returnLineItems', 'returns']);
+
         return view('sales.receipt', [
             'sale' => $sale,
             'receipt' => $receipt,

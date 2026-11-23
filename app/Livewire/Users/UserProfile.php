@@ -5,9 +5,7 @@ namespace App\Livewire\Users;
 use App\Livewire\Concerns\AuthorizesModuleActions;
 use App\Models\AuditLog;
 use App\Models\Role;
-use App\Models\SecuritySetting;
 use App\Models\User;
-use App\Rules\PasswordPolicy;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
@@ -21,7 +19,10 @@ class UserProfile extends Component
 
     // --- Editable account details (mirrors UserManager's edit form —
     // this page is "click a user's name" replacing that slide-over with a
-    // full page, same fields/rules, not a different capability). ---
+    // full page, same fields/rules, not a different capability).
+    // Password is deliberately not here — changing an existing user's
+    // password is exclusively the standalone "Change Password" action on
+    // the Users index now, not an edit-form field. ---
     public string $name = '';
 
     public string $username = '';
@@ -34,15 +35,18 @@ class UserProfile extends Component
 
     public string $status = 'active';
 
-    public string $password = '';
-
-    public string $currentPassword = '';
+    public bool $editingDetails = false;
 
     public function mount(User $user): void
     {
         $this->authorizeAction('users', 'view');
 
         $this->userId = $user->id;
+        $this->fillFrom($user);
+    }
+
+    private function fillFrom(User $user): void
+    {
         $this->name = $user->name;
         $this->username = $user->username;
         $this->email = (string) $user->email;
@@ -51,27 +55,32 @@ class UserProfile extends Component
         $this->status = $user->status;
     }
 
+    public function editDetails(): void
+    {
+        $this->authorizeAction('users', 'update');
+
+        $this->fillFrom(User::findOrFail($this->userId));
+        $this->resetValidation();
+        $this->editingDetails = true;
+    }
+
+    public function cancelEditDetails(): void
+    {
+        $this->fillFrom(User::findOrFail($this->userId));
+        $this->resetValidation();
+        $this->editingDetails = false;
+    }
+
     protected function rules(): array
     {
-        $rules = [
+        return [
             'name' => ['required', 'string', 'max:150'],
             'username' => ['required', 'string', 'max:100', Rule::unique('users', 'username')->ignore($this->userId)],
             'email' => ['nullable', 'string', 'email', 'max:150', Rule::unique('users', 'email')->ignore($this->userId)],
             'phone' => ['required', 'digits:9'],
             'roleId' => ['required', 'exists:roles,id'],
             'status' => ['required', 'in:active,inactive'],
-            'password' => ['nullable', 'string', new PasswordPolicy(User::find($this->userId))],
         ];
-
-        // Only when this page is showing your OWN account and you're
-        // actually changing the password — current_password checks the
-        // authenticated user's password, which only means something when
-        // the profile being edited IS the authenticated user.
-        if ((int) $this->userId === auth()->id() && filled($this->password)) {
-            $rules['currentPassword'] = ['required', 'string', 'current_password'];
-        }
-
-        return $rules;
     }
 
     protected function messages(): array
@@ -113,31 +122,21 @@ class UserProfile extends Component
         $previous = $user->only(['name', 'username', 'email', 'phone', 'role_id', 'status']);
         $user->update($attributes);
 
-        if (filled($this->password)) {
-            // An admin resetting someone else's password has no session
-            // of their own on this account to protect, so every one of
-            // this user's sessions gets revoked. Editing your own account
-            // keeps this session alive instead.
-            $isOwnAccount = (int) $user->id === auth()->id();
-            $user->setPassword($this->password, $isOwnAccount ? session()->getId() : null);
-        }
-
         AuditLog::record('update', 'users', 'User', $user->id, $previous, $user->only(['name', 'username', 'email', 'phone', 'role_id', 'status']));
 
-        $this->password = '';
-        $this->currentPassword = '';
+        $this->editingDetails = false;
         $this->dispatch('flash-message', message: 'User updated.', variant: 'success');
     }
 
     public function render()
     {
-        $user = User::with('role')->findOrFail($this->userId);
+        $user = User::with('role.permissions')->findOrFail($this->userId);
 
         return view('livewire.users.user-profile', [
             'user' => $user,
             'canEdit' => auth()->user()->hasPermission('users', 'update'),
             'roles' => Role::where('status', 'active')->orderBy('name')->get(),
-            'passwordPolicyHint' => SecuritySetting::current()->passwordPolicyHint(),
+            'permissionCount' => $user->role->permissions->count(),
         ]);
     }
 }

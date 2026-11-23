@@ -43,11 +43,25 @@ class SalesHistory extends Component
         // No-op — render() below re-queries fresh.
     }
 
+    /**
+     * Fired by RefundModal (a separate component) once it finishes — this
+     * table's own status badges, "items returned" subnote, and the Refund
+     * button's visibility all depend on data that only that component's
+     * action actually changed.
+     */
+    #[On('refund-processed')]
+    public function onRefundProcessed(): void
+    {
+        // No-op — render() below re-queries fresh.
+    }
+
     public function render()
     {
         return view('livewire.sales.sales-history', [
             'currencyCode' => GeneralSetting::current()->currency_code,
             'sales' => Sale::with(['cashier', 'customer', 'payment.paymentMethod'])
+                ->withSum('lineItems', 'quantity')
+                ->withSum('returnedLineItems', 'quantity')
                 ->visibleTo(auth()->user())
                 ->when($this->search, fn ($q) => $q->where(function ($query) {
                     $query->where('receipt_number', 'like', "%{$this->search}%")

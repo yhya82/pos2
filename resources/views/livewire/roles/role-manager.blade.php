@@ -53,6 +53,7 @@
                     <th>Name</th>
                     <th>Description</th>
                     <th class="num">Users</th>
+                    <th class="num">Permissions</th>
                     <th>Status</th>
                     @if ($showActions)
                         <th class="actions">Actions</th>
@@ -65,6 +66,7 @@
                         <td style="font-weight:700;">{{ $role->name }}</td>
                         <td class="mut">{{ $role->description ?: '—' }}</td>
                         <td class="num">{{ $role->users_count }}</td>
+                        <td class="num">{{ $role->permissions_count }}</td>
                         <td>
                             <span @class(['status', 'ok' => $role->status === 'active', 'plain' => $role->status !== 'active'])>{{ ucfirst($role->status) }}</span>
                         </td>
@@ -83,7 +85,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="{{ $showActions ? 5 : 4 }}" class="empty">No roles found.</td>
+                        <td colspan="{{ $showActions ? 6 : 5 }}" class="empty">No roles found.</td>
                     </tr>
                 @endforelse
             </tbody>

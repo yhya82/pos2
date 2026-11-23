@@ -29,9 +29,20 @@
             .print-bar { display: none; }
             body { margin: 0 auto; }
         }
+            .refunded-banner { font-weight: bold; }
+        .returned-line { color: #555; }
     </style>
 </head>
 <body @if (request()->boolean('autoprint')) onload="window.print()" @endif>
+    @php
+        // Live, not from the frozen snapshot — a refund can happen long
+        // after this receipt was first generated. $sale->lineItems and
+        // ->returnLineItems are eager-loaded by the controller.
+        $totalOriginalQty = (float) $sale->lineItems->sum('quantity');
+        $totalReturnedQty = (float) $sale->lineItems->sum(fn ($l) => $l->returnLineItems->sum('quantity'));
+        $totalRefunded = (float) $sale->returns->sum('refund_amount');
+        $isFullyRefunded = $totalReturnedQty > 0 && $totalReturnedQty >= $totalOriginalQty;
+    @endphp
     <div class="print-bar">
         <button onclick="window.print()">Print</button>
     </div>
@@ -60,13 +71,18 @@
         @endif
         @if ($sale->status === 'voided')
             <strong>*** VOIDED ***</strong><br>
+        @elseif ($isFullyRefunded)
+            <strong class="refunded-banner">*** FULLY REFUNDED ***</strong><br>
+        @elseif ($totalReturnedQty > 0)
+            <strong class="refunded-banner">*** PARTIALLY REFUNDED ***</strong><br>
         @endif
     </div>
 
     <hr>
 
     <table>
-        @foreach ($receipt->line_items_snapshot as $line)
+        @foreach ($receipt->line_items_snapshot as $index => $line)
+            @php $returnedQty = (float) ($sale->lineItems[$index]->returnLineItems->sum('quantity') ?? 0); @endphp
             <tr>
                 <td colspan="2">{{ $line['product_name'] }}</td>
             </tr>
@@ -74,6 +90,12 @@
                 <td>{{ rtrim(rtrim($line['quantity'], '0'), '.') }} {{ $line['unit'] }} × {{ number_format($line['unit_price'], 2) }}</td>
                 <td class="right">{{ number_format($line['subtotal'], 2) }}</td>
             </tr>
+            @if ($returnedQty > 0)
+                <tr class="returned-line">
+                    <td>&nbsp;&nbsp;Returned: {{ rtrim(rtrim((string) $returnedQty, '0'), '.') }} {{ $line['unit'] }}</td>
+                    <td class="right">-{{ number_format($returnedQty * (float) $line['unit_price'], 2) }}</td>
+                </tr>
+            @endif
         @endforeach
     </table>
 
@@ -88,6 +110,10 @@
             <tr><td>Tax</td><td class="right">{{ number_format($receipt->totals_snapshot['tax_amount'], 2) }}</td></tr>
         @endif
         <tr class="grand"><td>Total</td><td class="right">{{ $receipt->business_snapshot['currency_code'] }} {{ number_format($receipt->totals_snapshot['total_amount'], 2) }}</td></tr>
+        @if ($totalRefunded > 0)
+            <tr class="returned-line"><td>Refunded</td><td class="right">-{{ number_format($totalRefunded, 2) }}</td></tr>
+            <tr class="grand"><td>Net Total</td><td class="right">{{ $receipt->business_snapshot['currency_code'] }} {{ number_format((float) $receipt->totals_snapshot['total_amount'] - $totalRefunded, 2) }}</td></tr>
+        @endif
         <tr><td>Payment</td><td class="right">{{ $receipt->totals_snapshot['payment_method'] }}</td></tr>
     </table>
 

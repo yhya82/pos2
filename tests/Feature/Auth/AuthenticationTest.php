@@ -3,6 +3,7 @@
 namespace Tests\Feature\Auth;
 
 use App\Livewire\Layout\LogoutButton;
+use App\Models\Role;
 use App\Models\SecuritySetting;
 use App\Models\User;
 use Livewire\Livewire;
@@ -140,6 +141,43 @@ class AuthenticationTest extends TestCase
 
         $this->assertStringContainsString('locked', $lockingAttempt->errors()->first('form.email'));
         $this->assertTrue($user->refresh()->locked_until?->isFuture());
+    }
+
+    public function test_a_cashier_lands_on_pos_after_login_not_the_dashboard(): void
+    {
+        $cashier = Role::where('name', 'Cashier')->firstOrFail();
+        $user = User::factory()->create(['role_id' => $cashier->id, 'password_hash' => 'Compliant123!']);
+
+        Volt::test('pages.auth.login')
+            ->set('form.email', $user->email)
+            ->set('form.password', 'Compliant123!')
+            ->call('login')
+            ->assertRedirect(route('pos.index', absolute: false));
+    }
+
+    public function test_a_non_cashier_still_lands_on_the_dashboard_after_login(): void
+    {
+        $user = User::factory()->create(['password_hash' => 'Compliant123!']);
+
+        Volt::test('pages.auth.login')
+            ->set('form.email', $user->email)
+            ->set('form.password', 'Compliant123!')
+            ->call('login')
+            ->assertRedirect(route('dashboard', absolute: false));
+    }
+
+    public function test_an_intended_url_still_wins_over_the_cashiers_pos_landing_page(): void
+    {
+        $cashier = Role::where('name', 'Cashier')->firstOrFail();
+        $user = User::factory()->create(['role_id' => $cashier->id, 'password_hash' => 'Compliant123!']);
+
+        $this->get(route('customers.index'));
+
+        Volt::test('pages.auth.login')
+            ->set('form.email', $user->email)
+            ->set('form.password', 'Compliant123!')
+            ->call('login')
+            ->assertRedirect(route('customers.index', absolute: false));
     }
 
     public function test_deactivated_users_cannot_authenticate(): void

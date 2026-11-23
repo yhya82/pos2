@@ -147,11 +147,16 @@ class PasswordSecurityPolicyTest extends TestCase
         $this->assertNull(LoginSession::findActiveBySessionId('some-other-device-session'));
     }
 
-    public function test_an_admin_resetting_someone_elses_password_revokes_every_one_of_their_sessions(): void
+    public function test_resetting_an_admins_own_or_someone_elses_session_only_happens_through_change_password_not_edit(): void
     {
+        // An admin resetting someone's password is exclusively the
+        // standalone "Change Password" action now — see the next test.
+        // Editing a user never revokes sessions, because editing can no
+        // longer touch the password at all (see the edit-form tests below).
         $admin = User::factory()->create();
         $target = User::factory()->create();
         LoginSession::startFor($target, 'targets-own-session', '10.0.0.6', 'Target device');
+        $originalHash = $target->password_hash;
 
         Livewire::actingAs($admin)->test(\App\Livewire\Users\UserManager::class)
             ->set('editingUserId', $target->id)
@@ -160,12 +165,12 @@ class PasswordSecurityPolicyTest extends TestCase
             ->set('phone', '831234567')
             ->set('roleId', $target->role_id)
             ->set('status', 'active')
-            ->set('password', 'ResetByAdmin123!')
+            ->set('password', 'IgnoredWhileEditing123!')
             ->call('save')
             ->assertHasNoErrors();
 
-        $this->assertNull(LoginSession::findActiveBySessionId('targets-own-session'));
-        $this->assertTrue(Hash::check('ResetByAdmin123!', $target->refresh()->password_hash));
+        $this->assertNotNull(LoginSession::findActiveBySessionId('targets-own-session'));
+        $this->assertSame($originalHash, $target->refresh()->password_hash);
     }
 
     public function test_the_users_index_change_password_action_enforces_the_policy_and_revokes_sessions(): void
@@ -178,12 +183,14 @@ class PasswordSecurityPolicyTest extends TestCase
             ->call('changePassword', $target->id)
             ->assertDispatched('open-modal', 'change-password')
             ->set('newPassword', 'alllowercase')
+            ->set('confirmPassword', 'alllowercase')
             ->call('savePassword')
             ->assertHasErrors('newPassword');
 
         Livewire::actingAs($admin)->test(\App\Livewire\Users\UserManager::class)
             ->call('changePassword', $target->id)
             ->set('newPassword', 'ResetFromIndex123!')
+            ->set('confirmPassword', 'ResetFromIndex123!')
             ->call('savePassword')
             ->assertHasNoErrors()
             ->assertDispatched('close-modal', 'change-password');
@@ -201,34 +208,71 @@ class PasswordSecurityPolicyTest extends TestCase
             ->call('changePassword', $target->id)
             ->assertDontSee('Current Password')
             ->set('newPassword', 'ResetFromIndex123!')
+            ->set('confirmPassword', 'ResetFromIndex123!')
             ->call('savePassword')
             ->assertHasNoErrors();
 
         $this->assertTrue(Hash::check('ResetFromIndex123!', $target->refresh()->password_hash));
     }
 
-    public function test_changing_your_own_password_from_the_index_requires_the_current_one_and_keeps_this_session(): void
+    public function test_confirm_password_is_required_and_must_match_the_new_password(): void
     {
+        $admin = User::factory()->create();
+        $target = User::factory()->create();
+
+        // Blank confirm password.
+        Livewire::actingAs($admin)->test(\App\Livewire\Users\UserManager::class)
+            ->call('changePassword', $target->id)
+            ->assertSee('Confirm Password')
+            ->set('newPassword', 'ResetFromIndex123!')
+            ->call('savePassword')
+            ->assertHasErrors('confirmPassword');
+
+        // Mismatched confirm password.
+        Livewire::actingAs($admin)->test(\App\Livewire\Users\UserManager::class)
+            ->call('changePassword', $target->id)
+            ->set('newPassword', 'ResetFromIndex123!')
+            ->set('confirmPassword', 'SomethingElse123!')
+            ->call('savePassword')
+            ->assertHasErrors('confirmPassword');
+
+        $this->assertFalse(Hash::check('ResetFromIndex123!', $target->refresh()->password_hash));
+    }
+
+    public function test_changing_your_own_password_from_the_index_needs_no_current_password_and_keeps_this_session(): void
+    {
+        // This is an admin tool (users,update already gates it) — not the
+        // self-service Profile page's own password form, which still
+        // requires current_password. No proof needed here, self or other.
         $admin = User::factory()->create();
         LoginSession::startFor($admin, session()->getId(), '10.0.0.1', 'PHPUnit');
 
         Livewire::actingAs($admin)->test(\App\Livewire\Users\UserManager::class)
             ->call('changePassword', $admin->id)
-            ->assertSee('Current Password')
-            ->set('currentPassword', 'wrong-password')
+            ->assertDontSee('Current Password')
             ->set('newPassword', 'SelfChange123!')
-            ->call('savePassword')
-            ->assertHasErrors('currentPassword');
-
-        Livewire::actingAs($admin)->test(\App\Livewire\Users\UserManager::class)
-            ->call('changePassword', $admin->id)
-            ->set('currentPassword', 'password')
-            ->set('newPassword', 'SelfChange123!')
+            ->set('confirmPassword', 'SelfChange123!')
             ->call('savePassword')
             ->assertHasNoErrors();
 
         $this->assertTrue(Hash::check('SelfChange123!', $admin->refresh()->password_hash));
         $this->assertNotNull(LoginSession::findActiveBySessionId(session()->getId()));
+    }
+
+    public function test_the_checklist_shows_the_configured_minimum_length_and_a_reuse_note_when_history_is_on(): void
+    {
+        SecuritySetting::current()->update([
+            'password_min_length' => 10,
+            'password_history_count' => 3,
+        ]);
+
+        $admin = User::factory()->create();
+        $target = User::factory()->create();
+
+        Livewire::actingAs($admin)->test(\App\Livewire\Users\UserManager::class)
+            ->call('changePassword', $target->id)
+            ->assertSee('At least 10 characters')
+            ->assertSee("Can't reuse your last 3 passwords");
     }
 
     public function test_the_policy_hint_only_mentions_currently_required_character_classes(): void
@@ -246,64 +290,94 @@ class PasswordSecurityPolicyTest extends TestCase
 
         Livewire::actingAs($admin)->test(\App\Livewire\Users\UserManager::class)
             ->call('changePassword', $target->id)
-            ->assertSee('an uppercase letter')
-            ->assertDontSee('a number')
-            ->assertDontSee('a symbol')
+            ->assertSee('An uppercase letter')
+            ->assertDontSee('A lowercase letter')
+            ->assertDontSee('A number')
+            ->assertDontSee('A symbol')
             ->assertDontSee("Can't reuse");
     }
 
-    public function test_the_edit_form_requires_current_password_only_when_editing_your_own_account(): void
+    public function test_the_edit_form_never_shows_or_changes_a_password_self_or_other(): void
     {
         $admin = User::factory()->create(['phone' => '+220831111111']);
         $other = User::factory()->create(['phone' => '+220832222222']);
+        $adminHash = $admin->password_hash;
+        $otherHash = $other->password_hash;
 
-        // Editing someone else: no current_password field, no such rule.
+        // Editing someone else: no password field, no current_password
+        // field — setting the property directly (bypassing the now-absent
+        // field) still changes nothing, since editing no longer touches it.
         Livewire::actingAs($admin)->test(\App\Livewire\Users\UserManager::class)
             ->call('edit', $other->id)
+            ->assertDontSee('wire:model="password"', false)
             ->assertDontSee('Current Password')
             ->set('password', 'EditedByAdmin123!')
             ->call('save')
             ->assertHasNoErrors();
 
-        $this->assertTrue(Hash::check('EditedByAdmin123!', $other->refresh()->password_hash));
+        $this->assertSame($otherHash, $other->refresh()->password_hash);
 
-        // Editing your own account and changing the password: required.
-        $component = Livewire::actingAs($admin)->test(\App\Livewire\Users\UserManager::class)
+        // Editing your own account: same — no password field either.
+        Livewire::actingAs($admin)->test(\App\Livewire\Users\UserManager::class)
             ->call('edit', $admin->id)
-            ->assertSee('Current Password')
-            ->set('currentPassword', 'wrong-password')
+            ->assertDontSee('wire:model="password"', false)
+            ->assertDontSee('Current Password')
             ->set('password', 'SelfEdit123!')
-            ->call('save')
-            ->assertHasErrors('currentPassword');
-
-        $component->set('currentPassword', 'password')
             ->call('save')
             ->assertHasNoErrors();
 
-        $this->assertTrue(Hash::check('SelfEdit123!', $admin->refresh()->password_hash));
+        $this->assertSame($adminHash, $admin->refresh()->password_hash);
     }
 
-    public function test_the_full_page_profile_editor_requires_current_password_only_for_your_own_account(): void
+    public function test_the_create_form_still_requires_a_password_for_a_brand_new_account(): void
+    {
+        $admin = User::factory()->create();
+        $role = \App\Models\Role::first();
+
+        Livewire::actingAs($admin)->test(\App\Livewire\Users\UserManager::class)
+            ->call('create')
+            ->assertSee('wire:model="password"', false)
+            ->set('name', 'New Person')
+            ->set('username', 'newperson')
+            ->set('phone', '831112222')
+            ->set('roleId', $role->id)
+            ->call('save')
+            ->assertHasErrors('password');
+    }
+
+    public function test_the_full_page_profile_editor_never_shows_or_changes_a_password(): void
     {
         $admin = User::factory()->create(['phone' => '+220833333333']);
-        $other = User::factory()->create(['phone' => '+220834444444']);
+        $otherHash = User::factory()->create(['phone' => '+220834444444'])->password_hash;
+        $other = User::where('phone', '+220834444444')->first();
 
         $this->actingAs($admin);
 
         Livewire::test(\App\Livewire\Users\UserProfile::class, ['user' => $other])
             ->assertDontSee('Current Password')
-            ->set('password', 'EditedByAdmin123!')
+            ->assertDontSee('New Password')
+            ->call('editDetails')
             ->call('save')
             ->assertHasNoErrors();
 
-        $this->assertTrue(Hash::check('EditedByAdmin123!', $other->refresh()->password_hash));
+        $this->assertSame($otherHash, $other->refresh()->password_hash);
+    }
+
+    public function test_the_account_details_card_starts_read_only_and_toggles_into_an_edit_form(): void
+    {
+        $admin = User::factory()->create(['name' => 'Ada Admin', 'phone' => '+220835555555']);
+
+        $this->actingAs($admin);
 
         Livewire::test(\App\Livewire\Users\UserProfile::class, ['user' => $admin])
-            ->assertSee('Current Password')
-            ->set('currentPassword', 'wrong-password')
-            ->set('password', 'SelfEdit123!')
-            ->call('save')
-            ->assertHasErrors('currentPassword');
+            ->assertSet('editingDetails', false)
+            ->assertSee('Ada Admin')
+            ->assertDontSee('wire:model="name"', false)
+            ->call('editDetails')
+            ->assertSet('editingDetails', true)
+            ->assertSee('wire:model="name"', false)
+            ->call('cancelEditDetails')
+            ->assertSet('editingDetails', false);
     }
 
     public function test_an_expired_password_redirects_to_the_forced_change_page_right_after_login(): void

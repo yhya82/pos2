@@ -40,7 +40,7 @@ class RoleManager extends Component
     public function render()
     {
         return view('livewire.roles.role-manager', [
-            'roles' => Role::withCount('users')
+            'roles' => Role::withCount(['users', 'permissions'])
                 ->when($this->search, fn ($query) => $query->where('name', 'like', "%{$this->search}%"))
                 ->orderBy('name')
                 ->paginate(10),

@@ -300,7 +300,7 @@
                     <div class="scorecard">
                         <div class="shead">
                             <h3>Security Score</h3>
-                            <p>Reflects how strict the current settings are — see "Improve your score" below to raise it.</p>
+                            <p>Reflects how strict the current settings are, see "Improve your score" below to raise it.</p>
                         </div>
 
                         <div class="ring">
@@ -334,12 +334,11 @@
                     {{-- ----------------------------- Overview tab ----------------------------- --}}
                     @if ($securityTab === 'overview')
                         <div class="stattiles">
-                            <div class="stile"><span class="ic {{ $securityStats['failed_logins'] > 0 ? 'warn' : 'plain' }}"><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></span><b>{{ $securityStats['failed_logins'] }}</b><span>Failed logins (24h)</span></div>
-                            <div class="stile"><span class="ic {{ $securityStats['locked'] > 0 ? 'acc' : 'plain' }}"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span><b>{{ $securityStats['locked'] }}</b><span>Locked right now</span></div>
-                            <div class="stile"><span class="ic plain"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12"/><path d="M8 20h8M12 16v4"/></svg></span><b>{{ $securityStats['devices'] }}</b><span>Signed-in devices</span></div>
-                            <div class="stile"><span class="ic {{ $securityStats['new_devices'] > 0 ? 'warn' : 'ok' }}"><svg viewBox="0 0 24 24"><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21v-8h6v8"/></svg></span><b>{{ $securityStats['new_devices'] }}</b><span>New-device logins (24h)</span></div>
-                            <div class="stile"><span class="ic {{ $securityStats['expiring_soon'] > 0 ? 'warn' : 'plain' }}"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span><b>{{ $securityStats['expiring_soon'] }}</b><span>Expiring in 7 days</span></div>
-                            <div class="stile"><span class="ic {{ $securityStats['expired'] > 0 ? 'acc' : 'plain' }}"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span><b>{{ $securityStats['expired'] }}</b><span>Expired passwords</span></div>
+                            <div class="stile"><span class="ic plain"><svg viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/></svg></span><b>{{ $securityStats['total_logins'] }}</b><span>Total logins</span></div>
+                            <div class="stile"><span class="ic ok"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/></svg></span><b>{{ $securityStats['successful_logins'] }}</b><span>Successful logins</span></div>
+                            <div class="stile"><span class="ic {{ $securityStats['failed_logins'] > 0 ? 'warn' : 'plain' }}"><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></span><b>{{ $securityStats['failed_logins'] }}</b><span>Failed logins</span></div>
+                            <div class="stile"><span class="ic plain"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12"/><path d="M8 20h8M12 16v4"/></svg></span><b>{{ $securityStats['devices'] }}</b><span>Active sessions (currently online)</span></div>
+                            <div class="stile"><span class="ic {{ $securityStats['locked'] > 0 ? 'acc' : 'plain' }}"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span><b>{{ $securityStats['locked'] }}</b><span>Accounts locked right now</span></div>
                         </div>
 
                         <div class="suggest">
@@ -373,7 +372,7 @@
                                 <div class="pochead">
                                     <div>
                                         <h3>Current password policy</h3>
-                                        <p>Applies everywhere a password is set — self-service, admin reset, and the forgot-password link.</p>
+                                        <p>Applies everywhere a password is set, self-service, admin reset, and the forgot-password link.</p>
                                     </div>
                                     <button type="button" class="iconbtn" wire:click="openPolicyEditor" aria-label="Edit password policy" title="Edit password policy">
                                         <svg viewBox="0 0 24 24"><path d="M17 3a2.8 2.8 0 0 1 4 4L7 21l-4 1 1-4z"/></svg>
@@ -396,7 +395,7 @@
                             <div class="dialog">
                                 <div class="dh">
                                     <h2>Password Policy</h2>
-                                    <p>These rules apply to every password set anywhere in the app — self-service, admin reset, and the forgot-password link.</p>
+                                    <p>These rules apply to every password set anywhere in the app, self-service, admin reset, and the forgot-password link.</p>
                                 </div>
                                 <form wire:submit="saveSecurity">
                                     <div class="db">
@@ -474,7 +473,7 @@
                         <div class="toolrow">
                             <div>
                                 <h3>Signed-in devices</h3>
-                                <p>Every device currently signed in, across every user — "Online now" reflects who's actually connected right now, not just who hasn't timed out yet.</p>
+                                <p>Every device currently signed in, across every user, "Online now" reflects who's actually connected right now, not just who hasn't timed out yet.</p>
                             </div>
                         </div>
                         <div class="card">
@@ -486,11 +485,16 @@
                                     @forelse ($securityDevices as $sess)
                                         @php
                                             $isCurrent = $sess->token_hash === hash('sha256', session()->getId());
-                                            $isOnline = in_array($sess->user_id, $onlineUserIds, true);
+                                            // Loose match: the presence payload round-trips through the
+                                            // browser (Echo -> JS -> Livewire), so it's never worth
+                                            // trusting it's still the same PHP int type on the way back.
+                                            // Your own session is always "right here", regardless of
+                                            // whether the websocket sync has landed yet.
+                                            $isOnline = $isCurrent || in_array($sess->user_id, $onlineUserIds);
                                         @endphp
                                         <tr>
                                             <td>{{ $sess->user?->name ?? 'Unknown' }}@if ($isCurrent)<span class="tag">this device</span>@endif</td>
-                                            <td><span class="status {{ $isOnline ? 'ok' : '' }}">{{ $isOnline ? 'Online now' : 'Away' }}</span></td>
+                                            <td><span class="status {{ $isOnline ? 'ok' : 'plain' }}">{{ $isOnline ? 'Online now' : 'Away' }}</span></td>
                                             <td class="mut">{{ \Illuminate\Support\Str::limit($sess->user_agent ?? '—', 42) }}</td>
                                             <td class="mut">{{ $sess->ip_address }}</td>
                                             <td class="mut">{{ $sess->created_at->format('Y-m-d H:i') }}</td>
@@ -514,7 +518,7 @@
                         <div class="toolrow">
                             <div>
                                 <h3>Login activity</h3>
-                                <p>Logins, failures, logouts and password changes — the most recent 50 security events.</p>
+                                <p>Logins, failures, logouts and password changes, the most recent 50 security events.</p>
                             </div>
                             <a class="more" href="{{ route('audit-logs.index', ['tab' => 'security']) }}" wire:navigate>View full Audit Log →</a>
                         </div>
@@ -554,7 +558,7 @@
                         <div class="toolrow">
                             <div>
                                 <h3>Flagged for a look</h3>
-                                <p>A curated, higher-severity slice of the security log — tampering, denied requests, lockouts and new-device logins.</p>
+                                <p>A curated, higher-severity slice of the security log, tampering, denied requests, lockouts and new-device logins.</p>
                             </div>
                             <a class="more" href="{{ route('audit-logs.index', ['tab' => 'security']) }}" wire:navigate>View full Audit Log →</a>
                         </div>
@@ -584,7 +588,7 @@
                                 @endforeach
                             </div>
                         @else
-                            <p class="hint">Nothing flagged — no tampering, denials, lockouts or new-device logins recorded yet.</p>
+                            <p class="hint">Nothing flagged, no tampering, denials, lockouts or new-device logins recorded yet.</p>
                         @endif
                     @endif
 
@@ -593,7 +597,7 @@
                         <div class="toolrow">
                             <div>
                                 <h3>Who looks risky</h3>
-                                <p>The last 7 days' security-relevant counts per person — not sales, voids or refunds, which stay on the Audit Logs "Who did what" tab.</p>
+                                <p>The last 7 days' security-relevant counts per person, not sales, voids or refunds, which stay on the Audit Logs "Who did what" tab.</p>
                             </div>
                             <a class="more" href="{{ route('audit-logs.index', ['tab' => 'people']) }}" wire:navigate>View full Audit Log →</a>
                         </div>
@@ -678,7 +682,7 @@
             {{-- ============================== APPEARANCE ============================== --}}
             @if ($activeSection === 'appearance')
                 <div class="cardbody">
-                    <p class="hint" style="margin-bottom:16px;">Saved to your account — this only affects your own view, and applies immediately.</p>
+                    <p class="hint" style="margin-bottom:16px;">Saved to your account, this only affects your own view, and applies immediately.</p>
                     <div class="themepick">
                         @foreach (['light' => 'Light', 'dark' => 'Dark', 'system' => 'System'] as $value => $label)
                             <button type="button" wire:click="saveTheme('{{ $value }}')" @class(['themeopt', 'active' => $theme === $value])>

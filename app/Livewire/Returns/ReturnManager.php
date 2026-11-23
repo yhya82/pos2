@@ -35,7 +35,7 @@ class ReturnManager extends Component
 
     public string $saleSearchError = '';
 
-    /** @var array<int, array{sale_line_item_id: int, product_name: string, unit_price: float, max_returnable: float, quantity: string, condition_type: string, reason: string}> */
+    /** @var array<int, array{sale_line_item_id: int, product_name: string, unit_price: float, max_returnable: float, original_qty: float, already_returned: float, quantity: string, condition_type: string}> */
     public array $returnLines = [];
 
     public string $overallReason = '';
@@ -100,7 +100,7 @@ class ReturnManager extends Component
         // Only sales this user is allowed to refund: someone with returns.update
         // sees every sale, anyone else's list is just their own.
         return Sale::with(['customer', 'cashier'])
-            ->where('status', 'completed')
+            ->whereIn('status', ['completed', 'refunded'])
             ->when(! auth()->user()->hasPermission('returns', 'update'), fn ($q) => $q->where('cashier_id', auth()->id()))
             ->when($this->saleSearch, fn ($q) => $q->where(fn ($w) => $w->where('receipt_number', 'like', "%{$this->saleSearch}%")
                 ->orWhereHas('customer', fn ($cq) => $cq->where('name', 'like', "%{$this->saleSearch}%"))))
@@ -167,8 +167,8 @@ class ReturnManager extends Component
         $this->foundSaleId = null;
         $this->returnLines = [];
 
-        if ($sale->status !== 'completed') {
-            $this->saleSearchError = "This sale is {$sale->status} — only completed sales can have a return processed.";
+        if (! in_array($sale->status, ['completed', 'refunded'], true)) {
+            $this->saleSearchError = "This sale is {$sale->status} — only completed or already-refunded sales can have a return processed.";
 
             return;
         }

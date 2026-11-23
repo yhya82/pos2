@@ -9,7 +9,7 @@
         @endif
     </button>
 
-    <div x-show="$wire.open" x-transition style="display: none;" class="notif-panel">
+    <div x-show="$wire.open" x-transition style="display: none;" class="notif-panel absolute">
         <div class="ph">
             <span>Notifications</span>
             @if ($unreadCount > 0)

@@ -23,7 +23,7 @@
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
-        @vite(['resources/css/app.css', 'resources/css/sidebar.css', 'resources/css/notifications-bell.css', 'resources/js/app.js'])
+        @vite(['resources/css/app.css', 'resources/css/sidebar.css', 'resources/css/notifications-bell.css', 'resources/css/user-menu.css', 'resources/js/app.js'])
         @stack('head')
     </head>
     <body
@@ -90,27 +90,34 @@
 
                         <!-- User profile menu (SRS Sec. 20.4): name, current
                              role, profile link, logout. -->
-                        <x-dropdown align="right" width="56">
-                            <x-slot name="trigger">
-                                <button class="flex items-center gap-2 text-sm focus:outline-none">
-                                    <span class="text-right leading-tight hidden sm:block">
-                                        <span class="block font-medium text-gray-800 dark:text-gray-100">{{ auth()->user()->name }}</span>
-                                        <span class="block text-xs text-gray-500 dark:text-gray-400">{{ auth()->user()->role->name }}</span>
-                                    </span>
-                                    <svg class="fill-current h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-                                    </svg>
-                                </button>
-                            </x-slot>
+                        @php
+                            $headerInitials = collect(preg_split('/\s+/', trim(auth()->user()->name)))->filter()->map(fn ($part) => mb_strtoupper(mb_substr($part, 0, 1)))->take(2)->implode('');
+                        @endphp
+                        <div class="user-menu" x-data="{ open: false }" x-on:click.outside="open = false" x-on:keydown.escape.window="open = false">
+                            <button type="button" class="user-menu-trigger" x-on:click="open = ! open" x-bind:aria-expanded="open" aria-haspopup="true">
+                                <span class="av">{{ $headerInitials ?: '?' }}</span>
+                                <span class="who hidden sm:block">
+                                    <span class="nm">{{ auth()->user()->name }}</span>
+                                    <span class="rl">{{ auth()->user()->role->name }}</span>
+                                </span>
+                                <svg class="chev" width="14" height="14" viewBox="0 0 20 20" style="fill:currentColor; stroke:none;">
+                                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
 
-                            <x-slot name="content">
-                                <x-dropdown-link :href="route('profile')" wire:navigate>
+                            <div class="user-menu-panel absolute" x-show="open" x-transition x-on:click="open = false" style="display: none;">
+                                <div class="hd">
+                                    <div class="nm">{{ auth()->user()->name }}</div>
+                                    <div class="em">{{ auth()->user()->email }}</div>
+                                </div>
+                                <a href="{{ route('profile') }}" wire:navigate class="item">
+                                    <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5"/></svg>
                                     {{ __('Profile') }}
-                                </x-dropdown-link>
+                                </a>
 
                                 <livewire:layout.logout-button />
-                            </x-slot>
-                        </x-dropdown>
+                            </div>
+                        </div>
                     </div>
                 </header>
 

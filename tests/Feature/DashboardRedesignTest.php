@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Http\Middleware\EnsureSessionNotExpired;
 use App\Livewire\Dashboard\DashboardOverview;
+use App\Livewire\Dashboard\OnlineUsers;
 use App\Livewire\Pos\Terminal;
 use App\Models\Batch;
 use App\Models\Customer;
@@ -378,5 +379,47 @@ class DashboardRedesignTest extends TestCase
 
         Livewire::actingAs($user)->test(DashboardOverview::class)
             ->assertSee("doesn't have visibility into any dashboard data yet", false);
+    }
+
+    public function test_restock_links_to_the_product_profile_only_with_products_and_inventory_permission(): void
+    {
+        $low = Product::factory()->create(['name' => 'Almost Gone', 'min_stock_level' => 10]);
+        Batch::factory()->for($low)->remaining(2)->create();
+
+        $out = Product::factory()->create(['name' => 'All Sold']);
+        Batch::factory()->for($out)->remaining(0)->create(['qty_received' => 5]);
+
+        // Inventory view alone isn't enough — the product profile link
+        // needs products,view (to open the page) and inventory,update
+        // (to actually see the Add Stock button once there).
+        $inventoryOnly = $this->userWith([['inventory', 'view']]);
+
+        Livewire::actingAs($inventoryOnly)->test(DashboardOverview::class)
+            ->assertDontSee(route('products.show', $low))
+            ->assertDontSee(route('products.show', $out))
+            ->assertSee(route('inventory.index', ['tab' => 'stock', 'low_stock' => 1]));
+
+        $canRestock = $this->userWith([['inventory', 'view'], ['inventory', 'update'], ['products', 'view']]);
+
+        Livewire::actingAs($canRestock)->test(DashboardOverview::class)
+            ->assertSee(route('products.show', $low))
+            ->assertSee(route('products.show', $out));
+    }
+
+    public function test_the_online_users_widget_renders_initials_once_the_presence_roster_syncs(): void
+    {
+        // The roster arrives from the browser's own Echo.join() callback,
+        // forwarded in as a plain event — never populated on the initial
+        // server render, which is why this only ever broke live, the
+        // instant a real login's presence sync landed.
+        $other = User::factory()->create(['name' => 'Jane Doe']);
+
+        Livewire::actingAs($this->admin)->test(OnlineUsers::class)
+            ->dispatch('online-users-synced', users: [
+                ['id' => $other->id, 'name' => $other->name, 'role' => null],
+            ])
+            ->assertHasNoErrors()
+            ->assertSee('JD')
+            ->assertSee('Jane Doe');
     }
 }

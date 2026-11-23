@@ -59,45 +59,38 @@ new class extends Component
     }
 }; ?>
 
-<section>
-    <header>
-        <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">
-            {{ __('Profile Information') }}
-        </h2>
+<div class="card">
+    <div class="cardhead">
+        <span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5"/></svg></span>
+        <h3>{{ __('Profile Information') }}</h3>
+    </div>
 
-        <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            {{ __("Update your account's profile information and email address.") }}
-        </p>
-    </header>
-
-    <form wire:submit="updateProfileInformation" class="mt-6 space-y-6">
-        <div>
-            <x-input-label for="name" :value="__('Name')" />
-            <x-text-input wire:model="name" id="name" name="name" type="text" class="mt-1 block w-full" required autofocus autocomplete="name" />
+    <form wire:submit="updateProfileInformation" class="cardbody">
+        <div class="f">
+            <label for="name">{{ __('Name') }}<span class="req">*</span></label>
+            <input wire:model="name" id="name" name="name" type="text" required autofocus autocomplete="name">
             <x-input-error class="mt-2" :messages="$errors->get('name')" />
         </div>
 
-        <div>
-            <x-input-label for="email" :value="__('Email')" />
-            <x-text-input wire:model="email" id="email" name="email" type="email" class="mt-1 block w-full" required autocomplete="username" />
+        <div class="f">
+            <label for="email">{{ __('Email') }}<span class="req">*</span></label>
+            <input wire:model="email" id="email" name="email" type="email" required autocomplete="username">
             <x-input-error class="mt-2" :messages="$errors->get('email')" />
         </div>
 
-        <div>
-            <x-input-label for="phone" :value="__('Phone')" />
-            <div class="mt-1 flex items-center gap-2">
-                <span class="text-sm text-gray-500 dark:text-gray-400">+220</span>
-                <x-text-input wire:model="phone" id="phone" name="phone" type="text" placeholder="831234567" maxlength="9" class="block w-full" required autocomplete="tel" />
+        <div class="f">
+            <label for="phone">{{ __('Phone') }}<span class="req">*</span></label>
+            <div class="prefix">
+                <span>+220</span>
+                <input wire:model="phone" id="phone" name="phone" type="text" placeholder="831234567" maxlength="9" required autocomplete="tel">
             </div>
             <x-input-error class="mt-2" :messages="$errors->get('phone')" />
         </div>
 
-        <div class="flex items-center gap-4">
-            <x-primary-button>{{ __('Save') }}</x-primary-button>
+        <button type="submit" class="btn p">{{ __('Save Changes') }}</button>
 
-            <x-action-message class="me-3" on="profile-updated">
-                {{ __('Saved.') }}
-            </x-action-message>
-        </div>
+        <x-action-message class="saved" on="profile-updated">
+            {{ __('Saved.') }}
+        </x-action-message>
     </form>
-</section>
+</div>

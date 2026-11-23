@@ -24,7 +24,7 @@ class RefundModal extends Component
 
     public ?int $saleId = null;
 
-    /** @var array<int, array{sale_line_item_id: int, product_name: string, unit_price: float, max_returnable: float, quantity: string, condition_type: string, reason: string}> */
+    /** @var array<int, array{sale_line_item_id: int, product_name: string, unit_price: float, max_returnable: float, original_qty: float, already_returned: float, quantity: string, condition_type: string}> */
     public array $returnLines = [];
 
     public string $overallReason = '';
@@ -46,8 +46,8 @@ class RefundModal extends Component
         $this->error = '';
         $this->resetErrorBag();
 
-        if ($sale->status !== 'completed') {
-            $this->error = "This sale is {$sale->status} — only completed sales can have a return processed.";
+        if (! in_array($sale->status, ['completed', 'refunded'], true)) {
+            $this->error = "This sale is {$sale->status} — only completed or already-refunded sales can have a return processed.";
             $this->dispatch('open-modal', 'refund-sale');
 
             return;
@@ -93,6 +93,11 @@ class RefundModal extends Component
 
         $this->dispatch('close-modal', 'refund-sale');
         $this->dispatch('flash-message', message: "{$salesReturn->return_number} processed — refund {$salesReturn->refund_amount}.", variant: 'success');
+        // RefundModal and SalesHistory are separate Livewire components —
+        // without this, the row's status badge, "items returned" subnote,
+        // and the Refund button's own visibility all stay stale until the
+        // page is manually reloaded.
+        $this->dispatch('refund-processed');
         $this->reset(['saleId', 'returnLines', 'overallReason']);
     }
 

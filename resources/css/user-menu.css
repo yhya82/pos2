@@ -1,0 +1,47 @@
+/*
+ * The account menu in the shared app header's top-right corner — like
+ * notifications-bell.css, this loads globally (every page shows it, not
+ * just Profile), so it can only touch the .user-menu-* elements it owns,
+ * never #app-header or <main>. Was the stock Breeze dropdown (plain
+ * white panel, default Tailwind) until this redesign; now the same
+ * flat, boxy, Inter look as the rest of the app. Scoped classes
+ * (`.user-menu-trigger`, `.user-menu-panel`) also give it its own,
+ * literal "absolute" marker class on the panel so every page's own
+ * `#app-header *:not(.absolute, .absolute *)` header-recolor rule
+ * leaves it alone — the same escape hatch the user-menu's own trigger
+ * button needs, since both live inside #app-header.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+body {
+    --bg: #f6f6f4; --surf: #fff; --ink: #1a1a1c; --mut: #55555b;
+    --line: #e3e3df; --soft: #efefeb; --acc: #a81c26; --acc-ink: #fff; --acc-soft: #f9e9e9;
+}
+html.dark body {
+    --bg: #0f0f11; --surf: #18181b; --ink: #f3f3f4; --mut: #aeaeb6;
+    --line: #2a2a2f; --soft: #222226; --acc: #c93840; --acc-ink: #fff; --acc-soft: #3a1c1d;
+}
+
+.user-menu, .user-menu *, .user-menu *::before, .user-menu *::after { box-sizing: border-box; }
+.user-menu { position: relative; font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif; }
+.user-menu button, .user-menu a { font: inherit; }
+.user-menu a { text-decoration: none; }
+.user-menu svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+
+.user-menu-trigger { display: flex; align-items: center; gap: 10px; border: 0; background: none; padding: 4px; cursor: pointer; color: inherit; }
+.user-menu-trigger .av { width: 32px; height: 32px; flex-shrink: 0; background: rgba(255, 255, 255, .18); color: inherit; display: grid; place-items: center; font-size: 12.5px; font-weight: 800; letter-spacing: -.02em; }
+.user-menu-trigger .who { text-align: right; line-height: 1.25; }
+.user-menu-trigger .who .nm { display: block; font-size: 13px; font-weight: 700; }
+.user-menu-trigger .who .rl { display: block; font-size: 11px; opacity: .85; }
+.user-menu-trigger .chev { flex-shrink: 0; transition: transform .15s; }
+.user-menu-trigger[aria-expanded="true"] .chev { transform: rotate(180deg); }
+
+.user-menu-panel { position: absolute; right: 0; top: calc(100% + 10px); width: 230px; background: var(--surf); border: 1px solid var(--line); color: var(--ink); z-index: 60; box-shadow: 0 8px 24px rgba(0, 0, 0, .12); }
+.user-menu-panel .hd { padding: 13px 15px; border-bottom: 1px solid var(--line); }
+.user-menu-panel .hd .nm { font-size: 13.5px; font-weight: 700; }
+.user-menu-panel .hd .em { font-size: 11.5px; color: var(--mut); margin-top: 2px; }
+.user-menu-panel .item { display: flex; align-items: center; gap: 9px; width: 100%; padding: 11px 15px; font-size: 13px; font-weight: 600; color: var(--ink); border: 0; border-top: 1px solid var(--line); background: none; cursor: pointer; text-align: left; }
+.user-menu-panel .item:first-of-type { border-top: 0; }
+.user-menu-panel .item:hover { background: var(--soft); }
+.user-menu-panel .item.danger { color: var(--acc); }
+.user-menu-panel .item svg { width: 15px; height: 15px; flex-shrink: 0; }

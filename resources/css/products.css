@@ -72,6 +72,15 @@ html.dark .products-skin { color-scheme: dark; }
 
 .products-skin .card { background: var(--surf); border: 1px solid var(--line); overflow-x: auto; }
 
+.products-skin .costcard { padding: 14px 16px; overflow: visible; }
+.products-skin .costcard.after { border-top: 3px solid var(--acc); }
+.products-skin .costcard-h { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mut); margin-bottom: 10px; }
+.products-skin .costcard.after .costcard-h { color: var(--acc); }
+.products-skin .costcard-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.products-skin .costcard-row:first-of-type { border-top: 0; }
+.products-skin .costcard-row strong { font-weight: 800; white-space: nowrap; }
+.products-skin .costcard-row .delta { font-size: 11.5px; font-weight: 600; margin-left: 4px; }
+
 .products-skin .tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .products-skin .tbl th { text-align: left; padding: 11px 16px; font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--mut); background: var(--soft); border-bottom: 1px solid var(--line); white-space: nowrap; }
 .products-skin .tbl th.num, .products-skin .tbl td.num { text-align: right; }
@@ -207,7 +216,7 @@ html.dark .products-skin .f select, html.dark .products-skin select {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23aeaeb6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
 }
 .products-skin .f input:focus, .products-skin .f select:focus, .products-skin .f textarea:focus { outline: none; border-color: var(--acc); box-shadow: 0 0 0 3px var(--acc-soft); }
-.products-skin .f .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.products-skin .f.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .products-skin .f .hint { font-size: 11.5px; color: var(--mut); margin-top: 5px; }
 .products-skin .f .hint.ok { color: var(--ok); }
 .products-skin .f .hint.warn { color: var(--acc); }

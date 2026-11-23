@@ -280,6 +280,7 @@ class ProductProfile extends Component
         $product = Product::findOrFail($this->productId);
         $this->addStockUnitCost = $this->formatMoney($product->toPurchaseUnitCost((float) $product->cost_price, 'selling'));
         $this->addStockSellingPrice = $this->formatMoney((float) $product->selling_price);
+        $this->addStockBatchCode = Batch::suggestCodeFor($product);
 
         $this->showAddStockForm = true;
     }

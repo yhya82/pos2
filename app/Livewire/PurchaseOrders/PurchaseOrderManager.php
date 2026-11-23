@@ -488,7 +488,7 @@ class PurchaseOrderManager extends Component
                 'ordered' => (float) $line->qty_ordered,
                 'already_in' => round((float) $line->qty_ordered - $line->remainingQty(), 6),
                 'qty' => '',
-                'batch_code' => '',
+                'batch_code' => Batch::suggestCodeFor($line->product),
                 'expiry_date' => '',
                 'received_date' => now()->toDateString(),
                 // Pre-filled from the order and the product; change either when the

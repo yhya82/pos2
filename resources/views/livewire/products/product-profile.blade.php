@@ -732,8 +732,16 @@
         {{-- Wider than this canvas's other slide-overs: this form's own comparison table needs the room, same reasoning as Sales' RefundModal using 2xl for its line-item grid. --}}
         @php
             $unitName = $product->sellingUnit->name;
+            $purchaseUnitName = $product->purchaseUnit->name;
+            $unitsDiffer = $product->purchase_unit_id !== $product->selling_unit_id;
             $signed = fn (float $n) => ($n > 0.004 ? '+' : ($n < -0.004 ? '−' : '')).number_format(abs($n), 2);
             $pct = fn (?float $n) => $n === null ? '—' : number_format($n, 1).'%';
+            // Higher is better (selling price, profit, margin) vs lower is
+            // better (cost, stock value at cost) — colors the "After" card
+            // by what a correction actually does to the bottom line, not
+            // just whether a number went up.
+            $upGood = fn (float $old, float $new) => $new > $old + 0.004 ? 'var(--ok)' : ($new < $old - 0.004 ? 'var(--acc)' : 'inherit');
+            $downGood = fn (float $old, float $new) => $new < $old - 0.004 ? 'var(--ok)' : ($new > $old + 0.004 ? 'var(--acc)' : 'inherit');
             $priorCorrections = $costCorrectionBatchId ? ($corrections[$costCorrectionBatchId] ?? collect()) : collect();
         @endphp
 
@@ -754,7 +762,19 @@
                 </div>
             @endif
 
-            <p class="hint" style="margin-bottom: 16px;">Use this when a batch was received at the wrong cost — for example a cost entered per pack instead of per {{ $unitName }}. Stock value and profit use each batch's own cost, so fixing the product's cost price doesn't fix an existing batch.</p>
+            @if ($unitsDiffer)
+                <div class="notice warn">
+                    This product is bought by the <strong>{{ $purchaseUnitName }}</strong> but sold by the <strong>{{ $unitName }}</strong> — 1 {{ $purchaseUnitName }} = {{ rtrim(rtrim(number_format($product->conversion_qty, 3), '0'), '.') }} {{ $unitName }}. Enter the cost per <strong>{{ $unitName }}</strong> below, not per {{ $purchaseUnitName }}.
+                </div>
+            @endif
+
+            <p class="hint" style="margin-bottom: 16px;">
+                Use this when a batch was received at the wrong cost
+                @if ($unitsDiffer)
+                    — for example a cost entered per {{ $purchaseUnitName }} instead of per {{ $unitName }}
+                @endif
+                . Stock value and profit use each batch's own cost, so fixing the product's cost price doesn't fix an existing batch.
+            </p>
 
             <div class="f">
                 <label for="cost_correction_value">New cost (per {{ $unitName }})</label>
@@ -773,48 +793,78 @@
                 @if (! $costPreview['changed'])
                     <p class="hint">Enter a different cost or selling price to see what changes.</p>
                 @else
-                    <div class="card" style="margin-bottom: 16px;">
-                        <table class="tbl">
-                            <thead>
-                                <tr><th>What changes</th><th class="num">Before</th><th class="num">After</th><th class="num">Change</th></tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td>Cost per {{ $unitName }}</td>
-                                    <td class="num mut">{{ number_format($costPreview['old'], 2) }}</td>
-                                    <td class="num">{{ number_format($costPreview['new'], 2) }}</td>
-                                    <td class="num mut">{{ $signed($costPreview['new'] - $costPreview['old']) }}</td>
-                                </tr>
-                                @if ($costPreview['priceChanged'])
-                                    <tr>
-                                        <td>Selling price per {{ $unitName }}</td>
-                                        <td class="num mut">{{ number_format($costPreview['listOld'], 2) }}</td>
-                                        <td class="num">{{ number_format($costPreview['listNew'], 2) }}</td>
-                                        <td class="num mut">{{ $signed($costPreview['listNew'] - $costPreview['listOld']) }}</td>
-                                    </tr>
-                                @endif
-                                <tr>
-                                    <td>Profit per {{ $unitName }} <span class="mut" style="font-size:11px;">(at {{ number_format($costPreview['price'], 2) }})</span></td>
-                                    <td class="num" style="color: {{ $costPreview['unitProfitOld'] < 0 ? 'var(--acc)' : 'inherit' }}">{{ number_format($costPreview['unitProfitOld'], 2) }}</td>
-                                    <td class="num" style="color: {{ $costPreview['unitProfitNew'] < 0 ? 'var(--acc)' : 'var(--ok)' }}">{{ number_format($costPreview['unitProfitNew'], 2) }}</td>
-                                    <td class="num mut">{{ $signed($costPreview['unitProfitNew'] - $costPreview['unitProfitOld']) }}</td>
-                                </tr>
-                                <tr>
-                                    <td>Margin</td>
-                                    <td class="num mut">{{ $pct($costPreview['marginOld']) }}</td>
-                                    <td class="num">{{ $pct($costPreview['marginNew']) }}</td>
-                                    <td class="num mut">{{ $costPreview['marginOld'] !== null && $costPreview['marginNew'] !== null ? $signed($costPreview['marginNew'] - $costPreview['marginOld']).' pts' : '—' }}</td>
-                                </tr>
-                                @if ($costPreview['countsTowardStock'])
-                                    <tr>
-                                        <td>Stock value at cost <span class="mut" style="font-size:11px;">({{ rtrim(rtrim(number_format($costPreview['qty'], 3), '0'), '.') ?: '0' }} in stock)</span></td>
-                                        <td class="num mut">{{ number_format($costPreview['valueOld'], 2) }}</td>
-                                        <td class="num">{{ number_format($costPreview['valueNew'], 2) }}</td>
-                                        <td class="num mut">{{ $signed($costPreview['valueNew'] - $costPreview['valueOld']) }}</td>
-                                    </tr>
-                                @endif
-                            </tbody>
-                        </table>
+                    <div class="hint" style="font-weight: 700; color: var(--ink); margin-bottom: 8px;">What changes</div>
+                    <div class="f grid2" style="margin-bottom: 16px;">
+                        <div class="card costcard">
+                            <div class="costcard-h">Before</div>
+                            <div class="costcard-row">
+                                <span>Cost per {{ $unitName }}</span>
+                                <strong>{{ number_format($costPreview['old'], 2) }}</strong>
+                            </div>
+                            @if ($costPreview['priceChanged'])
+                                <div class="costcard-row">
+                                    <span>Selling price per {{ $unitName }}</span>
+                                    <strong>{{ number_format($costPreview['listOld'], 2) }}</strong>
+                                </div>
+                            @endif
+                            <div class="costcard-row">
+                                <span>Profit per {{ $unitName }} <span class="mut" style="font-size:11px;">(at {{ number_format($costPreview['price'], 2) }})</span></span>
+                                <strong style="color: {{ $costPreview['unitProfitOld'] < 0 ? 'var(--acc)' : 'inherit' }}">{{ number_format($costPreview['unitProfitOld'], 2) }}</strong>
+                            </div>
+                            <div class="costcard-row">
+                                <span>Margin</span>
+                                <strong>{{ $pct($costPreview['marginOld']) }}</strong>
+                            </div>
+                            @if ($costPreview['countsTowardStock'])
+                                <div class="costcard-row">
+                                    <span>Stock value at cost <span class="mut" style="font-size:11px;">({{ rtrim(rtrim(number_format($costPreview['qty'], 3), '0'), '.') ?: '0' }} in stock)</span></span>
+                                    <strong>{{ number_format($costPreview['valueOld'], 2) }}</strong>
+                                </div>
+                            @endif
+                        </div>
+
+                        <div class="card costcard after">
+                            <div class="costcard-h">After</div>
+                            <div class="costcard-row">
+                                <span>Cost per {{ $unitName }}</span>
+                                <strong style="color: {{ $downGood($costPreview['old'], $costPreview['new']) }}">
+                                    {{ number_format($costPreview['new'], 2) }}
+                                    <span class="delta">({{ $signed($costPreview['new'] - $costPreview['old']) }})</span>
+                                </strong>
+                            </div>
+                            @if ($costPreview['priceChanged'])
+                                <div class="costcard-row">
+                                    <span>Selling price per {{ $unitName }}</span>
+                                    <strong style="color: {{ $upGood($costPreview['listOld'], $costPreview['listNew']) }}">
+                                        {{ number_format($costPreview['listNew'], 2) }}
+                                        <span class="delta">({{ $signed($costPreview['listNew'] - $costPreview['listOld']) }})</span>
+                                    </strong>
+                                </div>
+                            @endif
+                            <div class="costcard-row">
+                                <span>Profit per {{ $unitName }} <span class="mut" style="font-size:11px;">(at {{ number_format($costPreview['price'], 2) }})</span></span>
+                                <strong style="color: {{ $upGood($costPreview['unitProfitOld'], $costPreview['unitProfitNew']) }}">
+                                    {{ number_format($costPreview['unitProfitNew'], 2) }}
+                                    <span class="delta">({{ $signed($costPreview['unitProfitNew'] - $costPreview['unitProfitOld']) }})</span>
+                                </strong>
+                            </div>
+                            <div class="costcard-row">
+                                <span>Margin</span>
+                                <strong style="color: {{ $costPreview['marginOld'] !== null && $costPreview['marginNew'] !== null ? $upGood($costPreview['marginOld'], $costPreview['marginNew']) : 'inherit' }}">
+                                    {{ $pct($costPreview['marginNew']) }}
+                                    <span class="delta">({{ $costPreview['marginOld'] !== null && $costPreview['marginNew'] !== null ? $signed($costPreview['marginNew'] - $costPreview['marginOld']).' pts' : '—' }})</span>
+                                </strong>
+                            </div>
+                            @if ($costPreview['countsTowardStock'])
+                                <div class="costcard-row">
+                                    <span>Stock value at cost <span class="mut" style="font-size:11px;">({{ rtrim(rtrim(number_format($costPreview['qty'], 3), '0'), '.') ?: '0' }} in stock)</span></span>
+                                    <strong style="color: {{ $downGood($costPreview['valueOld'], $costPreview['valueNew']) }}">
+                                        {{ number_format($costPreview['valueNew'], 2) }}
+                                        <span class="delta">({{ $signed($costPreview['valueNew'] - $costPreview['valueOld']) }})</span>
+                                    </strong>
+                                </div>
+                            @endif
+                        </div>
                     </div>
 
                     @unless ($costPreview['countsTowardStock'])

@@ -142,21 +142,18 @@
                 </div>
             </div>
 
-            @if ($editingUserId && (int) $editingUserId === auth()->id())
-                <div class="f">
-                    <label for="user_current_password">Current Password<span class="req">*</span></label>
-                    <input type="password" wire:model="currentPassword" id="user_current_password" autocomplete="current-password">
-                    <div class="hint">Only needed if you're changing your own password below.</div>
-                    <x-input-error :messages="$errors->get('currentPassword')" class="mt-2" />
+            {{-- Password fields only apply to a brand-new account — changing
+                 an existing user's password is now exclusively the
+                 standalone "Change Password" action (see changePassword()/
+                 savePassword()), so editing never shows them at all. --}}
+            @unless ($editingUserId)
+                <div class="f" style="margin-bottom:0;">
+                    <label for="user_password">Password<span class="req">*</span></label>
+                    <input type="password" wire:model="password" id="user_password" autocomplete="new-password">
+                    <div class="hint">{{ $passwordPolicyHint }}</div>
+                    <x-input-error :messages="$errors->get('password')" class="mt-2" />
                 </div>
-            @endif
-
-            <div class="f" style="margin-bottom:0;">
-                <label for="user_password">{{ $editingUserId ? 'New Password (leave blank to keep current)' : 'Password' }}@unless ($editingUserId)<span class="req">*</span>@endunless</label>
-                <input type="password" wire:model="password" id="user_password" autocomplete="new-password">
-                <div class="hint">{{ $passwordPolicyHint }}</div>
-                <x-input-error :messages="$errors->get('password')" class="mt-2" />
-            </div>
+            @endunless
         </form>
 
         <x-slot name="footer">
@@ -169,7 +166,7 @@
         <div class="dialog">
             <div class="dh">
                 <h2>Confirm</h2>
-                <p>Are you sure? The account is deactivated, not deleted — its sales and audit history are kept, and it can be reactivated later.</p>
+                <p>Are you sure? The account is deactivated, not deleted, its sales and audit history are kept, and it can be reactivated later.</p>
             </div>
             <div class="df">
                 <button type="button" class="btn" x-on:click="$dispatch('close')">Cancel</button>
@@ -183,25 +180,57 @@
             <div class="dh">
                 <h2>Change Password</h2>
                 @if ($passwordUserId === auth()->id())
-                    <p>Sets a new password for your own account. Every other device you're currently signed into will be signed out — this one stays signed in.</p>
+                    <p>Sets a new password for your own account. Every other device you're currently signed into will be signed out, this one stays signed in.</p>
                 @else
-                    <p>Sets a new password for {{ $passwordUserName }} right away — they won't need to know the old one, and every other device they're currently signed into will be signed out.</p>
+                    <p>Sets a new password for {{ $passwordUserName }} right away, they won't need to know the old one, and every other device they're currently signed into will be signed out.</p>
                 @endif
             </div>
-            <form wire:submit="savePassword">
+            <form wire:submit="savePassword" x-data="{ pw: '' }">
                 <div class="db">
-                    @if ($passwordUserId === auth()->id())
-                        <div class="f">
-                            <label for="current_password">Current Password<span class="req">*</span></label>
-                            <input type="password" wire:model="currentPassword" id="current_password" autocomplete="current-password">
-                            <x-input-error :messages="$errors->get('currentPassword')" class="mt-2" />
-                        </div>
-                    @endif
-                    <div class="f" style="margin-bottom:0;">
+                    <div class="f">
                         <label for="new_password">New Password<span class="req">*</span></label>
-                        <input type="password" wire:model="newPassword" id="new_password" autocomplete="new-password">
-                        <div class="hint">{{ $passwordPolicyHint }}</div>
+                        <input type="password" wire:model="newPassword" x-on:input="pw = $event.target.value" id="new_password" autocomplete="new-password">
+
+                        <div class="pwchecklist">
+                            <div class="pwcheck" :class="pw.length >= {{ $security->password_min_length }} ? 'met' : ''">
+                                <span class="dot"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+                                <span>At least {{ $security->password_min_length }} characters</span>
+                            </div>
+                            @if ($security->password_require_uppercase)
+                                <div class="pwcheck" :class="/[A-Z]/.test(pw) ? 'met' : ''">
+                                    <span class="dot"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+                                    <span>An uppercase letter</span>
+                                </div>
+                            @endif
+                            @if ($security->password_require_lowercase)
+                                <div class="pwcheck" :class="/[a-z]/.test(pw) ? 'met' : ''">
+                                    <span class="dot"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+                                    <span>A lowercase letter</span>
+                                </div>
+                            @endif
+                            @if ($security->password_require_number)
+                                <div class="pwcheck" :class="/[0-9]/.test(pw) ? 'met' : ''">
+                                    <span class="dot"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+                                    <span>A number</span>
+                                </div>
+                            @endif
+                            @if ($security->password_require_symbol)
+                                <div class="pwcheck" :class="/[^A-Za-z0-9]/.test(pw) ? 'met' : ''">
+                                    <span class="dot"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+                                    <span>A symbol</span>
+                                </div>
+                            @endif
+                        </div>
+                        @if ($security->password_history_count > 0)
+                            <div class="hint">Can't reuse your last {{ $security->password_history_count }} passwords (checked when you save).</div>
+                        @endif
                         <x-input-error :messages="$errors->get('newPassword')" class="mt-2" />
+                    </div>
+
+                    <div class="f" style="margin-bottom:0;">
+                        <label for="confirm_password">Confirm Password<span class="req">*</span></label>
+                        <input type="password" wire:model="confirmPassword" id="confirm_password" autocomplete="new-password">
+                        <x-input-error :messages="$errors->get('confirmPassword')" class="mt-2" />
                     </div>
                 </div>
                 <div class="df">

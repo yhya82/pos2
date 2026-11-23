@@ -52,6 +52,14 @@ class AddStockPricingTest extends TestCase
             ->assertSet('addStockSellingPrice', '10');
     }
 
+    public function test_it_opens_with_a_suggested_batch_code_that_stays_editable(): void
+    {
+        $this->form()
+            ->assertSet('addStockBatchCode', \App\Models\Batch::suggestCodeFor($this->product))
+            ->set('addStockBatchCode', 'SUPPLIER-OWN-LOT-99')
+            ->assertSet('addStockBatchCode', 'SUPPLIER-OWN-LOT-99');
+    }
+
     public function test_switching_the_unit_keeps_the_cost_meaning_the_same_money(): void
     {
         $this->form()

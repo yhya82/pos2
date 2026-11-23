@@ -40,7 +40,7 @@ new #[Layout('layouts.guest')] class extends Component
         // explicitly, here, now that the password actually complies.
         session()->forget('must_change_password');
 
-        $this->redirectIntended(default: route('dashboard', absolute: false), navigate: true);
+        $this->redirectIntended(default: Auth::user()->defaultLandingRoute(), navigate: true);
     }
 
     public function logoutInstead(Logout $logout): void

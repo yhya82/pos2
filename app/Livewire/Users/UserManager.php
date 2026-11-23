@@ -40,9 +40,9 @@ class UserManager extends Component
 
     public string $passwordUserName = '';
 
-    public string $currentPassword = '';
-
     public string $newPassword = '';
+
+    public string $confirmPassword = '';
 
     public function updatingSearch(): void
     {
@@ -62,6 +62,7 @@ class UserManager extends Component
                 ->paginate(10),
             'roles' => Role::where('status', 'active')->orderBy('name')->get(),
             'passwordPolicyHint' => $this->passwordPolicyHint(),
+            'security' => SecuritySetting::current(),
         ]);
     }
 
@@ -74,21 +75,14 @@ class UserManager extends Component
             'phone' => ['required', 'digits:9'],
             'roleId' => ['required', 'exists:roles,id'],
             'status' => ['required', 'in:active,inactive'],
-            'password' => [
-                $this->editingUserId ? 'nullable' : 'required',
-                'string',
-                new PasswordPolicy($this->editingUserId ? User::find($this->editingUserId) : null),
-            ],
+            // Only asked for when creating a brand-new account — changing
+            // an existing user's password is exclusively the standalone
+            // "Change Password" action now (changePassword()/
+            // savePassword()), so editing never touches this at all.
+            'password' => $this->editingUserId
+                ? ['nullable']
+                : ['required', 'string', new PasswordPolicy(null)],
         ];
-
-        // Only when editing your OWN account and actually changing the
-        // password — current_password checks the authenticated user's
-        // password, which only means something here when the target IS
-        // the authenticated user. Resetting someone else's needs no such
-        // proof (that's the whole point of an admin reset).
-        if ($this->editingUserId && (int) $this->editingUserId === auth()->id() && filled($this->password)) {
-            $rules['currentPassword'] = ['required', 'string', 'current_password'];
-        }
 
         return $rules;
     }
@@ -104,7 +98,7 @@ class UserManager extends Component
     {
         $this->authorizeAction('users', 'create');
 
-        $this->reset(['editingUserId', 'name', 'username', 'email', 'phone', 'roleId', 'password', 'currentPassword']);
+        $this->reset(['editingUserId', 'name', 'username', 'email', 'phone', 'roleId', 'password']);
         $this->status = 'active';
         $this->resetValidation();
 
@@ -125,7 +119,6 @@ class UserManager extends Component
         $this->roleId = $user->role_id;
         $this->status = $user->status;
         $this->password = '';
-        $this->currentPassword = '';
         $this->resetValidation();
 
         $this->dispatch('open-modal', 'user-form');
@@ -167,19 +160,12 @@ class UserManager extends Component
 
         if ($isCreating) {
             $user = User::create($attributes);
+            // A brand-new account has no session of its own yet to protect.
+            $user->setPassword($this->password);
         } else {
             $user = User::findOrFail($this->editingUserId);
             $previous = $user->only(['name', 'username', 'email', 'phone', 'role_id', 'status']);
             $user->update($attributes);
-        }
-
-        if (filled($this->password)) {
-            // An admin resetting someone else's password has no session
-            // of their own on this account to protect, so every one of
-            // this user's sessions gets revoked. Editing your own account
-            // keeps this session alive instead.
-            $isOwnAccount = ! $isCreating && (int) $user->id === auth()->id();
-            $user->setPassword($this->password, $isOwnAccount ? session()->getId() : null);
         }
 
         AuditLog::record(
@@ -211,8 +197,8 @@ class UserManager extends Component
 
         $this->passwordUserId = $user->id;
         $this->passwordUserName = $user->name;
-        $this->currentPassword = '';
         $this->newPassword = '';
+        $this->confirmPassword = '';
         $this->resetValidation();
 
         $this->dispatch('open-modal', 'change-password');
@@ -225,31 +211,25 @@ class UserManager extends Component
         $user = User::findOrFail($this->passwordUserId);
         $isOwnAccount = $user->id === auth()->id();
 
-        $rules = [
+        $validated = $this->validate([
             'newPassword' => ['required', 'string', new PasswordPolicy($user)],
-        ];
+            'confirmPassword' => ['required', 'string', 'same:newPassword'],
+        ], [
+            'confirmPassword.same' => "Confirm Password doesn't match the new password.",
+        ]);
 
-        // Only meaningful for your own account — Laravel's current_password
-        // rule checks the AUTHENTICATED user's password, which isn't the
-        // target when an admin is resetting someone else's; there's no
-        // "old password" for an admin to prove they know in that case,
-        // which is the entire point of this being an admin-reset tool.
-        if ($isOwnAccount) {
-            $rules['currentPassword'] = ['required', 'string', 'current_password'];
-        }
-
-        $validated = $this->validate($rules);
-
-        // Same reasoning as the Edit form's password field: an admin
+        // No current-password proof required, self or other — this is an
+        // admin tool (users,update is already required to get here), not
+        // the self-service Profile page's own password form. An admin
         // resetting someone else's password has no session of their own
-        // on this account to protect, so every one of their sessions is
-        // revoked. Changing your own keeps this session alive.
+        // on that account to protect, so every one of their sessions is
+        // revoked; changing your own keeps this session alive.
         $user->setPassword($validated['newPassword'], $isOwnAccount ? session()->getId() : null);
 
         $this->dispatch('close-modal', 'change-password');
         $this->dispatch('flash-message', message: "Password changed for {$user->name}.", variant: 'success');
 
-        $this->reset(['passwordUserId', 'passwordUserName', 'currentPassword', 'newPassword']);
+        $this->reset(['passwordUserId', 'passwordUserName', 'newPassword', 'confirmPassword']);
     }
 
     private function passwordPolicyHint(): string

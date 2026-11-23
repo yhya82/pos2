@@ -2,7 +2,7 @@
     <div class="top">
         <div>
             <h1>Units</h1>
-            <p>Purchase and selling units products are measured in — e.g. Carton, Bottle, Kg</p>
+            <p>Purchase and selling units products are measured in. e.g. Carton, Bottle, Kg</p>
         </div>
         @if (auth()->user()->hasPermission('products', 'create'))
             <button type="button" wire:click="create" class="btn p">

@@ -139,6 +139,38 @@ class SecurityCenterTest extends TestCase
         $this->assertCount(2, $devices);
     }
 
+    public function test_your_own_session_always_shows_online_even_before_the_presence_sync_lands(): void
+    {
+        LoginSession::startFor($this->admin, session()->getId(), '10.0.0.1', 'PHPUnit Current');
+
+        // No 'online-users-synced' dispatch yet — onlineUserIds is still [].
+        Livewire::actingAs($this->admin)->test(SettingsManager::class)
+            ->set('activeSection', 'security')
+            ->call('setSecurityTab', 'devices')
+            ->assertSet('onlineUserIds', [])
+            ->assertSeeHtml('status ok')
+            ->assertSee('Online now')
+            ->assertDontSee('Away');
+    }
+
+    public function test_someone_elses_session_shows_away_with_a_styled_badge_until_they_are_reported_online(): void
+    {
+        $other = User::factory()->create();
+        LoginSession::startFor($other, 'someone-elses-session', '10.0.0.2', 'Other device');
+
+        $component = Livewire::actingAs($this->admin)->test(SettingsManager::class)
+            ->set('activeSection', 'security')
+            ->call('setSecurityTab', 'devices')
+            ->assertSeeHtml('status plain')
+            ->assertSee('Away');
+
+        $component->dispatch('online-users-synced', users: [
+            ['id' => $other->id, 'name' => $other->name, 'role' => null],
+        ]);
+
+        $component->assertSee('Online now')->assertDontSee('Away');
+    }
+
     public function test_revoking_a_device_signs_it_out_and_is_logged(): void
     {
         $other = User::factory()->create();
@@ -180,29 +212,19 @@ class SecurityCenterTest extends TestCase
         $this->assertSame(1, $stats['devices']);
     }
 
-    public function test_overview_counts_expiring_and_expired_passwords_only_when_expiry_is_on(): void
+    public function test_overview_stats_count_total_successful_and_failed_logins(): void
     {
-        SecuritySetting::current()->update(['password_expiry_days' => 30]);
-
-        User::factory()->create(['password_changed_at' => now()->subDays(45)]); // expired
-        User::factory()->create(['password_changed_at' => now()->subDays(25)]); // expires in 5 days
-        User::factory()->create(['password_changed_at' => now()->subDays(2)]); // fine
+        AuditLog::security('login', $this->admin->id, ['email' => $this->admin->email], 'User');
+        AuditLog::security('login', $this->admin->id, ['email' => $this->admin->email], 'User');
+        AuditLog::security('login_failed', null, ['email' => 'nobody@example.com'], 'User');
 
         $stats = Livewire::actingAs($this->admin)->test(SettingsManager::class)
             ->set('activeSection', 'security')
             ->viewData('securityStats');
 
-        $this->assertSame(1, $stats['expired']);
-        $this->assertSame(1, $stats['expiring_soon']);
-
-        SecuritySetting::current()->update(['password_expiry_days' => 0]);
-
-        $stats = Livewire::actingAs($this->admin)->test(SettingsManager::class)
-            ->set('activeSection', 'security')
-            ->viewData('securityStats');
-
-        $this->assertSame(0, $stats['expired']);
-        $this->assertSame(0, $stats['expiring_soon']);
+        $this->assertSame(2, $stats['successful_logins']);
+        $this->assertSame(1, $stats['failed_logins']);
+        $this->assertSame(3, $stats['total_logins']);
     }
 
     public function test_threats_tab_only_shows_the_curated_higher_severity_actions(): void

@@ -599,43 +599,23 @@ class SettingsManager extends Component
     }
 
     /**
-     * Overview tab stat tiles. "Failed logins" and "new-device logins" use
-     * the same rolling 24h window AuditLogViewer's alert bar uses, so the
-     * same number means the same thing in both places. Expiry counts are
-     * 0 whenever password_expiry_days is off (0), same as
-     * User::passwordHasExpired()'s own rule.
+     * Overview tab stat tiles. Logins and "new-device logins" use the same
+     * rolling 24h window AuditLogViewer's alert bar uses, so the same
+     * number means the same thing in both places.
      *
-     * @return array{failed_logins: int, locked: int, devices: int, new_devices: int, expiring_soon: int, expired: int}
+     * @return array{failed_logins: int, successful_logins: int, total_logins: int, locked: int, devices: int, new_devices: int}
      */
     private function securityOverviewStats(): array
     {
         $counts = AuditLog::securityCounts(now()->subDay());
 
-        $expiryDays = (int) SecuritySetting::current()->password_expiry_days;
-        $expiringSoon = 0;
-        $expired = 0;
-
-        if ($expiryDays > 0) {
-            $soonCutoff = now()->addDays(7);
-
-            User::whereNotNull('password_changed_at')->get(['password_changed_at'])->each(function ($user) use ($expiryDays, $soonCutoff, &$expiringSoon, &$expired) {
-                $expiresAt = $user->password_changed_at->copy()->addDays($expiryDays);
-
-                if ($expiresAt->isPast()) {
-                    $expired++;
-                } elseif ($expiresAt->lessThanOrEqualTo($soonCutoff)) {
-                    $expiringSoon++;
-                }
-            });
-        }
-
         return [
             'failed_logins' => $counts['failed_logins'],
+            'successful_logins' => $counts['successful_logins'],
+            'total_logins' => $counts['failed_logins'] + $counts['successful_logins'],
             'locked' => User::where('locked_until', '>', now())->count(),
             'devices' => LoginSession::whereNull('revoked_at')->where('expires_at', '>', now())->count(),
             'new_devices' => $counts['new_devices'],
-            'expiring_soon' => $expiringSoon,
-            'expired' => $expired,
         ];
     }
 

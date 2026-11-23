@@ -125,7 +125,7 @@ class ReturnServiceTest extends TestCase
         );
     }
 
-    public function test_cannot_return_against_a_non_completed_sale(): void
+    public function test_cannot_return_against_a_voided_sale(): void
     {
         [$sale, , , $cashier] = $this->makeCompletedSale(stock: 20, soldQty: 5);
         $lineItem = $sale->lineItems()->first();
@@ -133,7 +133,7 @@ class ReturnServiceTest extends TestCase
         $this->saleService->voidSale($sale, 'test void', $cashier);
 
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Only completed sales');
+        $this->expectExceptionMessage('Only completed or already-refunded sales');
 
         $this->service->processReturn(
             $sale->fresh(),
@@ -141,6 +141,87 @@ class ReturnServiceTest extends TestCase
             null,
             $cashier,
         );
+    }
+
+    public function test_a_second_partial_return_is_allowed_against_an_already_refunded_sale(): void
+    {
+        // One partial return flips the sale's status to 'refunded' via
+        // the schema's own trigger — that alone must not block a second,
+        // later return against whatever's still eligible.
+        [$sale, , $batch, $cashier] = $this->makeCompletedSale(stock: 20, soldQty: 5);
+        $lineItem = $sale->lineItems()->first();
+
+        $this->service->processReturn(
+            $sale,
+            [['sale_line_item_id' => $lineItem->id, 'quantity' => 2, 'condition_type' => 'sellable']],
+            'first partial return',
+            $cashier,
+        );
+
+        $this->assertSame('refunded', $sale->fresh()->status);
+
+        $second = $this->service->processReturn(
+            $sale->fresh(),
+            [['sale_line_item_id' => $lineItem->id, 'quantity' => 1, 'condition_type' => 'sellable']],
+            'second partial return',
+            $cashier,
+        );
+
+        $this->assertEquals(10.00, $second->refund_amount);
+        $this->assertEquals(18, $batch->fresh()->qty_remaining);
+        $this->assertEquals(2, $lineItem->fresh()->remainingReturnableQty());
+    }
+
+    public function test_a_fully_returned_sale_has_nothing_left_to_return(): void
+    {
+        [$sale, , , $cashier] = $this->makeCompletedSale(stock: 20, soldQty: 5);
+        $lineItem = $sale->lineItems()->first();
+
+        $this->service->processReturn(
+            $sale,
+            [['sale_line_item_id' => $lineItem->id, 'quantity' => 5, 'condition_type' => 'sellable']],
+            'fully returned',
+            $cashier,
+        );
+
+        $this->assertSame([], $this->service->returnableLines($sale->fresh(['lineItems.product'])));
+    }
+
+    public function test_returnable_lines_reports_the_original_and_already_returned_quantities(): void
+    {
+        [$sale, , , $cashier] = $this->makeCompletedSale(stock: 20, soldQty: 5);
+        $lineItem = $sale->lineItems()->first();
+
+        $this->service->processReturn(
+            $sale,
+            [['sale_line_item_id' => $lineItem->id, 'quantity' => 2, 'condition_type' => 'sellable']],
+            'partial return',
+            $cashier,
+        );
+
+        $lines = $this->service->returnableLines($sale->fresh(['lineItems.product']));
+
+        $this->assertSame(5.0, $lines[0]['original_qty']);
+        $this->assertSame(2.0, $lines[0]['already_returned']);
+        $this->assertSame(3.0, $lines[0]['max_returnable']);
+    }
+
+    public function test_the_per_line_reason_is_no_longer_collected(): void
+    {
+        [$sale, , , $cashier] = $this->makeCompletedSale(stock: 20, soldQty: 5);
+        $lineItem = $sale->lineItems()->first();
+
+        $this->service->processReturn(
+            $sale,
+            [['sale_line_item_id' => $lineItem->id, 'quantity' => 2, 'condition_type' => 'sellable']],
+            'overall reason only',
+            $cashier,
+        );
+
+        $this->assertDatabaseHas('sales_return_line_items', [
+            'sale_line_item_id' => $lineItem->id,
+            'reason' => null,
+        ]);
     }
 
     public function test_returning_a_credit_sale_refunds_the_customers_balance(): void

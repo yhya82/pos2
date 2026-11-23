@@ -37,22 +37,24 @@ class ReturnService
      * Refund action), rather than each re-deriving "what's left" itself.
      * Expects $sale->lineItems.product already eager-loaded.
      *
-     * @return array<int, array{sale_line_item_id: int, product_name: string, unit_price: float, max_returnable: float, quantity: string, condition_type: string, reason: string}>
+     * @return array<int, array{sale_line_item_id: int, product_name: string, unit_price: float, max_returnable: float, original_qty: float, already_returned: float, quantity: string, condition_type: string}>
      */
     public function returnableLines(Sale $sale): array
     {
         return $sale->lineItems
             ->map(function ($line) {
                 $remaining = $line->remainingReturnableQty();
+                $original = (float) $line->quantity;
 
                 return $remaining > 0 ? [
                     'sale_line_item_id' => $line->id,
                     'product_name' => $line->product->name,
                     'unit_price' => (float) $line->unit_price,
                     'max_returnable' => $remaining,
+                    'original_qty' => $original,
+                    'already_returned' => $original - $remaining,
                     'quantity' => '',
                     'condition_type' => 'sellable',
-                    'reason' => '',
                 ] : null;
             })
             ->filter()
@@ -61,9 +63,9 @@ class ReturnService
     }
 
     /**
-     * @param  array<int, array{sale_line_item_id: int, quantity: float|string, condition_type: string, reason?: ?string}>  $lines
+     * @param  array<int, array{sale_line_item_id: int, quantity: float|string, condition_type: string}>  $lines
      *
-     * @throws RuntimeException if the sale isn't completed, nothing is selected, or a line exceeds what's still returnable
+     * @throws RuntimeException if the sale isn't completed (or already partially returned), nothing is selected, or a line exceeds what's still returnable
      */
     public function processReturn(Sale $originalSale, array $lines, ?string $overallReason, User $processedBy): SalesReturn
     {
@@ -72,8 +74,14 @@ class ReturnService
             throw new RuntimeException('Only an administrator can refund a sale made by someone else.');
         }
 
-        if ($originalSale->status !== 'completed') {
-            throw new RuntimeException('Only completed sales can have a return processed against them.');
+        // 'refunded' means "at least one return has already been processed
+        // against this sale" — not "nothing left to return". Whether
+        // anything is actually still eligible is what the per-line
+        // remainingReturnableQty() check (right below, per line) and the
+        // "nothing selected" check decide; a voided sale is the only
+        // status that's genuinely terminal here.
+        if (! in_array($originalSale->status, ['completed', 'refunded'], true)) {
+            throw new RuntimeException('Only completed or already-refunded sales can have a return processed against them.');
         }
 
         $lines = array_values(array_filter($lines, fn ($l) => (float) ($l['quantity'] ?? 0) > 0));
@@ -114,7 +122,6 @@ class ReturnService
                     'saleLineItem' => $saleLineItem,
                     'quantity' => $quantity,
                     'conditionType' => $conditionType,
-                    'reason' => $line['reason'] ?? null,
                 ];
             }
 
@@ -134,7 +141,11 @@ class ReturnService
                     'product_id' => $line['saleLineItem']->product_id,
                     'quantity' => $line['quantity'],
                     'condition_type' => $line['conditionType'],
-                    'reason' => $line['reason'],
+                    // No per-line reason collected — the one required
+                    // "Overall Reason" on the return already covers why;
+                    // a free-text reason per line went in but was never
+                    // shown anywhere again, so it was dropped from the form.
+                    'reason' => null,
                 ]);
 
                 $this->restoreInventory($line['saleLineItem'], $returnLineItem, $line['quantity'], $line['conditionType'], $salesReturn, $processedBy);

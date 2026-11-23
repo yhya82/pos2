@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\SecuritySetting;
 use App\Rules\PasswordPolicy;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
@@ -10,6 +11,11 @@ new class extends Component
     public string $current_password = '';
     public string $password = '';
     public string $password_confirmation = '';
+
+    public function with(): array
+    {
+        return ['passwordPolicyHint' => SecuritySetting::current()->passwordPolicyHint()];
+    }
 
     /**
      * Update the password for the currently authenticated user.
@@ -37,42 +43,40 @@ new class extends Component
     }
 }; ?>
 
-<section>
-    <header>
-        <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">
-            {{ __('Update Password') }}
-        </h2>
+<div class="card">
+    <div class="cardhead">
+        <span class="ic"><svg viewBox="0 0 24 24"><path d="M15.75 7.5a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z"/><path d="M11.25 9.75L3 18v3h3l8.25-8.25"/></svg></span>
+        <h3>{{ __('Change Password') }}</h3>
+    </div>
 
-        <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            {{ __('Ensure your account is using a long, random password to stay secure.') }}
-        </p>
-    </header>
-
-    <form wire:submit="updatePassword" class="mt-6 space-y-6">
-        <div>
-            <x-input-label for="update_password_current_password" :value="__('Current Password')" />
-            <x-text-input wire:model="current_password" id="update_password_current_password" name="current_password" type="password" class="mt-1 block w-full" autocomplete="current-password" />
+    <form wire:submit="updatePassword" class="cardbody">
+        <div class="f">
+            <label for="update_password_current_password">{{ __('Current Password') }}<span class="req">*</span></label>
+            <input wire:model="current_password" id="update_password_current_password" name="current_password" type="password" autocomplete="current-password">
+            <div class="hint">{{ __("Needed to confirm it's really you.") }}</div>
             <x-input-error :messages="$errors->get('current_password')" class="mt-2" />
         </div>
 
-        <div>
-            <x-input-label for="update_password_password" :value="__('New Password')" />
-            <x-text-input wire:model="password" id="update_password_password" name="password" type="password" class="mt-1 block w-full" autocomplete="new-password" />
+        <div class="f">
+            <label for="update_password_password">{{ __('New Password') }}<span class="req">*</span></label>
+            <input wire:model="password" id="update_password_password" name="password" type="password" autocomplete="new-password">
+            <div class="hint">{{ $passwordPolicyHint }}</div>
             <x-input-error :messages="$errors->get('password')" class="mt-2" />
         </div>
 
-        <div>
-            <x-input-label for="update_password_password_confirmation" :value="__('Confirm Password')" />
-            <x-text-input wire:model="password_confirmation" id="update_password_password_confirmation" name="password_confirmation" type="password" class="mt-1 block w-full" autocomplete="new-password" />
+        <div class="f">
+            <label for="update_password_password_confirmation">{{ __('Confirm Password') }}<span class="req">*</span></label>
+            <input wire:model="password_confirmation" id="update_password_password_confirmation" name="password_confirmation" type="password" autocomplete="new-password">
             <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
         </div>
 
-        <div class="flex items-center gap-4">
-            <x-primary-button>{{ __('Save') }}</x-primary-button>
+        <button type="submit" class="btn p">
+            <svg viewBox="0 0 24 24"><path d="M15.75 7.5a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z"/><path d="M11.25 9.75L3 18v3h3l8.25-8.25"/></svg>
+            {{ __('Update Password') }}
+        </button>
 
-            <x-action-message class="me-3" on="password-updated">
-                {{ __('Saved.') }}
-            </x-action-message>
-        </div>
+        <x-action-message class="saved" on="password-updated">
+            {{ __('Saved.') }}
+        </x-action-message>
     </form>
-</section>
+</div>

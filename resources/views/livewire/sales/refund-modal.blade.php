@@ -25,7 +25,12 @@
                             <div class="refline" wire:key="refund-line-{{ $index }}">
                                 <div class="refline-top">
                                     <span>{{ $line['product_name'] }}</span>
-                                    <span class="mut">{{ rtrim(rtrim($line['max_returnable'], '0'), '.') }} eligible &commat; {{ number_format($line['unit_price'], 2) }}</span>
+                                    <span class="mut">
+                                        {{ rtrim(rtrim($line['max_returnable'], '0'), '.') }} eligible &commat; {{ number_format($line['unit_price'], 2) }}
+                                        @if ($line['already_returned'] > 0)
+                                            &middot; <span class="alreadyret">{{ rtrim(rtrim($line['already_returned'], '0'), '.') }} already returned</span>
+                                        @endif
+                                    </span>
                                 </div>
                                 <div class="refline-grid">
                                     <div>
@@ -38,10 +43,6 @@
                                             <option value="sellable">Sellable</option>
                                             <option value="damaged">Damaged</option>
                                         </select>
-                                    </div>
-                                    <div>
-                                        <label>Reason</label>
-                                        <input type="text" wire:model="returnLines.{{ $index }}.reason">
                                     </div>
                                 </div>
                             </div>

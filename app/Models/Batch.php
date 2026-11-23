@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Str;
 
 /**
  * Minimal shell so Product::batches() (used by the product list's stock/
@@ -42,5 +43,25 @@ class Batch extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /**
+     * A prefilled, still-editable suggestion for the "Batch Code" field —
+     * batch_code itself is free text with no uniqueness constraint
+     * (purely a human label; nothing in the system keys off it), so this
+     * is cosmetic, not a real identifier. Letters-only prefix (punctuation
+     * and digits in the product name are dropped) plus the product's own
+     * id keeps two different products from ever suggesting the same
+     * prefix, and the running count is this product's own batch number —
+     * "BEL9-1", "BEL9-2", ... for product #9 ("Bel Aqua").
+     */
+    public static function suggestCodeFor(Product $product): string
+    {
+        $letters = preg_replace('/[^A-Za-z]/', '', $product->name);
+        $prefix = Str::upper(Str::substr($letters, 0, 3)) ?: 'BAT';
+
+        $sequence = static::where('product_id', $product->id)->count() + 1;
+
+        return "{$prefix}{$product->id}-{$sequence}";
     }
 }

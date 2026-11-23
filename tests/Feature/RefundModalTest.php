@@ -90,12 +90,12 @@ class RefundModalTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_a_sale_that_is_no_longer_completed_shows_an_error_not_the_form(): void
+    public function test_a_fully_returned_sale_shows_an_error_not_the_form(): void
     {
         // Fully returning a sale's one line flips the sale itself to
-        // "refunded" via the schema's own status-sync trigger — same
-        // real behavior ReturnManager's own sale-loading already relies
-        // on, so trying to refund it again is refused up front.
+        // "refunded" via the schema's own status-sync trigger, but that
+        // status alone no longer blocks re-opening it — it's the fact
+        // that nothing is left on any line that does.
         $sale = $this->sell($this->admin, 1);
         app(\App\Services\ReturnService::class)->processReturn(
             $sale,
@@ -107,7 +107,56 @@ class RefundModalTest extends TestCase
         Livewire::actingAs($this->admin)->test(RefundModal::class)
             ->call('open', $sale->id)
             ->assertSet('saleId', null)
-            ->assertSee('only completed sales can have a return processed');
+            ->assertSee('already been fully returned');
+    }
+
+    public function test_a_voided_sale_still_shows_an_error_not_the_form(): void
+    {
+        $sale = $this->sell($this->admin, 1);
+        app(\App\Services\SaleService::class)->voidSale($sale, 'test void', $this->admin);
+
+        Livewire::actingAs($this->admin)->test(RefundModal::class)
+            ->call('open', $sale->id)
+            ->assertSet('saleId', null)
+            ->assertSee('only completed or already-refunded sales can have a return processed');
+    }
+
+    public function test_a_partially_refunded_sale_can_be_opened_for_a_second_return(): void
+    {
+        $sale = $this->sell($this->admin, 5);
+        app(\App\Services\ReturnService::class)->processReturn(
+            $sale,
+            [['sale_line_item_id' => $sale->lineItems()->first()->id, 'quantity' => 2, 'condition_type' => 'sellable']],
+            'first partial return',
+            $this->admin,
+        );
+
+        Livewire::actingAs($this->admin)->test(RefundModal::class)
+            ->call('open', $sale->fresh()->id)
+            ->assertSet('saleId', $sale->id)
+            ->assertSet('returnLines.0.max_returnable', 3.0)
+            ->assertSee('2 already returned');
+    }
+
+    public function test_the_per_line_reason_field_is_gone(): void
+    {
+        $sale = $this->sell($this->admin, 2);
+
+        Livewire::actingAs($this->admin)->test(RefundModal::class)
+            ->call('open', $sale->id)
+            ->assertDontSee('returnLines.0.reason', false);
+    }
+
+    public function test_submitting_dispatches_refund_processed_so_sales_history_can_refresh_itself(): void
+    {
+        $sale = $this->sell($this->admin, 2);
+
+        Livewire::actingAs($this->admin)->test(RefundModal::class)
+            ->call('open', $sale->id)
+            ->set('returnLines.0.quantity', '1')
+            ->set('overallReason', 'customer changed their mind')
+            ->call('submit')
+            ->assertDispatched('refund-processed');
     }
 
     public function test_submitting_processes_the_real_return_and_closes_the_modal(): void

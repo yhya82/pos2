@@ -199,6 +199,24 @@ class User extends Authenticatable
     }
 
     /**
+     * Where a login (or a forced/confirmed password screen with no
+     * "intended" URL to return to) should land. A default Cashier still
+     * has enough dashboard-card permissions (inventory/customers view) to
+     * not hit the "no visibility" fallback there, so this goes by the
+     * same role check as the rest of the cashier-scoping above rather than
+     * a dashboard-visibility computation — a cashier's job is the register,
+     * not store analytics. Guarded by the real permission too, in case a
+     * "Cashier"-named role has had sales,create taken away from it on the
+     * Roles screen.
+     */
+    public function defaultLandingRoute(): string
+    {
+        return $this->isCashier() && $this->hasPermission('sales', 'create')
+            ? route('pos.index', absolute: false)
+            : route('dashboard', absolute: false);
+    }
+
+    /**
      * Costs, profit, and store-wide takings are the shop's finances, not
      * everyday operations. A real permission (not a role-name check) so it
      * can be granted or withheld from the Roles screen like anything else —

@@ -96,7 +96,12 @@
                         <div class="refline" wire:key="return-line-{{ $index }}">
                             <div class="refline-top">
                                 <span>{{ $line['product_name'] }}</span>
-                                <span class="mut">{{ rtrim(rtrim($line['max_returnable'], '0'), '.') }} eligible &commat; {{ $money($line['unit_price']) }}</span>
+                                <span class="mut">
+                                    {{ rtrim(rtrim($line['max_returnable'], '0'), '.') }} eligible &commat; {{ $money($line['unit_price']) }}
+                                    @if ($line['already_returned'] > 0)
+                                        &middot; <span class="alreadyret">{{ rtrim(rtrim($line['already_returned'], '0'), '.') }} already returned</span>
+                                    @endif
+                                </span>
                             </div>
                             <div class="refline-grid">
                                 <div>
@@ -109,10 +114,6 @@
                                         <option value="sellable">Sellable</option>
                                         <option value="damaged">Damaged</option>
                                     </select>
-                                </div>
-                                <div>
-                                    <label>Reason</label>
-                                    <input type="text" wire:model="returnLines.{{ $index }}.reason">
                                 </div>
                             </div>
                         </div>
@@ -134,7 +135,7 @@
             <div class="top">
                 <div>
                     <h1>Process return</h1>
-                    <p>Pick the sale to refund — only sales you're allowed to refund show up</p>
+                    <p>Pick the sale to refund, only completed sales can be refunded.p</p>
                 </div>
                 <button type="button" wire:click="cancelProcessing" class="btn back">
                     <svg viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M15 19l-7-7 7-7"/></svg>

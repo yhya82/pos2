@@ -159,7 +159,11 @@
                                 <div class="n">{{ $item->product_name }}</div>
                                 <div class="s w">{{ rtrim(rtrim(number_format($item->qty_on_hand, 3), '0'), '.') }} left</div>
                             </div>
-                            <a class="btn" href="{{ route('inventory.index', ['tab' => 'stock', 'low_stock' => 1]) }}" wire:navigate>Restock</a>
+                            @if ($canRestockFromHere)
+                                <a class="btn" href="{{ route('products.show', $item->product_id) }}" wire:navigate>Restock</a>
+                            @else
+                                <a class="btn" href="{{ route('inventory.index', ['tab' => 'stock', 'low_stock' => 1]) }}" wire:navigate>Restock</a>
+                            @endif
                         </div>
                     @empty
                         <p class="none">Nothing low right now.</p>
@@ -172,14 +176,18 @@
                         <div class="t"><b>Out of stock</b><span class="cnt">{{ $outOfStockCount }}</span></div>
                         <a class="va" href="{{ route('inventory.index', ['tab' => 'stock']) }}" wire:navigate>View all &rarr;</a>
                     </div>
-                    @forelse ($outOfStockNames as $name)
+                    @forelse ($outOfStockItems as $item)
                         <div class="ln">
                             <span class="th"><x-icon name="x-circle" /></span>
                             <div class="m">
-                                <div class="n">{{ $name }}</div>
+                                <div class="n">{{ $item->product_name }}</div>
                                 <div class="s r">Out of stock</div>
                             </div>
-                            <a class="btn" href="{{ route('inventory.index', ['tab' => 'stock']) }}" wire:navigate>Restock</a>
+                            @if ($canRestockFromHere)
+                                <a class="btn" href="{{ route('products.show', $item->product_id) }}" wire:navigate>Restock</a>
+                            @else
+                                <a class="btn" href="{{ route('inventory.index', ['tab' => 'stock']) }}" wire:navigate>Restock</a>
+                            @endif
                         </div>
                     @empty
                         <p class="none">Nothing out of stock.</p>

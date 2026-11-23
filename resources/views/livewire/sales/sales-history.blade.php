@@ -70,10 +70,13 @@
                                 'acc' => $sale->status === 'voided',
                                 'warn' => $sale->status === 'refunded',
                             ])>{{ ucfirst($sale->status) }}</span>
+                            @if ($sale->status === 'refunded')
+                                <div class="subnote">{{ rtrim(rtrim(number_format($sale->returned_line_items_sum_quantity ?? 0, 3), '0'), '.') }} of {{ rtrim(rtrim(number_format($sale->line_items_sum_quantity ?? 0, 3), '0'), '.') }} items returned</div>
+                            @endif
                         </td>
                         <td class="actions">
                             <a href="{{ route('sales.receipt', $sale) }}" target="_blank" class="actionbtn">Receipt</a>
-                            @if ($sale->status === 'completed' && auth()->user()->hasPermission('returns', 'create') && auth()->user()->canRefundSale($sale) && \App\Models\ModuleSetting::enabled('return_management'))
+                            @if (in_array($sale->status, ['completed', 'refunded'], true) && auth()->user()->hasPermission('returns', 'create') && auth()->user()->canRefundSale($sale) && \App\Models\ModuleSetting::enabled('return_management'))
                                 <button type="button" wire:click="$dispatch('confirm-refund', { saleId: {{ $sale->id }} })" class="actionbtn refund">Refund</button>
                             @endif
                             @if ($sale->status === 'completed' && auth()->user()->hasPermission('sales', 'update'))

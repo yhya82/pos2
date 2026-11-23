@@ -7,6 +7,7 @@ use App\Models\Batch;
 use App\Models\PaymentMethod;
 use App\Models\Product;
 use App\Models\Sale;
+use App\Models\Unit;
 use App\Models\User;
 use App\Services\ReturnService;
 use App\Services\SaleService;
@@ -58,6 +59,38 @@ class CostCorrectionPreviewTest extends TestCase
         return Livewire::actingAs($this->admin)->test(ProductProfile::class, ['product' => $this->product])
             ->call('openCostCorrection', $this->batch->id)
             ->set('costCorrectionValue', $newCost);
+    }
+
+    public function test_it_warns_about_the_real_purchase_unit_when_it_differs_from_the_selling_unit(): void
+    {
+        $carton = Unit::factory()->create(['name' => 'carton']);
+        $piece = Unit::factory()->create(['name' => 'piece']);
+        $product = Product::factory()->create([
+            'selling_price' => 10, 'cost_price' => 6,
+            'purchase_unit_id' => $carton->id, 'selling_unit_id' => $piece->id, 'conversion_qty' => 12,
+        ]);
+        $batch = Batch::factory()->for($product)->remaining(100)->create(['unit_cost' => 20]);
+
+        Livewire::actingAs($this->admin)->test(ProductProfile::class, ['product' => $product])
+            ->call('openCostCorrection', $batch->id)
+            ->assertSee('bought by the')
+            ->assertSee('carton')
+            ->assertSee('1 carton = 12 piece', false)
+            ->assertSee('per carton');
+    }
+
+    public function test_the_unit_mismatch_warning_is_hidden_when_bought_and_sold_in_the_same_unit(): void
+    {
+        $unit = Unit::factory()->create(['name' => 'piece']);
+        $product = Product::factory()->create([
+            'selling_price' => 10, 'cost_price' => 6,
+            'purchase_unit_id' => $unit->id, 'selling_unit_id' => $unit->id,
+        ]);
+        $batch = Batch::factory()->for($product)->remaining(100)->create(['unit_cost' => 20]);
+
+        Livewire::actingAs($this->admin)->test(ProductProfile::class, ['product' => $product])
+            ->call('openCostCorrection', $batch->id)
+            ->assertDontSee('bought by the');
     }
 
     public function test_the_current_cost_stays_visible_as_fixed_text(): void

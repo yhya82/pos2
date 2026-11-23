@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Sale extends Model
@@ -72,6 +73,17 @@ class Sale extends Model
         return $this->hasMany(SaleLineItem::class);
     }
 
+    /**
+     * Every return line ever processed against this sale's own line items
+     * — used for the "X of Y items returned" summary on Sales History,
+     * via withSum() against this and lineItems() together rather than a
+     * per-row query.
+     */
+    public function returnedLineItems(): HasManyThrough
+    {
+        return $this->hasManyThrough(SalesReturnLineItem::class, SaleLineItem::class, 'sale_id', 'sale_line_item_id');
+    }
+
     public function payment(): HasOne
     {
         return $this->hasOne(Payment::class);
@@ -80,6 +92,16 @@ class Sale extends Model
     public function receipt(): HasOne
     {
         return $this->hasOne(Receipt::class);
+    }
+
+    /**
+     * Every return processed against this sale — used to total up how
+     * much has been refunded so far, shown on the sale's own receipt
+     * alongside the frozen original total.
+     */
+    public function returns(): HasMany
+    {
+        return $this->hasMany(SalesReturn::class, 'original_sale_id');
     }
 
     /**

@@ -1,0 +1,104 @@
+/*
+ * Self-service Profile ("My Profile") redesign — scoped entirely under
+ * .profile-skin so none of this (palette, resets) ever leaks onto any
+ * other page. Same flat, boxy, Inter look as the rest of the app, and
+ * reuses the exact .profile-head/.card/.cardhead/.f/.dialog patterns
+ * already shipped for the admin-facing User editor (users-roles.css) —
+ * this is the same page, just for the user editing themselves instead
+ * of an administrator editing someone else.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+body {
+    --bg: #f6f6f4; --surf: #fff; --ink: #1a1a1c; --mut: #55555b;
+    --line: #e3e3df; --soft: #efefeb; --acc: #a81c26; --acc-ink: #fff; --acc-soft: #f9e9e9;
+}
+html.dark body {
+    --bg: #0f0f11; --surf: #18181b; --ink: #f3f3f4; --mut: #aeaeb6;
+    --line: #2a2a2f; --soft: #222226; --acc: #c93840; --acc-ink: #fff; --acc-soft: #3a1c1d;
+}
+
+#app-header { background: var(--acc); border-color: var(--acc); }
+#app-header, #app-header *:not(.absolute, .absolute *) { color: var(--acc-ink); }
+#app-header button:hover:not(.absolute button) { background: rgba(255, 255, 255, .16); }
+
+main { background: var(--bg); }
+
+.profile-skin, .profile-skin *, .profile-skin *::before, .profile-skin *::after { box-sizing: border-box; }
+.profile-skin {
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    color: var(--ink);
+    color-scheme: light;
+    max-width: 640px;
+}
+html.dark .profile-skin { color-scheme: dark; }
+.profile-skin button, .profile-skin a { font: inherit; color: inherit; }
+.profile-skin button { cursor: pointer; border: 0; background: none; padding: 0; }
+.profile-skin a { text-decoration: none; }
+.profile-skin svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.profile-skin :focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+
+.profile-skin .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+.profile-skin .top > div:first-child { border-left: 4px solid var(--acc); padding-left: 14px; }
+.profile-skin .top h1 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
+.profile-skin .top p { margin: 2px 0 0; color: var(--mut); font-size: 13.5px; }
+
+.profile-skin .avatar { background: var(--acc-soft); color: var(--acc); display: grid; place-items: center; font-weight: 800; letter-spacing: -.02em; flex-shrink: 0; }
+
+.profile-skin .profile-head { position: relative; background: var(--surf); border: 1px solid var(--line); border-top: 3px solid var(--acc); padding: 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 18px; margin-bottom: 16px; }
+.profile-skin .profile-head .avatar { width: 56px; height: 56px; font-size: 18px; }
+.profile-skin .profile-head .nm { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.profile-skin .profile-head h2 { margin: 0; font-size: 19px; font-weight: 800; letter-spacing: -.02em; }
+.profile-skin .profile-head .rolechip { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 11px; color: var(--acc); background: var(--acc-soft); }
+.profile-skin .profile-head .meta { margin: 5px 0 0; color: var(--mut); font-size: 13px; }
+.profile-skin .profile-head .figs { margin-left: auto; text-align: right; }
+.profile-skin .profile-head .figs .lbl { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mut); }
+.profile-skin .profile-head .figs .val { font-size: 15px; font-weight: 800; margin-top: 3px; }
+
+.profile-skin .card { background: var(--surf); border: 1px solid var(--line); margin-bottom: 16px; }
+.profile-skin .card:last-child { margin-bottom: 0; }
+.profile-skin .card.danger { border-top: 3px solid var(--acc); }
+
+.profile-skin .cardhead { display: flex; align-items: center; gap: 10px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+.profile-skin .cardhead .ic { width: 30px; height: 30px; flex-shrink: 0; background: var(--acc-soft); color: var(--acc); display: grid; place-items: center; }
+.profile-skin .cardhead .ic svg { width: 15px; height: 15px; stroke-width: 1.7; }
+.profile-skin .cardhead h3 { margin: 0; font-size: 14px; font-weight: 800; }
+.profile-skin .cardhead.danger h3 { color: var(--acc); }
+
+.profile-skin .cardbody { padding: 20px; }
+
+/* ------------------------------------------------------------- form/f */
+.profile-skin .f { margin-bottom: 16px; }
+.profile-skin .f:last-child { margin-bottom: 0; }
+.profile-skin .f label { display: block; font-size: 12.5px; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
+.profile-skin .f label .req { color: var(--acc); font-weight: 700; margin-left: 3px; }
+.profile-skin .f input { width: 100%; height: 40px; border: 1px solid var(--line); background: var(--bg); padding: 0 12px; font: inherit; font-size: 13.5px; color: var(--ink); }
+.profile-skin .f input:focus { outline: none; border-color: var(--acc); box-shadow: 0 0 0 3px var(--acc-soft); }
+.profile-skin .f.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.profile-skin .f .hint { font-size: 11.5px; color: var(--mut); margin-top: 5px; }
+.profile-skin .f .prefix { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--bg); height: 40px; padding: 0 12px; }
+.profile-skin .f .prefix span { color: var(--mut); font-size: 13.5px; flex-shrink: 0; }
+.profile-skin .f .prefix input { border: 0; background: none; padding: 0; height: auto; }
+.profile-skin .f .prefix input:focus { box-shadow: none; }
+
+.profile-skin .btn { height: 38px; padding: 0 16px; font-weight: 600; font-size: 13px; border: 1px solid var(--line); background: var(--surf); color: var(--ink); display: inline-flex; align-items: center; gap: 7px; }
+.profile-skin .btn:hover { border-color: var(--mut); }
+.profile-skin .btn.p { background: var(--acc); color: var(--acc-ink); border-color: var(--acc); }
+.profile-skin .btn.p:hover { filter: brightness(1.08); }
+.profile-skin .btn.danger { background: var(--acc); color: var(--acc-ink); border-color: var(--acc); }
+.profile-skin .btn.danger:hover { filter: brightness(1.08); }
+.profile-skin .btn svg { width: 13px; height: 13px; stroke-width: 2; }
+
+.profile-skin .saved { font-size: 12.5px; font-weight: 600; color: var(--acc); margin-left: 12px; }
+
+/* --------------------------------------------------------- danger zone */
+.profile-skin .dangerrow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
+.profile-skin .dangerrow p { margin: 0; font-size: 13px; color: var(--mut); max-width: 420px; line-height: 1.5; }
+
+/* -------------------------------------------------- centered dialogs */
+.profile-skin .rounded-lg.shadow-xl.overflow-hidden { border-radius: 0; box-shadow: none; border: 1px solid var(--line); background: var(--surf); }
+.profile-skin .dialog .dh { padding: 20px 20px 0; }
+.profile-skin .dialog .dh h2 { margin: 0; font-size: 17px; font-weight: 800; letter-spacing: -.01em; color: var(--ink); }
+.profile-skin .dialog .dh p { margin: 8px 0 0; font-size: 13px; color: var(--mut); line-height: 1.5; }
+.profile-skin .dialog .db { padding: 16px 20px; }
+.profile-skin .dialog .df { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 20px 20px; }

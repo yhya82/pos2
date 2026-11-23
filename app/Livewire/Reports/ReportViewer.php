@@ -182,6 +182,11 @@ class ReportViewer extends Component
             'realized_profit' => [
                 'label' => 'Profit Report', 'group' => 'Sales', 'visible' => $user->hasPermission('sales', 'view') && $user->canSeeFinancials(),
                 'icon' => 'trending-up', 'tone' => 'ok', 'hint' => 'Revenue, cost and margin per product, net of discounts and refunds',
+                // queryFor() already filters v_realized_profit_lines by this
+                // same column itself (realized_profit is special-cased
+                // there too) — this entry only exists so statsFor()'s
+                // isset() guard lets the stats branch below run at all.
+                'dateColumn' => 'sale_date',
                 'columns' => [
                     ['key' => 'product_name', 'label' => 'Product'],
                     ['key' => 'quantity_sold', 'label' => 'Qty Sold', 'align' => 'right'],
@@ -409,6 +414,30 @@ class ReportViewer extends Component
             $this->dateFrom && $this->dateTo,
             fn ($q) => $q->whereBetween($column, [$this->dateFrom, $this->dateTo.' 23:59:59'])
         );
+
+        if ($key === 'realized_profit') {
+            // Same underlying rows as queryFor() — summed across every
+            // product rather than grouped by one, for the chosen range.
+            $row = $dateFilter(DB::table('v_realized_profit_lines'), 'sale_date')
+                ->selectRaw('COALESCE(SUM(quantity_sold), 0) AS total_qty,
+                    COALESCE(SUM(net_revenue), 0) AS total_revenue,
+                    COALESCE(SUM(net_cost), 0) AS total_cost,
+                    COALESCE(SUM(profit), 0) AS total_profit')
+                ->first();
+
+            $margin = (float) $row->total_revenue > 0 ? round((float) $row->total_profit / (float) $row->total_revenue * 100, 1) : null;
+
+            return [
+                ['label' => 'Revenue', 'value' => (float) $row->total_revenue, 'format' => 'money', 'tone' => 'ok', 'icon' => 'bar-chart'],
+                ['label' => 'Cost', 'value' => (float) $row->total_cost, 'format' => 'money', 'icon' => 'wallet'],
+                [
+                    'label' => 'Profit', 'value' => (float) $row->total_profit, 'format' => 'money',
+                    'tone' => (float) $row->total_profit >= 0 ? 'ok' : 'warn', 'icon' => 'trending-up',
+                    'sub' => $margin === null ? null : $margin.'% margin',
+                ],
+                ['label' => 'Units sold', 'value' => (int) $row->total_qty, 'format' => 'int', 'icon' => 'user'],
+            ];
+        }
 
         if ($key === 'receiving_losses') {
             $row = $dateFilter(DB::table('receiving_issues'), 'created_at')

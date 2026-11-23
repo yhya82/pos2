@@ -5,7 +5,7 @@
     </div>
     @forelse ($onlineUsers as $user)
         <div class="ln">
-            <span class="av">{{ \Illuminate\Support\Str::of($user['name'])->explode(' ')->map(fn ($w) => mb_substr($w, 0, 1))->join('')->upper()->substr(0, 2) }}</span>
+            <span class="av">{{ collect(preg_split('/\s+/', trim($user['name'])))->filter()->map(fn ($part) => mb_strtoupper(mb_substr($part, 0, 1)))->take(2)->implode('') }}</span>
             <div class="m">
                 <div class="n">{{ $user['name'] }}</div>
                 @if ($user['role'] ?? null)

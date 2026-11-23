@@ -173,6 +173,7 @@ class AuditLog extends Model
             ->where('module', 'security')
             ->where('created_at', '>=', $since)
             ->selectRaw("SUM(action IN ('login_failed','login_blocked')) AS failed_logins,
+                SUM(action = 'login') AS successful_logins,
                 SUM(action = 'access_denied') AS denied,
                 SUM(action = 'tamper_ignored') AS tampering,
                 SUM(action = 'login_new_device') AS new_devices")
@@ -180,6 +181,7 @@ class AuditLog extends Model
 
         return [
             'failed_logins' => (int) ($counts->failed_logins ?? 0),
+            'successful_logins' => (int) ($counts->successful_logins ?? 0),
             'denied' => (int) ($counts->denied ?? 0),
             'tampering' => (int) ($counts->tampering ?? 0),
             'new_devices' => (int) ($counts->new_devices ?? 0),

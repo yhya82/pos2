@@ -6,7 +6,7 @@
     <div class="top">
         <div>
             <h1>Audit Logs</h1>
-            <p>Every create, update, void and sign-in — append only, nothing here can be edited or removed</p>
+            <p>Every create, update, void and sign-in, append only, nothing here can be edited or removed</p>
         </div>
     </div>
 
@@ -216,7 +216,7 @@
     {{-- ------------------------------------------------------- Who did what --}}
     @if ($people !== null)
         <div class="notetext">
-            {{ $dateFrom || $dateTo ? 'For the dates chosen above.' : 'The last 7 days — pick dates above to change it.' }}
+            {{ $dateFrom || $dateTo ? 'For the dates chosen above.' : 'The last 7 days, pick dates above to change it.' }}
             People with {{ $flagFailedLogins }}+ failed logins, {{ $flagDenied }}+ denied requests, {{ $flagNewDevices }}+ new-device logins, {{ $flagReuseBlocked }}+ blocked password reuses, any lockout, or any ignored tampering are flagged.
         </div>
         <div class="card" style="margin-top:0;">

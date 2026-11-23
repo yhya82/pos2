@@ -70,7 +70,7 @@ new #[Layout('layouts.login')] class extends Component
             return;
         }
 
-        $this->redirectIntended(default: route('dashboard', absolute: false), navigate: true);
+        $this->redirectIntended(default: Auth::user()->defaultLandingRoute(), navigate: true);
     }
 }; ?>
 

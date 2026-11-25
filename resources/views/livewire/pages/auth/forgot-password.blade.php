@@ -1,6 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
@@ -10,6 +12,12 @@ new #[Layout('layouts.guest')] class extends Component
 
     /**
      * Send a password reset link to the provided email address.
+     *
+     * Laravel's own broker already throttles repeat requests for the SAME
+     * email (one per 60s), but nothing stopped cycling through many
+     * DIFFERENT emails rapidly from one IP — a mail-bomb / enumeration-
+     * adjacent abuse vector this IP-keyed limiter closes, independent of
+     * the broker's own per-email one.
      */
     public function sendPasswordResetLink(): void
     {
@@ -17,22 +25,31 @@ new #[Layout('layouts.guest')] class extends Component
             'email' => ['required', 'string', 'email'],
         ]);
 
+        $ipKey = 'password-reset-ip:'.request()->ip();
+
+        if (RateLimiter::tooManyAttempts($ipKey, 6)) {
+            throw ValidationException::withMessages([
+                'email' => 'Too many reset requests from this network. Please wait a minute and try again.',
+            ]);
+        }
+
+        RateLimiter::hit($ipKey, 60);
+
         // We will send the password reset link to this user. Once we have attempted
         // to send the link, we will examine the response then see the message we
         // need to show to the user. Finally, we'll send out a proper response.
-        $status = Password::sendResetLink(
+        Password::sendResetLink(
             $this->only('email')
         );
 
-        if ($status != Password::RESET_LINK_SENT) {
-            $this->addError('email', __($status));
-
-            return;
-        }
-
         $this->reset('email');
 
-        session()->flash('status', __($status));
+        // Deliberately the same message whether or not that email matches a
+        // real account, and always the success flash, never an inline field
+        // error — Laravel's stock 'passwords.user'/'passwords.sent' strings
+        // differ in exactly that way, which is an account-enumeration oracle
+        // on its own merits regardless of the login screen's own messages.
+        session()->flash('status', "If that email address is registered, we've emailed a password reset link to it.");
     }
 }; ?>
 

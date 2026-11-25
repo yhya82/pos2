@@ -45,6 +45,70 @@ class AuthenticationTest extends TestCase
         $this->assertAuthenticated();
     }
 
+    /**
+     * Session::regenerate() in the login component (right after a
+     * successful authenticate()) is what prevents session fixation — a
+     * session id issued before login must not still be valid after it.
+     * Only ever asserted by a code comment before this.
+     */
+    public function test_a_successful_login_rotates_the_session_id(): void
+    {
+        $user = User::factory()->create(['password_hash' => 'Compliant123!']);
+
+        $before = session()->getId();
+
+        Volt::test('pages.auth.login')
+            ->set('form.email', $user->email)
+            ->set('form.password', 'Compliant123!')
+            ->call('login');
+
+        $this->assertNotSame($before, session()->getId());
+    }
+
+    /**
+     * The account-level lockout only ever trips once several wrong guesses
+     * land against the SAME account — nothing stopped spraying across many
+     * different accounts, or probing unknown emails, from one IP. These two
+     * independent RateLimiter buckets in LoginForm::authenticate() close
+     * that: IP-only (cross-account spraying) and email+IP (hammering one
+     * target), both checked before the account lockout even applies.
+     */
+    public function test_spraying_many_different_unknown_emails_from_one_ip_gets_throttled(): void
+    {
+        for ($i = 1; $i <= 30; $i++) {
+            Volt::test('pages.auth.login')
+                ->set('form.email', "nobody{$i}@example.com")
+                ->set('form.password', 'whatever')
+                ->call('login');
+        }
+
+        $component = Volt::test('pages.auth.login')
+            ->set('form.email', 'nobody-31@example.com')
+            ->set('form.password', 'whatever')
+            ->call('login')
+            ->assertHasErrors();
+
+        $this->assertStringContainsString('Too many login attempts', $component->errors()->first('form.email'));
+    }
+
+    public function test_repeatedly_guessing_one_unknown_email_is_throttled_well_before_30_attempts(): void
+    {
+        for ($i = 1; $i <= 10; $i++) {
+            Volt::test('pages.auth.login')
+                ->set('form.email', 'ghost@example.com')
+                ->set('form.password', "guess{$i}")
+                ->call('login');
+        }
+
+        $component = Volt::test('pages.auth.login')
+            ->set('form.email', 'ghost@example.com')
+            ->set('form.password', 'guess11')
+            ->call('login')
+            ->assertHasErrors();
+
+        $this->assertStringContainsString('Too many login attempts', $component->errors()->first('form.email'));
+    }
+
     public function test_users_can_not_authenticate_with_invalid_password(): void
     {
         $user = User::factory()->create();
@@ -88,19 +152,18 @@ class AuthenticationTest extends TestCase
             ->assertHasErrors()
             ->assertSee('Invalid credentials.', false);
 
-        // A real account's first wrong attempt — same wording, plus the
-        // attempts-remaining count (max_failed_login_attempts defaults to 5,
-        // so 4 remain after this one failure).
+        // A real account's first wrong attempt — identical wording, with no
+        // attempts-remaining count. Telling an attacker exactly how many
+        // guesses a real account has left (and confirming it's real at all,
+        // after just one guess) is an account-enumeration oracle; a genuine
+        // user doesn't need the count to know to just try again.
         $component = Volt::test('pages.auth.login')
             ->set('form.email', $user->email)
             ->set('form.password', 'wrong-password')
             ->call('login')
             ->assertHasErrors();
 
-        $message = $component->errors()->first('form.email');
-
-        $this->assertStringContainsString('Invalid credentials.', $message);
-        $this->assertStringContainsString('4 attempts remaining', $message);
+        $this->assertSame('Invalid credentials.', $component->errors()->first('form.email'));
     }
 
     public function test_blank_login_fields_report_clean_field_names_not_form_dot_email(): void

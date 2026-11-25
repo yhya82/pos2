@@ -11,12 +11,13 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 class Sale extends Model
 {
     /**
-     * A cashier sees only their own sales; every other role sees whatever
-     * its permissions let it open. Apply to every query a user can browse.
+     * Without sales,view_all, a user only ever sees sales they themselves
+     * made — with it, whatever its permissions otherwise let it open.
+     * Apply to every query a user can browse.
      */
     public function scopeVisibleTo($query, User $user)
     {
-        return $user->isCashier() ? $query->where('cashier_id', $user->id) : $query;
+        return $user->hasPermission('sales', 'view_all') ? $query : $query->where('cashier_id', $user->id);
     }
 
     const UPDATED_AT = null;

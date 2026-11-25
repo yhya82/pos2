@@ -59,6 +59,10 @@ class SalesHistory extends Component
     {
         return view('livewire.sales.sales-history', [
             'currencyCode' => GeneralSetting::current()->currency_code,
+            // Hoisted out of the per-row Refund-button condition in the
+            // blade — it used to call ModuleSetting::enabled() once per
+            // row (up to 15 duplicate identical queries per page).
+            'returnManagementEnabled' => \App\Models\ModuleSetting::enabled('return_management'),
             'sales' => Sale::with(['cashier', 'customer', 'payment.paymentMethod'])
                 ->withSum('lineItems', 'quantity')
                 ->withSum('returnedLineItems', 'quantity')

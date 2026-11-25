@@ -34,6 +34,51 @@ class User extends Authenticatable
     ];
 
     /**
+     * True once this account has racked up enough failed attempts to trip
+     * the configured lockout and that lockout hasn't expired yet. Shared by
+     * the login screen and the "confirm password" step-up screen — both are
+     * password-guessing surfaces, so both must count failures against, and
+     * be refused by, the same account-level lockout.
+     */
+    public function isLockedOut(): bool
+    {
+        return (bool) ($this->locked_until && $this->locked_until->isFuture());
+    }
+
+    public function lockoutMinutesRemaining(): int
+    {
+        return (int) ceil(now()->diffInMinutes($this->locked_until, true));
+    }
+
+    /**
+     * @return array{attempts: int, locked: bool} so the caller can word its
+     *         own response differently the instant an account actually
+     *         locks, versus a failed attempt that still has some left.
+     *
+     * An atomic increment()/decrement() instead of read-then-save — two
+     * concurrent wrong-password requests against the same account doing a
+     * plain read-modify-write could both read the same starting count and
+     * under-count the pair of failures right at the lockout boundary.
+     */
+    public function registerFailedLoginAttempt(): array
+    {
+        $security = SecuritySetting::current();
+
+        $this->increment('failed_login_attempts');
+        $attempts = $this->failed_login_attempts;
+
+        $locks = $attempts >= $security->max_failed_login_attempts;
+
+        if ($locks) {
+            $this->forceFill(['locked_until' => now()->addMinutes($security->lockout_duration_minutes)])->save();
+
+            AuditLog::security('account_locked', $this->id, ['email' => $this->email, 'failed_attempts' => $attempts, 'locked_minutes' => $security->lockout_duration_minutes], 'User');
+        }
+
+        return ['attempts' => $attempts, 'locked' => $locks];
+    }
+
+    /**
      * The attributes that should be hidden for serialization.
      *
      * @var list<string>
@@ -78,8 +123,14 @@ class User extends Authenticatable
 
         PasswordHistory::create(['user_id' => $this->id, 'password_hash' => $this->password_hash]);
 
+        // Must keep at least as many rows as security_settings.password_history_count
+        // can ever ask passwordWasUsedRecently() to check (admins can configure up to
+        // 50) — a hardcoded cap below that would silently let a password reuse slip
+        // through unchecked past whatever this number is, with no error anywhere.
+        $keep = max(SecuritySetting::current()->password_history_count, 20);
+
         PasswordHistory::where('user_id', $this->id)
-            ->whereNotIn('id', PasswordHistory::where('user_id', $this->id)->latest('id')->limit(20)->pluck('id'))
+            ->whereNotIn('id', PasswordHistory::where('user_id', $this->id)->latest('id')->limit($keep)->pluck('id'))
             ->delete();
 
         LoginSession::revokeAllFor($this->id, $exceptSessionId);
@@ -104,7 +155,20 @@ class User extends Authenticatable
             ->latest('id')
             ->limit($limit)
             ->get()
-            ->contains(fn ($row) => Hash::check($plain, $row->password_hash));
+            ->contains(function ($row) use ($plain) {
+                try {
+                    return Hash::check($plain, $row->password_hash);
+                } catch (\RuntimeException $e) {
+                    // Hash::check() throws rather than returning false for a
+                    // string that isn't a recognized hash at all — real for
+                    // the schema's own placeholder history row seeded for a
+                    // brand-new install ('INVALID-PLACEHOLDER-...', deliberately
+                    // unusable so nobody can log in with a known default).
+                    // Unreadable can't possibly match a real plaintext, so
+                    // this is "not a match", not an error.
+                    return false;
+                }
+            });
     }
 
     /**

@@ -97,6 +97,24 @@ class UserProfile extends Component
         $validated = $this->validate();
 
         $user = User::findOrFail($this->userId);
+        $actor = auth()->user();
+
+        // Same two guards as UserManager::save() — see there for why. This
+        // page reaches the exact same role_id column, just from a full page
+        // instead of a slide-over.
+        if ((int) $this->userId === (int) $actor->id && (int) $validated['roleId'] !== (int) $user->role_id) {
+            $this->addError('roleId', "You can't change your own role.");
+
+            return;
+        }
+
+        $targetRole = Role::findOrFail($validated['roleId']);
+
+        if ($targetRole->name === 'Administrator' && ! $actor->isAdministrator()) {
+            $this->addError('roleId', 'Only an administrator can assign the Administrator role.');
+
+            return;
+        }
 
         // Uniqueness has to be checked against the full +220-prefixed value
         // actually stored in the column — see UserManager::save() for why.

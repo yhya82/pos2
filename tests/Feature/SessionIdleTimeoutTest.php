@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\EnsureSessionNotExpired;
 use App\Models\LoginSession;
 use App\Models\SecuritySetting;
 use App\Models\User;
@@ -15,12 +16,11 @@ use Tests\TestCase;
  * keep pushing expires_at forward rather than it being set once at login
  * and never touched again.
  *
- * Deliberately doesn't log in through the real Volt flow — that call
- * regenerates the session id internally, which doesn't reliably carry
- * over to this test client's own subsequent requests (see TestCase's own
- * note on this exact fragility). Creating the login_sessions row directly
- * against this test's own, already-stable session id is what actually
- * exercises the middleware across more than one request.
+ * Exercises the middleware's handle() directly rather than through a
+ * multi-request HTTP simulation: $this->get() doesn't reliably carry the
+ * same session id across calls in this test environment (see TestCase's
+ * own note on that exact fragility), so a real round-trip here would be
+ * testing the test client, not the middleware.
  */
 class SessionIdleTimeoutTest extends TestCase
 {
@@ -38,6 +38,22 @@ class SessionIdleTimeoutTest extends TestCase
         return $user;
     }
 
+    private function passThroughMiddleware(): bool
+    {
+        $passed = false;
+
+        $request = request();
+        $request->setLaravelSession(app('session')->driver());
+
+        (new EnsureSessionNotExpired())->handle($request, function ($req) use (&$passed) {
+            $passed = true;
+
+            return response('ok');
+        });
+
+        return $passed;
+    }
+
     public function test_an_authenticated_request_pushes_the_expiry_forward(): void
     {
         $this->loginWithSession();
@@ -45,7 +61,8 @@ class SessionIdleTimeoutTest extends TestCase
         $before = LoginSession::findActiveBySessionId(session()->getId())->expires_at;
 
         $this->travel(10)->minutes();
-        $this->get(route('dashboard'))->assertOk();
+
+        $this->assertTrue($this->passThroughMiddleware());
 
         $after = LoginSession::findActiveBySessionId(session()->getId())->expires_at;
 
@@ -56,16 +73,16 @@ class SessionIdleTimeoutTest extends TestCase
     {
         $this->loginWithSession(30);
 
-        // Three requests, 20 minutes apart — longer than the 30-minute
+        // Three passes, 20 minutes apart — longer than the 30-minute
         // timeout in total, but each one is well within it of the last.
         $this->travel(20)->minutes();
-        $this->get(route('dashboard'))->assertOk();
+        $this->assertTrue($this->passThroughMiddleware());
 
         $this->travel(20)->minutes();
-        $this->get(route('dashboard'))->assertOk();
+        $this->assertTrue($this->passThroughMiddleware());
 
         $this->travel(20)->minutes();
-        $this->get(route('dashboard'))->assertOk();
+        $this->assertTrue($this->passThroughMiddleware());
     }
 
     public function test_sitting_idle_past_the_timeout_signs_you_out(): void
@@ -74,7 +91,30 @@ class SessionIdleTimeoutTest extends TestCase
 
         $this->travel(31)->minutes();
 
-        $this->get(route('dashboard'))->assertRedirect(route('login'));
+        $this->assertFalse($this->passThroughMiddleware());
+        $this->assertGuest();
+    }
+
+    /**
+     * Revoking a device on the Security Center (SettingsManager::revokeDevice())
+     * only ever sets revoked_at on the row — this is what actually proves that
+     * takes effect: the exact same findActiveBySessionId() lookup this
+     * middleware already uses for expiry excludes a revoked row too, so the
+     * very next request the revoked session makes gets logged out, same as
+     * an expired one. Previously only the DB write itself was asserted,
+     * never that it actually rejects the next request.
+     */
+    public function test_a_revoked_session_is_rejected_on_its_next_request(): void
+    {
+        $user = $this->loginWithSession();
+
+        $session = LoginSession::findActiveBySessionId(session()->getId());
+
+        $this->assertTrue($this->passThroughMiddleware());
+
+        $session->update(['revoked_at' => now()]);
+
+        $this->assertFalse($this->passThroughMiddleware());
         $this->assertGuest();
     }
 }

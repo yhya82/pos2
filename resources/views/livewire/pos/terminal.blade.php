@@ -674,12 +674,15 @@
                 return code + ' ' + this.money(amount);
             },
 
-            // Same 'Y-m-d H:i' shape the real printed receipt uses.
+            // Same 'Y-m-d h:i A' shape the real printed receipt uses.
             receiptDate(iso) {
                 const d = new Date(iso);
                 const pad = n => String(n).padStart(2, '0');
+                const hours24 = d.getHours();
+                const period = hours24 >= 12 ? 'PM' : 'AM';
+                const hours12 = hours24 % 12 || 12;
 
-                return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+                return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(hours12) + ':' + pad(d.getMinutes()) + ' ' + period;
             },
 
             receiptMarkup() {

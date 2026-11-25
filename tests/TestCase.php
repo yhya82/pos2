@@ -9,6 +9,21 @@ use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 abstract class TestCase extends BaseTestCase
 {
     /**
+     * LoginForm/forgot-password now rate-limit by real IP via Laravel's
+     * RateLimiter, which is backed by the cache store (CACHE_STORE=array
+     * in testing) and keyed by real wall-clock time, not per-test. Without
+     * this, a burst of login/reset tests running within the same real-world
+     * minute would trip each other's throttle and fail for reasons having
+     * nothing to do with what any individual test is actually checking.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        \Illuminate\Support\Facades\Cache::flush();
+    }
+
+    /**
      * Plain `actingAs()` fakes the auth guard but never creates the
      * login_sessions row the real Volt login flow does, and
      * EnsureSessionNotExpired 302s every request for an authenticated user

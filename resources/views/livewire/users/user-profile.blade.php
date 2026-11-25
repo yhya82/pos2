@@ -19,7 +19,7 @@
         </div>
         <div class="figs">
             <div class="lbl">Last Login</div>
-            <div class="val">{{ $user->last_login_at?->format('Y-m-d H:i') ?? 'Never' }}</div>
+            <div class="val">{{ $user->last_login_at?->format('Y-m-d h:i A') ?? 'Never' }}</div>
         </div>
     </div>
 

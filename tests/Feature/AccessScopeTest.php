@@ -107,6 +107,38 @@ class AccessScopeTest extends TestCase
             ->assertSee($this->bensSale->receipt_number);
     }
 
+    /**
+     * Visibility used to be decided by a literal role-name check
+     * (isCashier()) — any role simply not named "Cashier" saw everything,
+     * with no way to grant or withhold that. It's now the sales,view_all
+     * permission instead, so a brand new custom role starts scoped to its
+     * own sales just like a cashier, until it's explicitly granted the
+     * wider view.
+     */
+    public function test_a_new_custom_role_without_sales_view_all_sees_only_its_own_sales(): void
+    {
+        $role = Role::create(['name' => 'Inventory Clerk', 'description' => 'test', 'status' => 'active']);
+        $role->permissions()->attach(Permission::where('module', 'sales')->where('action', 'view')->value('id'));
+        $clerk = User::factory()->create(['role_id' => $role->id]);
+        $clerksSale = $this->sell($clerk);
+
+        Livewire::actingAs($clerk)->test(SalesHistory::class)
+            ->assertSee($clerksSale->receipt_number)
+            ->assertDontSee($this->annsSale->receipt_number)
+            ->assertDontSee($this->bensSale->receipt_number);
+    }
+
+    public function test_a_new_custom_role_granted_sales_view_all_sees_everything(): void
+    {
+        $role = Role::create(['name' => 'Inventory Clerk', 'description' => 'test', 'status' => 'active']);
+        $role->permissions()->attach(Permission::where('module', 'sales')->whereIn('action', ['view', 'view_all'])->pluck('id'));
+        $clerk = User::factory()->create(['role_id' => $role->id]);
+
+        Livewire::actingAs($clerk)->test(SalesHistory::class)
+            ->assertSee($this->annsSale->receipt_number)
+            ->assertSee($this->bensSale->receipt_number);
+    }
+
     public function test_a_cashier_can_open_only_their_own_receipts(): void
     {
         $this->browseAs($this->ann)->get(route('sales.receipt', $this->annsSale))->assertOk();
@@ -205,7 +237,7 @@ class AccessScopeTest extends TestCase
     {
         $role = Role::create(['name' => 'Floor Manager', 'description' => 'sees all sales, refunds only own', 'status' => 'active']);
         $role->permissions()->attach(Permission::where(fn ($q) => $q
-            ->where(fn ($p) => $p->where('module', 'sales')->where('action', 'view'))
+            ->where(fn ($p) => $p->where('module', 'sales')->whereIn('action', ['view', 'view_all']))
             ->orWhere(fn ($p) => $p->where('module', 'returns')->whereIn('action', ['view', 'create']))
         )->pluck('id'));
         $manager = User::factory()->create(['role_id' => $role->id]);

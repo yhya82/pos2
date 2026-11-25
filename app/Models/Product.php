@@ -71,12 +71,26 @@ class Product extends Model
     }
 
     /**
+     * promo_discount_type, null-safe — a row with no value at all here
+     * (the column missing/unset, e.g. on data from before this feature
+     * existed) means "no promo", same as the literal string 'none'. Every
+     * other place in the codebase that reads promo_discount_type (directly,
+     * or via priceAfterDiscount()) should go through this rather than the
+     * raw attribute, so "no promo configured" can't be mistaken for an
+     * unconditionally-active one.
+     */
+    public function promoDiscountType(): string
+    {
+        return $this->promo_discount_type ?: 'none';
+    }
+
+    /**
      * A standing promotional discount (Sec. 20.19 request) — always-on when
      * neither bound is set, or scoped to a date window when they are.
      */
     public function hasActivePromo(): bool
     {
-        if ($this->promo_discount_type === 'none') {
+        if ($this->promoDiscountType() === 'none') {
             return false;
         }
 
@@ -99,7 +113,7 @@ class Product extends Model
             return (float) $this->selling_price;
         }
 
-        return static::priceAfterDiscount((float) $this->selling_price, $this->promo_discount_type, (float) $this->promo_discount_value);
+        return static::priceAfterDiscount((float) $this->selling_price, $this->promoDiscountType(), (float) $this->promo_discount_value);
     }
 
     /**

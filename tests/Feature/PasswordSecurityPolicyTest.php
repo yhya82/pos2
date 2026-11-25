@@ -30,7 +30,6 @@ class PasswordSecurityPolicyTest extends TestCase
         $this->actingAs($user);
 
         Volt::test('profile.update-password-form')
-            ->set('current_password', 'password')
             ->set('password', 'alllowercase1')
             ->set('password_confirmation', 'alllowercase1')
             ->call('updatePassword')
@@ -44,7 +43,6 @@ class PasswordSecurityPolicyTest extends TestCase
         $this->actingAs($user);
 
         Volt::test('profile.update-password-form')
-            ->set('current_password', 'password')
             ->set('password', 'Password123')
             ->set('password_confirmation', 'Password123')
             ->call('updatePassword')
@@ -58,7 +56,6 @@ class PasswordSecurityPolicyTest extends TestCase
         $this->actingAs($user);
 
         Volt::test('profile.update-password-form')
-            ->set('current_password', 'password')
             ->set('password', 'Correct123!')
             ->set('password_confirmation', 'Correct123!')
             ->call('updatePassword')
@@ -74,7 +71,6 @@ class PasswordSecurityPolicyTest extends TestCase
         $this->actingAs($user);
 
         Volt::test('profile.update-password-form')
-            ->set('current_password', 'password')
             ->set('password', 'FirstOne123!')
             ->set('password_confirmation', 'FirstOne123!')
             ->call('updatePassword')
@@ -83,13 +79,60 @@ class PasswordSecurityPolicyTest extends TestCase
         // "Changing" to the exact password just set — it's the most
         // recent entry in history, so it's a reuse like any other.
         Volt::test('profile.update-password-form')
-            ->set('current_password', 'FirstOne123!')
             ->set('password', 'FirstOne123!')
             ->set('password_confirmation', 'FirstOne123!')
             ->call('updatePassword')
             ->assertHasErrors('password');
 
         $this->assertTrue($this->security('password_reused_blocked')->where('user_id', $user->id)->exists());
+    }
+
+    /**
+     * A brand-new install's placeholder account (schema seed) gets a
+     * deliberately unusable history row ('INVALID-PLACEHOLDER-...', not a
+     * real hash) so nobody can log in with a known default. Hash::check()
+     * throws rather than returning false for a string that isn't a
+     * recognized hash at all — without a try/catch around it, that single
+     * seeded row crashed every subsequent password change for that account.
+     */
+    public function test_an_unreadable_seeded_history_row_does_not_crash_a_password_change(): void
+    {
+        $user = User::factory()->create();
+        \App\Models\PasswordHistory::create([
+            'user_id' => $user->id,
+            'password_hash' => 'INVALID-PLACEHOLDER-REPLACE-VIA-PASSWORD-RESET-FLOW',
+        ]);
+
+        $this->actingAs($user);
+
+        Volt::test('profile.update-password-form')
+            ->set('password', 'BrandNew123!')
+            ->set('password_confirmation', 'BrandNew123!')
+            ->call('updatePassword')
+            ->assertHasNoErrors();
+
+        $this->assertTrue(Hash::check('BrandNew123!', $user->refresh()->password_hash));
+    }
+
+    /**
+     * password_history_count is configurable up to 50, but
+     * User::setPassword() used to hard-prune history to the latest 20 rows
+     * regardless — so a history_count set above 20 (which the Security
+     * Center's own tips actively encourage raising) silently couldn't be
+     * enforced past the 20th most recent password, with no error anywhere.
+     */
+    public function test_password_history_beyond_20_is_still_enforced_when_configured_higher(): void
+    {
+        SecuritySetting::current()->update(['password_history_count' => 30]);
+
+        $user = User::factory()->create();
+
+        for ($i = 1; $i <= 25; $i++) {
+            $user->setPassword("Password{$i}Aa!");
+        }
+
+        $this->assertSame(25, \App\Models\PasswordHistory::where('user_id', $user->id)->count());
+        $this->assertTrue($user->passwordWasUsedRecently('Password3Aa!'));
     }
 
     public function test_history_check_is_off_when_the_setting_is_zero(): void
@@ -100,7 +143,6 @@ class PasswordSecurityPolicyTest extends TestCase
         $this->actingAs($user);
 
         Volt::test('profile.update-password-form')
-            ->set('current_password', 'password')
             ->set('password', 'FirstOne123!')
             ->set('password_confirmation', 'FirstOne123!')
             ->call('updatePassword')
@@ -108,7 +150,6 @@ class PasswordSecurityPolicyTest extends TestCase
 
         // Changing straight back is allowed once the rule is disabled.
         Volt::test('profile.update-password-form')
-            ->set('current_password', 'FirstOne123!')
             ->set('password', 'BackAgain123!')
             ->set('password_confirmation', 'BackAgain123!')
             ->call('updatePassword')
@@ -122,7 +163,6 @@ class PasswordSecurityPolicyTest extends TestCase
         $this->actingAs($user);
 
         Volt::test('profile.update-password-form')
-            ->set('current_password', 'password')
             ->set('password', 'Correct123!')
             ->set('password_confirmation', 'Correct123!')
             ->call('updatePassword')
@@ -138,7 +178,6 @@ class PasswordSecurityPolicyTest extends TestCase
         $this->actingAs($user);
 
         Volt::test('profile.update-password-form')
-            ->set('current_password', 'password')
             ->set('password', 'Correct123!')
             ->set('password_confirmation', 'Correct123!')
             ->call('updatePassword')
@@ -241,9 +280,9 @@ class PasswordSecurityPolicyTest extends TestCase
 
     public function test_changing_your_own_password_from_the_index_needs_no_current_password_and_keeps_this_session(): void
     {
-        // This is an admin tool (users,update already gates it) — not the
-        // self-service Profile page's own password form, which still
-        // requires current_password. No proof needed here, self or other.
+        // This is an admin tool (users,update already gates it). The
+        // self-service Profile page's own password form follows the same
+        // rule now — no current_password field there either.
         $admin = User::factory()->create();
         LoginSession::startFor($admin, session()->getId(), '10.0.0.1', 'PHPUnit');
 

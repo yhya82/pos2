@@ -108,8 +108,25 @@ class ReportViewer extends Component
         $this->period = 'custom';
     }
 
+    /**
+     * $column reaches the query's orderBy() as-is (see queryFor()) — this
+     * is a public, directly Livewire-callable method, not just a UI sort
+     * arrow, so an arbitrary string here can't be trusted. Laravel's query
+     * grammar backtick-quotes the identifier (not SQL-injectable), but an
+     * unknown column still throws an uncaught QueryException — a 500 that
+     * can leak schema details in debug mode for nothing more than a typo'd
+     * or deliberately garbage column name.
+     */
     public function sort(string $column): void
     {
+        $sortableColumns = collect($this->availableReports()[$this->selectedReport]['columns'] ?? [])
+            ->filter(fn ($c) => $c['sort'] ?? false)
+            ->pluck('key');
+
+        if (! $sortableColumns->contains($column)) {
+            return;
+        }
+
         if ($this->sortBy === $column) {
             $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
         } else {

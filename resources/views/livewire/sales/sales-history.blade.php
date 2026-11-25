@@ -76,7 +76,7 @@
                         </td>
                         <td class="actions">
                             <a href="{{ route('sales.receipt', $sale) }}" target="_blank" class="actionbtn">Receipt</a>
-                            @if (in_array($sale->status, ['completed', 'refunded'], true) && auth()->user()->hasPermission('returns', 'create') && auth()->user()->canRefundSale($sale) && \App\Models\ModuleSetting::enabled('return_management'))
+                            @if (in_array($sale->status, ['completed', 'refunded'], true) && auth()->user()->hasPermission('returns', 'create') && auth()->user()->canRefundSale($sale) && $returnManagementEnabled)
                                 <button type="button" wire:click="$dispatch('confirm-refund', { saleId: {{ $sale->id }} })" class="actionbtn refund">Refund</button>
                             @endif
                             @if ($sale->status === 'completed' && auth()->user()->hasPermission('sales', 'update'))

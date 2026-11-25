@@ -166,4 +166,55 @@ class PosCartTest extends TestCase
         $this->assertFalse($result['success']);
         $this->assertSame(0, Sale::count());
     }
+
+    // -------------------------------------- bogus ids (crafted, not from the JS)
+
+    /**
+     * The JS only ever submits ids from data this component already gave
+     * it, but a direct/crafted call with a nonexistent id must still come
+     * back as the same {success:false, message} shape the JS expects —
+     * not an uncaught 404/500 from a bare findOrFail() deep in SaleService.
+     */
+    public function test_a_nonexistent_product_id_returns_a_friendly_message_not_a_crash(): void
+    {
+        $result = $this->checkout([['product_id' => 999999, 'quantity' => 1]]);
+
+        $this->assertFalse($result['success']);
+        $this->assertIsString($result['message']);
+        $this->assertSame(0, Sale::count());
+    }
+
+    public function test_a_nonexistent_payment_method_id_returns_a_friendly_message_not_a_crash(): void
+    {
+        $result = null;
+
+        Livewire::actingAs($this->cashier)->test(Terminal::class)
+            ->call('checkout', [['product_id' => $this->product->id, 'quantity' => 1]], null, 999999, null)
+            ->assertReturned(function ($returned) use (&$result) {
+                $result = $returned;
+
+                return true;
+            });
+
+        $this->assertFalse($result['success']);
+        $this->assertIsString($result['message']);
+        $this->assertSame(0, Sale::count());
+    }
+
+    public function test_a_nonexistent_customer_id_returns_a_friendly_message_not_a_crash(): void
+    {
+        $result = null;
+
+        Livewire::actingAs($this->cashier)->test(Terminal::class)
+            ->call('checkout', [['product_id' => $this->product->id, 'quantity' => 1]], 999999, PaymentMethod::where('code', 'cash')->firstOrFail()->id, null)
+            ->assertReturned(function ($returned) use (&$result) {
+                $result = $returned;
+
+                return true;
+            });
+
+        $this->assertFalse($result['success']);
+        $this->assertIsString($result['message']);
+        $this->assertSame(0, Sale::count());
+    }
 }

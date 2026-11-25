@@ -139,6 +139,7 @@ class SettingsManager extends Component
         $sales = SalesSetting::current();
         $this->sales = [
             'default_payment_method_id' => $sales?->default_payment_method_id,
+            'return_window_days' => $sales?->return_window_days ?? 0,
         ];
 
         $inventory = InventorySetting::current();
@@ -295,7 +296,8 @@ class SettingsManager extends Component
             'general.time_format' => ['required', 'string', 'max:20'],
             'general.tax_enabled' => ['boolean'],
             'general.tax_rate' => ['required', 'numeric', 'min:0', 'max:100'],
-            'logo' => ['nullable', 'image', 'max:2048'],
+            // See ProductManager::rules() for why this excludes SVG.
+            'logo' => ['nullable', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ], [
             'general.contact_phone.required' => 'A store phone number is required (9 digits — the +220 prefix is added automatically).',
             'general.contact_phone.digits' => 'Phone number must be exactly 9 digits (the +220 prefix is added automatically).',
@@ -370,6 +372,7 @@ class SettingsManager extends Component
 
         $validated = $this->validate([
             'sales.default_payment_method_id' => ['nullable', 'exists:payment_methods,id'],
+            'sales.return_window_days' => ['required', 'integer', 'min:0', 'max:3650'],
         ])['sales'];
 
         SalesSetting::current()->update($validated + ['updated_by' => auth()->id()]);
@@ -417,7 +420,10 @@ class SettingsManager extends Component
             'security.session_timeout_minutes' => ['required', 'integer', 'min:1'],
             'security.max_failed_login_attempts' => ['required', 'integer', 'min:1'],
             'security.lockout_duration_minutes' => ['required', 'integer', 'min:1'],
-            'security.password_min_length' => ['required', 'integer', 'min:4', 'max:64'],
+            // A floor of 4 let an admin configure a policy weaker than any
+            // real password policy should allow — 8 is the lowest NIST/OWASP
+            // generally recommend even as a bare minimum.
+            'security.password_min_length' => ['required', 'integer', 'min:8', 'max:64'],
             'security.password_history_count' => ['required', 'integer', 'min:0', 'max:50'],
             'security.password_expiry_days' => ['required', 'integer', 'min:0', 'max:3650'],
             'security.password_require_uppercase' => ['boolean'],

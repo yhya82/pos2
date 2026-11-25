@@ -142,7 +142,7 @@
                             };
                         @endphp
                         <tr wire:key="log-{{ $log->id }}" wire:click="toggleExpand({{ $log->id }})" @class(['clickable', 'arow-serious' => $serious, 'arow-warn' => $warn && ! $serious])>
-                            <td class="mut mono">{{ $log->created_at->format('Y-m-d H:i:s') }}</td>
+                            <td class="mut mono">{{ $log->created_at->format('Y-m-d h:i:s A') }}</td>
                             <td>{{ $log->user?->name ?? ($isSecurity && ! empty($detail['email']) ? $detail['email'] : 'System') }}</td>
                             <td><span class="abadge {{ $tone }}">{{ str($log->action)->replace('_', ' ')->ucfirst() }}</span></td>
                             @if ($tab === 'security')
@@ -265,7 +265,7 @@
                             <td @class(['num', 'flagged' => $p->new_devices >= $flagNewDevices])>{{ (int) $p->new_devices }}</td>
                             <td @class(['num', 'flagged' => $p->reuse_blocked >= $flagReuseBlocked])>{{ (int) $p->reuse_blocked }}</td>
                             <td @class(['num', 'flagged' => $p->lockouts >= 1])>{{ (int) $p->lockouts }}</td>
-                            <td class="mut mono">{{ \Illuminate\Support\Carbon::parse($p->last_seen)->format('Y-m-d H:i') }}</td>
+                            <td class="mut mono">{{ \Illuminate\Support\Carbon::parse($p->last_seen)->format('Y-m-d h:i A') }}</td>
                         </tr>
                     @empty
                         <tr><td colspan="13" class="empty">No activity in this period.</td></tr>
@@ -294,7 +294,7 @@
                 <tbody>
                     @forelse ($movements as $m)
                         <tr wire:key="movement-{{ $m->id }}">
-                            <td class="mut mono">{{ \Illuminate\Support\Carbon::parse($m->created_at)->format('Y-m-d H:i:s') }}</td>
+                            <td class="mut mono">{{ \Illuminate\Support\Carbon::parse($m->created_at)->format('Y-m-d h:i:s A') }}</td>
                             <td>{{ $m->product_name }}</td>
                             <td class="mono">{{ $m->batch_code ?: ($m->batch_id ? '#'.$m->batch_id : '—') }}</td>
                             <td>{{ str($m->movement_type)->replace('_', ' ')->ucfirst() }}</td>

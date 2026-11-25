@@ -30,11 +30,25 @@ class ManualStockService
     public function receive( Product $product,float $quantity,string $quantityUnit,float $unitCost, string $receivedDate,?string $expiryDate,?string $batchCode, ?string $reason, User $user, ?float $sellingPrice = null,): Batch {
         \App\Support\Whole::assert($quantity, 'The quantity received', 1);
 
+        // Unlike PurchaseReceivingService/BatchCostService, this had no
+        // guard at all — a direct call with a negative cost silently wrote
+        // a batch with a negative unit_cost.
+        if ($unitCost < 0) {
+            throw new RuntimeException('A cost cannot be negative.');
+        }
+
         if ($sellingPrice !== null && $sellingPrice <= 0) {
             throw new RuntimeException('The selling price must be above 0.');
         }
 
         return DB::transaction(function () use ($product, $quantity, $quantityUnit, $unitCost, $receivedDate, $expiryDate, $batchCode, $reason, $user, $sellingPrice) {
+            // Locked here (not just whatever row the caller handed in) —
+            // this method later conditionally rewrites selling_price/
+            // cost_price, and two concurrent manual-stock entries (or one
+            // racing a PO receipt) against the same product must not let
+            // the second stale read clobber the first's price/cost update.
+            $product = Product::where('id', $product->id)->lockForUpdate()->firstOrFail();
+
             $sellingQty = $product->toSellingQty($quantity, $quantityUnit);
             $sellingUnitCost = $product->toSellingUnitCost($unitCost, $quantityUnit);
 
@@ -105,8 +119,8 @@ class ManualStockService
                 AuditLog::record('update', 'products', 'Product', $product->id, $previous, $product->only(array_keys($updates)));
             }
 
-            if ($priceChanged && $product->promo_discount_type !== 'none') {
-                $promoPrice = Product::priceAfterDiscount($price, $product->promo_discount_type, (float) $product->promo_discount_value);
+            if ($priceChanged && $product->promoDiscountType() !== 'none') {
+                $promoPrice = Product::priceAfterDiscount($price, $product->promoDiscountType(), (float) $product->promo_discount_value);
                 $floor = $product->breakEvenCost();
 
                 if ($promoPrice < $floor) {

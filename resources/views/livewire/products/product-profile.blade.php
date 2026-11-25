@@ -242,7 +242,7 @@
                 <tbody>
                     @forelse ($movements as $movement)
                         <tr wire:key="movement-{{ $movement->id }}">
-                            <td class="mut">{{ $movement->created_at->format('Y-m-d H:i') }}</td>
+                            <td class="mut">{{ $movement->created_at->format('Y-m-d h:i A') }}</td>
                             <td>
                                 <span @class([
                                     'status',
@@ -294,7 +294,7 @@
                     @forelse ($discountedLines as $line)
                         <tr wire:key="discount-{{ $line->id }}">
                             <td class="mono"><a href="{{ route('sales.receipt', $line->sale) }}" target="_blank" class="link">{{ $line->sale->receipt_number }}</a></td>
-                            <td class="mut">{{ $line->created_at->format('Y-m-d H:i') }}</td>
+                            <td class="mut">{{ $line->created_at->format('Y-m-d h:i A') }}</td>
                             <td class="num mut">{{ rtrim(rtrim(number_format($line->quantity, 3), '0'), '.') }}</td>
                             <td class="num mut">{{ $money($line->unit_price) }}</td>
                             <td class="num" style="color: var(--acc)">

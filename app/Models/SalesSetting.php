@@ -10,6 +10,7 @@ class SalesSetting extends Model
 
     protected $fillable = [
         'default_payment_method_id',
+        'return_window_days',
         'max_discount_percentage',
         'allow_negative_stock_sale',
         'updated_by',

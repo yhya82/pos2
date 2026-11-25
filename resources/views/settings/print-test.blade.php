@@ -65,7 +65,7 @@
                 @if ($general->contact_email) &middot; {{ $general->contact_email }} @endif
             </div>
 
-            <p><strong>Test Print</strong> &mdash; generated {{ now()->format('Y-m-d H:i') }}</p>
+            <p><strong>Test Print</strong> &mdash; generated {{ now()->format('Y-m-d h:i A') }}</p>
             <p>Paper size: A4 &middot; Configured printer: {{ $printerName ?: 'not set' }}</p>
 
             <table>
@@ -88,7 +88,7 @@
             </div>
             <hr>
             <div class="center"><strong>*** TEST PRINT ***</strong></div>
-            <div>Date: {{ now()->format('Y-m-d H:i') }}</div>
+            <div>Date: {{ now()->format('Y-m-d h:i A') }}</div>
             <div>Paper: {{ $paperSize }}</div>
             <div>Printer: {{ $printerName ?: 'not set' }}</div>
             <hr>

@@ -64,7 +64,7 @@
 
     <div>
         Receipt: {{ $receipt->receipt_number }}<br>
-        Date: {{ $sale->sale_date->format('Y-m-d H:i') }}<br>
+        Date: {{ $sale->sale_date->format('Y-m-d h:i A') }}<br>
         Cashier: {{ $sale->cashier->name }}<br>
         @if ($sale->customer)
             Customer: {{ $sale->customer->name }}<br>

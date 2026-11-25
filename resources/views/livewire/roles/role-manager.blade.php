@@ -147,7 +147,7 @@
                             <label class="permchk {{ $permission->action }}">
                                 <input type="checkbox" wire:model="selectedPermissions" value="{{ $permission->id }}" @checked(in_array($permission->id, $selectedPermissions))>
                                 <span class="dot"></span>
-                                {{ ucfirst($permission->action) }}
+                                {{ str($permission->action)->replace('_', ' ')->ucfirst() }}
                             </label>
                         @endforeach
                     </div>

@@ -79,6 +79,66 @@ class ReturnServiceTest extends TestCase
         ]);
     }
 
+    /**
+     * A line fulfilled from more than one batch (FEFO splits across batches
+     * once the soonest-expiry one runs low) stays returnable after a
+     * partial return, so it can be returned again in a SEPARATE
+     * transaction. restoreInventory() used to re-read each batch's
+     * original, unchanging quantity_deducted on every call with no record
+     * of what earlier returns already restored — the second return here
+     * would credit batch A a second time (phantom stock) while batch B,
+     * which should have gotten it, stayed short.
+     */
+    public function test_a_second_partial_return_credits_the_correct_batch_not_the_first_ones_again(): void
+    {
+        $cashier = User::factory()->create();
+        $product = Product::factory()->create(['selling_price' => 10]);
+
+        $soon = Batch::factory()->for($product)->remaining(6)->expiringOn(now()->addDays(5)->toDateString())->create();
+        $later = Batch::factory()->for($product)->remaining(10)->expiringOn(now()->addDays(30)->toDateString())->create();
+
+        $sale = $this->saleService->completeSale(
+            cartLines: [['product_id' => $product->id, 'quantity' => 10]],
+            customerId: null,
+            paymentMethodId: PaymentMethod::where('code', 'cash')->firstOrFail()->id,
+            referenceNumber: null,
+            discountType: 'none',
+            discountValue: 0,
+            discountReason: null,
+            cashier: $cashier,
+        );
+
+        // FEFO: 6 from $soon (fully depleting it), 4 from $later.
+        $this->assertEquals(0, $soon->fresh()->qty_remaining);
+        $this->assertEquals(6, $later->fresh()->qty_remaining);
+
+        $lineItem = $sale->lineItems()->first();
+
+        // First return: 8 of the 10 — restores all 6 to $soon, 2 to $later.
+        $this->service->processReturn(
+            $sale,
+            [['sale_line_item_id' => $lineItem->id, 'quantity' => 8, 'condition_type' => 'sellable']],
+            'first partial return',
+            $cashier,
+        );
+
+        $this->assertEquals(6, $soon->fresh()->qty_remaining);
+        $this->assertEquals(8, $later->fresh()->qty_remaining);
+
+        // Second, separate return: the remaining 2 — must go entirely to
+        // $later (its own remaining original share), not back into $soon,
+        // which already received everything it's owed.
+        $this->service->processReturn(
+            $sale,
+            [['sale_line_item_id' => $lineItem->id, 'quantity' => 2, 'condition_type' => 'sellable']],
+            'second partial return',
+            $cashier,
+        );
+
+        $this->assertEquals(6, $soon->fresh()->qty_remaining, '$soon must not be credited twice');
+        $this->assertEquals(10, $later->fresh()->qty_remaining, '$later must receive the remaining 2 units');
+    }
+
     public function test_damaged_return_restores_then_writes_off_leaving_quantity_unchanged(): void
     {
         [$sale, , $batch, $cashier] = $this->makeCompletedSale(stock: 20, soldQty: 5);

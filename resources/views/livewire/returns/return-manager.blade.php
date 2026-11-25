@@ -44,7 +44,7 @@
                         <tr wire:key="return-{{ $return->id }}">
                             <td class="mono">{{ $return->return_number }}</td>
                             <td class="mono mut">{{ $return->originalSale->receipt_number }}</td>
-                            <td class="mut">{{ $return->created_at->format('Y-m-d H:i') }}</td>
+                            <td class="mut">{{ $return->created_at->format('Y-m-d h:i A') }}</td>
                             <td>{{ $return->processedBy->name }}</td>
                             <td class="num">{{ $money($return->refund_amount) }}</td>
                             <td>
@@ -80,7 +80,7 @@
                 <div>
                     <h1>Process return</h1>
                     <p>
-                        {{ $foundSale->receipt_number }} — {{ $foundSale->sale_date->format('Y-m-d H:i') }}
+                        {{ $foundSale->receipt_number }} — {{ $foundSale->sale_date->format('Y-m-d h:i A') }}
                         @if ($foundSale->customer) &middot; {{ $foundSale->customer->name }} @endif
                     </p>
                 </div>
@@ -170,7 +170,7 @@
                         @forelse ($returnableSales as $sale)
                             <tr wire:key="returnable-sale-{{ $sale->id }}">
                                 <td class="mono">{{ $sale->receipt_number }}</td>
-                                <td class="mut">{{ $sale->sale_date->format('Y-m-d H:i') }}</td>
+                                <td class="mut">{{ $sale->sale_date->format('Y-m-d h:i A') }}</td>
                                 <td class="mut">{{ $sale->customer?->name ?? 'Walk-in' }}</td>
                                 <td>{{ $sale->cashier->name }}</td>
                                 <td class="num">{{ $money($sale->total_amount) }}</td>

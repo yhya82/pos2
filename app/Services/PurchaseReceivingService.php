@@ -68,7 +68,13 @@ class PurchaseReceivingService
 
                 // Everything is checked in selling units (pieces) — the exact
                 // figure — so a fraction of a packet can't sneak past the order.
-                $product = $lineItem->product;
+                // Locked here (not just the line item) — this method later
+                // reads and conditionally rewrites the product's own
+                // selling_price/cost_price, and two concurrent receipts
+                // against the same product (two different POs, or a PO
+                // receipt racing a manual stock entry) must not let the
+                // second stale read clobber the first's price/cost update.
+                $product = Product::where('id', $lineItem->product_id)->lockForUpdate()->firstOrFail();
                 $conv = (float) $product->conversion_qty > 0 ? (float) $product->conversion_qty : 1.0;
                 $goodPieces = round($product->toSellingQty($qty, $qtyUnit), 3);
                 $badPieces = round($product->toSellingQty($damaged, $damagedUnit), 3);
@@ -186,8 +192,8 @@ class PurchaseReceivingService
                     AuditLog::record('update', 'products', 'Product', $product->id, $previous, $product->only(array_keys($updates)));
                 }
 
-                if ($priceChanged && $product->promo_discount_type !== 'none') {
-                    $promoPrice = Product::priceAfterDiscount($price, $product->promo_discount_type, (float) $product->promo_discount_value);
+                if ($priceChanged && $product->promoDiscountType() !== 'none') {
+                    $promoPrice = Product::priceAfterDiscount($price, $product->promoDiscountType(), (float) $product->promo_discount_value);
                     $floor = $product->breakEvenCost();
 
                     if ($promoPrice < $floor) {

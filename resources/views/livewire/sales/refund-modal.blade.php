@@ -5,7 +5,7 @@
                 <h2>Refund sale</h2>
                 @if ($sale)
                     <p>
-                        {{ $sale->receipt_number }} — {{ $sale->sale_date->format('Y-m-d H:i') }}
+                        {{ $sale->receipt_number }} — {{ $sale->sale_date->format('Y-m-d h:i A') }}
                         @if ($sale->customer) &middot; {{ $sale->customer->name }} @endif
                     </p>
                 @endif

@@ -49,7 +49,7 @@
         <strong>RETURN RECEIPT</strong><br>
         Return #: {{ $receipt->receipt_number }}<br>
         Original Sale #: {{ $receipt->totals_snapshot['original_receipt_number'] }}<br>
-        Date: {{ $salesReturn->created_at->format('Y-m-d H:i') }}<br>
+        Date: {{ $salesReturn->created_at->format('Y-m-d h:i A') }}<br>
         Processed by: {{ $salesReturn->processedBy->name }}<br>
     </div>
 

@@ -1,0 +1,45 @@
+/*
+ * The flash-message toast lives in the shared app layout on every page,
+ * not inside any one module's redesign, so — like notifications-bell.css
+ * — it loads globally and redeclares its own palette tokens so it still
+ * looks right on a page with no module CSS of its own.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+body {
+    --bg: #f6f6f4; --surf: #fff; --ink: #1a1a1c; --mut: #55555b;
+    --line: #e3e3df; --soft: #efefeb; --acc: #a81c26; --acc-ink: #fff; --acc-soft: #f9e9e9;
+    --ok: #1f7a52; --ok-soft: #e7f3ed; --warn: #8a5a00; --warn-soft: #f8eedc;
+}
+html.dark body {
+    --bg: #0f0f11; --surf: #18181b; --ink: #f3f3f4; --mut: #aeaeb6;
+    --line: #2a2a2f; --soft: #222226; --acc: #c93840; --acc-ink: #fff; --acc-soft: #3a1c1d;
+    --ok: #3cc088; --ok-soft: #173327; --warn: #e0a93a; --warn-soft: #3a2f10;
+}
+
+.flash-toast, .flash-toast *, .flash-toast *::before, .flash-toast *::after { box-sizing: border-box; }
+.flash-toast {
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surf);
+    border: 1px solid var(--line);
+    padding: 9px 10px;
+    max-width: 340px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, .12);
+}
+.flash-toast.ok { border-left: 3px solid var(--ok); }
+.flash-toast.warn { border-left: 3px solid var(--warn); }
+.flash-toast.danger { border-left: 3px solid var(--acc); }
+
+.flash-toast .ic { width: 14px; height: 14px; flex-shrink: 0; fill: none; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.flash-toast.ok .ic { stroke: var(--ok); }
+.flash-toast.warn .ic { stroke: var(--warn); }
+.flash-toast.danger .ic { stroke: var(--acc); }
+
+.flash-toast .msg { flex: 1; font-size: 12.5px; font-weight: 600; color: var(--ink); }
+
+.flash-toast .close { flex-shrink: 0; width: 16px; height: 16px; border: 0; background: none; padding: 0; color: var(--mut); cursor: pointer; display: grid; place-items: center; }
+.flash-toast .close:hover { color: var(--ink); }
+.flash-toast .close svg { width: 9px; height: 9px; stroke: currentColor; stroke-width: 2.4; fill: none; stroke-linecap: round; }

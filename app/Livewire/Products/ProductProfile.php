@@ -200,7 +200,8 @@ class ProductProfile extends Component
         $validated = $this->validate([
             'name' => ['required', 'string', 'max:200'],
             'description' => ['nullable', 'string'],
-            'photo' => ['nullable', 'image', 'max:2048'],
+            // See ProductManager::rules() for why this excludes SVG.
+            'photo' => ['nullable', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'categoryId' => ['required', 'exists:categories,id'],
             'supplierId' => ['required', 'exists:suppliers,id'],
             'barcode' => ['nullable', 'string', 'max:64', Rule::unique('products', 'barcode')->ignore($this->productId)],
@@ -220,8 +221,8 @@ class ProductProfile extends Component
 
         // See ProductManager::save() — an existing promotion can end up
         // pricing the product below cost after a price/cost edit.
-        if ($product->promo_discount_type !== 'none') {
-            $promoPrice = Product::priceAfterDiscount((float) $validated['sellingPrice'], $product->promo_discount_type, (float) $product->promo_discount_value);
+        if ($product->promoDiscountType() !== 'none') {
+            $promoPrice = Product::priceAfterDiscount((float) $validated['sellingPrice'], $product->promoDiscountType(), (float) $product->promo_discount_value);
 
             if ($promoPrice < (float) $validated['costPrice']) {
                 $this->addError('sellingPrice', 'With this product\'s current promotion the price would be '.number_format($promoPrice, 2).', below the cost of '.number_format((float) $validated['costPrice'], 2).'. Change the promotion first.');
@@ -491,7 +492,7 @@ class ProductProfile extends Component
 
         $product = Product::findOrFail($this->productId);
 
-        $this->promoDiscountType = $product->promo_discount_type;
+        $this->promoDiscountType = $product->promoDiscountType();
         $this->promoDiscountValue = $product->promo_discount_value > 0 ? (string) $product->promo_discount_value : '';
         $this->promoStartsAt = $product->promo_starts_at?->toDateString() ?? '';
         $this->promoEndsAt = $product->promo_ends_at?->toDateString() ?? '';
@@ -629,7 +630,7 @@ class ProductProfile extends Component
         $priceChanged = abs($listNew - $listOld) >= 0.005;
         // What a customer would actually pay after the change — promo-aware.
         $price = $priceChanged
-            ? Product::priceAfterDiscount($listNew, $product->promo_discount_type, (float) $product->promo_discount_value)
+            ? Product::priceAfterDiscount($listNew, $product->promoDiscountType(), (float) $product->promo_discount_value)
             : $priceOld;
         $qty = (float) $batch->qty_remaining;
 

@@ -36,8 +36,13 @@ class Sidebar extends Component
     {
         $user = auth()->user();
 
+        // One query for every module flag instead of ModuleSetting::enabled()
+        // once per nav item that has one (3 separate queries) — the Sidebar
+        // renders on every single page, so this runs on every request.
+        $moduleFlags = ModuleSetting::pluck('is_enabled', 'module_name');
+
         $items = collect($this->navItems())
-            ->filter(fn (array $item) => $this->visibleTo($user, $item))
+            ->filter(fn (array $item) => $this->visibleTo($user, $item, $moduleFlags))
             ->values();
 
         return view('livewire.layout.sidebar', [
@@ -76,7 +81,7 @@ class Sidebar extends Component
         ];
     }
 
-    private function visibleTo($user, array $item): bool
+    private function visibleTo($user, array $item, $moduleFlags): bool
     {
         if (! empty($item['adminOnly']) && ! $user->isAdministrator()) {
             return false;
@@ -86,7 +91,7 @@ class Sidebar extends Component
             return false;
         }
 
-        if (isset($item['module']) && ! ModuleSetting::enabled($item['module'])) {
+        if (isset($item['module']) && ! ($moduleFlags[$item['module']] ?? false)) {
             return false;
         }
 

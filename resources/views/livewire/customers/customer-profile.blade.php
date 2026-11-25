@@ -70,7 +70,7 @@
                     @forelse ($sales as $sale)
                         <tr wire:key="sale-{{ $sale->id }}">
                             <td class="mono"><a href="{{ route('sales.receipt', $sale) }}" target="_blank" class="link">{{ $sale->receipt_number }}</a></td>
-                            <td class="mut">{{ $sale->sale_date->format('Y-m-d H:i') }}</td>
+                            <td class="mut">{{ $sale->sale_date->format('Y-m-d h:i A') }}</td>
                             <td>{{ $sale->payment?->paymentMethod->name }}</td>
                             <td class="num">{{ $money($sale->total_amount) }}</td>
                             <td>
@@ -115,7 +115,7 @@
                     <tbody>
                         @forelse ($creditTransactions as $transaction)
                             <tr wire:key="credit-{{ $transaction->id }}">
-                                <td class="mut">{{ $transaction->created_at->format('Y-m-d H:i') }}</td>
+                                <td class="mut">{{ $transaction->created_at->format('Y-m-d h:i A') }}</td>
                                 <td>
                                     <span @class(['status', 'acc' => $transaction->type === 'credit_sale', 'ok' => $transaction->type === 'payment'])>{{ $transaction->type === 'credit_sale' ? 'Charge' : 'Payment' }}</span>
                                     @if ($transaction->sale)

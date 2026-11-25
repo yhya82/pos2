@@ -80,8 +80,8 @@ class BatchCostService
 
                 // The floor is read after the batch fix above, so correcting
                 // an inflated cost and lowering the price can go together.
-                if ($product->promo_discount_type !== 'none') {
-                    $promoPrice = Product::priceAfterDiscount($newSellingPrice, $product->promo_discount_type, (float) $product->promo_discount_value);
+                if ($product->promoDiscountType() !== 'none') {
+                    $promoPrice = Product::priceAfterDiscount($newSellingPrice, $product->promoDiscountType(), (float) $product->promo_discount_value);
                     $floor = $product->breakEvenCost();
 
                     if ($promoPrice < $floor) {

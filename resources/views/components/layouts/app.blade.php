@@ -23,7 +23,7 @@
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
-        @vite(['resources/css/app.css', 'resources/css/sidebar.css', 'resources/css/notifications-bell.css', 'resources/css/user-menu.css', 'resources/js/app.js'])
+        @vite(['resources/css/app.css', 'resources/css/sidebar.css', 'resources/css/notifications-bell.css', 'resources/css/user-menu.css', 'resources/css/flash-message.css', 'resources/js/app.js'])
         @stack('head')
     </head>
     <body
@@ -34,12 +34,60 @@
             ($event.detail.theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
         )"
     >
+        {{-- A dropped connection shows here, not as the one-off flash toast
+             (top-right, auto-fades) — "offline" is an ongoing state, not an
+             event, so it needs its own persistent banner that only clears
+             once the connection actually comes back. Two independent
+             triggers: the browser's own online/offline events (catches a
+             fully-dead network immediately) and a failed Livewire request
+             (catches a connection that drops mid-click even while
+             navigator.onLine still optimistically reports true). --}}
+        <div
+            x-data="{ offline: !navigator.onLine }"
+            x-on:offline.window="offline = true"
+            x-on:online.window="offline = false"
+            x-on:livewire-request-failed.window="offline = true"
+            x-show="offline"
+            x-transition
+            style="display: none;"
+            class="fixed top-0 inset-x-0 z-[60] bg-amber-600 text-white text-center text-sm font-semibold py-2 px-4"
+        >
+            {{ __("No internet connection — nothing will save until you're back online.") }}
+        </div>
+
+        {{-- data-navigate-once: see the note on the presence-channel script
+             just below — without it, this hook gets registered again on
+             every wire:navigate page swap, firing the same failed-request
+             callback once per page visited this session. --}}
+        <script data-navigate-once>
+            document.addEventListener('livewire:init', () => {
+                Livewire.hook('request', ({ fail }) => {
+                    fail(({ status }) => {
+                        // Set only in sendRequest()'s fetch() catch — a real
+                        // network-level failure (DNS, offline, connection
+                        // refused), not a server-side error response like a
+                        // 419/500, which already has its own real page to show.
+                        if (status === 503) {
+                            window.dispatchEvent(new Event('livewire-request-failed'));
+                        }
+                    });
+                });
+            });
+        </script>
+
         @auth
             {{-- Every authenticated tab joins the presence channel so the
                  admin-only Online Users widget (App\Livewire\Dashboard\OnlineUsers)
                  has an accurate live roster — membership itself is handled
-                 natively by Reverb, this just forwards it into Livewire. --}}
-            <script>
+                 natively by Reverb, this just forwards it into Livewire.
+                 data-navigate-once: wire:navigate re-runs any body <script>
+                 on every page swap by default, and Echo.join() returns the
+                 same cached channel each time while .here()/.joining()/
+                 .leaving() only ever add another listener — without this
+                 attribute, every navigation stacks one more listener on top
+                 of the last, so a single presence event ends up firing this
+                 dispatch once per page visited this session. --}}
+            <script data-navigate-once>
                 window.Echo.join('online-users')
                     .here(users => Livewire.dispatch('online-users-synced', { users }))
                     .joining(user => Livewire.dispatch('online-user-joined', { user }))
@@ -130,18 +178,26 @@
                         message = $event.detail.message;
                         variant = $event.detail.variant ?? 'success';
                         show = true;
-                        setTimeout(() => show = false, variant === 'warning' ? 12000 : 4000);
+                        clearTimeout(window.__flashTimer);
+                        window.__flashTimer = setTimeout(() => show = false, variant === 'warning' ? 12000 : 4000);
                     "
                     x-show="show"
                     x-transition
                     style="display: none;"
-                    class="fixed top-4 right-4 z-50 max-w-sm"
+                    class="fixed top-4 right-4 z-50"
                 >
                     <div
-                        class="rounded-md px-4 py-3 shadow-lg text-sm font-medium text-white"
-                        :class="variant === 'success' ? 'bg-emerald-600' : (variant === 'warning' ? 'bg-amber-600' : 'bg-red-600')"
-                        x-text="message"
-                    ></div>
+                        class="flash-toast"
+                        :class="variant === 'success' ? 'ok' : (variant === 'warning' ? 'warn' : 'danger')"
+                    >
+                        <svg x-show="variant === 'success'" class="ic" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+                        <svg x-show="variant === 'warning'" class="ic" viewBox="0 0 24 24" style="display:none"><path d="M12 9v3.5M12 16h.01M10.9 4.3L2.4 18a1.3 1.3 0 001.1 2h17a1.3 1.3 0 001.1-2L13.1 4.3a1.3 1.3 0 00-2.2 0z"/></svg>
+                        <svg x-show="variant !== 'success' && variant !== 'warning'" class="ic" viewBox="0 0 24 24" style="display:none"><path d="M6 6l12 12M18 6L6 18"/></svg>
+                        <span class="msg" x-text="message"></span>
+                        <button type="button" class="close" x-on:click="show = false" aria-label="{{ __('Dismiss') }}">
+                            <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+                        </button>
+                    </div>
                 </div>
 
                 <main class="flex-1 p-4 sm:p-6">

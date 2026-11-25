@@ -12,6 +12,7 @@ use App\Models\PaymentMethod;
 use App\Models\Product;
 use App\Models\SalesSetting;
 use App\Services\SaleService;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Livewire\Attributes\On;
 use Livewire\Component;
 use RuntimeException;
@@ -106,6 +107,7 @@ class Terminal extends Component
     {
         $salesSettings = SalesSetting::current();
         $generalSettings = GeneralSetting::current();
+        $hardwareSettings = HardwareSetting::current();
 
         return view('livewire.pos.terminal', [
             'products' => $this->productsForClient(),
@@ -116,9 +118,9 @@ class Terminal extends Component
             'taxEnabled' => $generalSettings->tax_enabled,
             'taxRate' => (float) $generalSettings->tax_rate,
             'currencyCode' => $generalSettings->currency_code,
-            'autoPrintReceipt' => (bool) HardwareSetting::current()?->auto_print_receipt,
-            'barcodeScannerEnabled' => (bool) HardwareSetting::current()?->barcode_scanner_enabled,
-            'paperSize' => HardwareSetting::current()?->paper_size ?? '80mm',
+            'autoPrintReceipt' => (bool) $hardwareSettings?->auto_print_receipt,
+            'barcodeScannerEnabled' => (bool) $hardwareSettings?->barcode_scanner_enabled,
+            'paperSize' => $hardwareSettings?->paper_size ?? '80mm',
         ]);
     }
 
@@ -150,6 +152,13 @@ class Terminal extends Component
             );
         } catch (RuntimeException $e) {
             return ['success' => false, 'message' => $e->getMessage()];
+        } catch (ModelNotFoundException $e) {
+            // A crafted/direct call with a bogus product, customer, or
+            // payment method id — the JS never sends one itself, since it
+            // only ever submits ids from data this component already gave
+            // it, but this still needs to come back as the same friendly
+            // result shape rather than an uncaught 404/500.
+            return ['success' => false, 'message' => "Couldn't complete the sale — one of the items, the customer, or the payment method no longer exists."];
         }
 
         // The receipt animation renders the real, already-persisted snapshot

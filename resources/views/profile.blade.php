@@ -34,14 +34,18 @@
             </div>
             <div class="figs">
                 <div class="lbl">{{ __('Last Login') }}</div>
-                <div class="val">{{ $user->last_login_at?->format('Y-m-d H:i') ?? __('Never') }}</div>
+                <div class="val">{{ $user->last_login_at?->format('Y-m-d h:i A') ?? __('Never') }}</div>
             </div>
         </div>
 
-        <livewire:profile.update-profile-information-form />
+        <div class="cols">
+            <livewire:profile.update-profile-information-form />
 
-        <livewire:profile.update-password-form />
+            <div class="side">
+                <livewire:profile.update-password-form />
 
-        <livewire:profile.delete-user-form />
+                <livewire:profile.delete-user-form />
+            </div>
+        </div>
     </div>
 </x-layouts.app>

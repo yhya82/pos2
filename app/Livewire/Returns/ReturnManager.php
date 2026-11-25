@@ -173,6 +173,12 @@ class ReturnManager extends Component
             return;
         }
 
+        if ($returnService->isPastReturnWindow($sale) && ! auth()->user()->hasPermission('returns', 'update')) {
+            $this->saleSearchError = 'This sale is outside the return window and can no longer be returned.';
+
+            return;
+        }
+
         $returnableLines = $returnService->returnableLines($sale);
 
         if (empty($returnableLines)) {

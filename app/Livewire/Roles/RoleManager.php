@@ -82,6 +82,38 @@ class RoleManager extends Component
 
         $this->validate();
 
+        $actor = auth()->user();
+        $existingRole = $isCreating ? null : Role::findOrFail($this->editingRoleId);
+
+        // The Administrator role is what every isAdministrator() gate in
+        // the app (audit logs, security history, refunding anyone's sale)
+        // trusts completely — someone holding only roles,update must not be
+        // able to rename it away, strip its permissions, or (below) create
+        // a lookalike that answers to the same name.
+        $nameIsAdministrator = strcasecmp(trim($this->name), 'Administrator') === 0;
+        $editingAdministratorRole = $existingRole?->name === 'Administrator';
+
+        if (! $actor->isAdministrator() && ($editingAdministratorRole || $nameIsAdministrator)) {
+            $this->addError('name', 'Only an administrator can create or modify the Administrator role.');
+
+            return;
+        }
+
+        // A role can only ever grant permissions its own editor already
+        // holds — otherwise roles,update alone (handed to some ordinary
+        // "HR" or "Supervisor" role) would let that role grant itself, or
+        // any other role, every permission in the system.
+        if (! $actor->isAdministrator()) {
+            $actorPermissionIds = $actor->role->permissions()->pluck('permissions.id')->all();
+            $notOwned = array_diff($this->selectedPermissions, $actorPermissionIds);
+
+            if (! empty($notOwned)) {
+                $this->addError('selectedPermissions', "You can't grant permissions you don't have yourself.");
+
+                return;
+            }
+        }
+
         $previous = null;
 
         if ($isCreating) {
@@ -91,7 +123,7 @@ class RoleManager extends Component
                 'status' => $this->status,
             ]);
         } else {
-            $role = Role::findOrFail($this->editingRoleId);
+            $role = $existingRole;
             $previous = $role->only(['name', 'description', 'status']);
             $role->update([
                 'name' => $this->name,

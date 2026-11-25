@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\AuditLog;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
@@ -11,6 +13,14 @@ new #[Layout('layouts.guest')] class extends Component
 
     /**
      * Confirm the current user's password.
+     *
+     * This screen is reachable by anyone already holding a valid session
+     * (a stolen cookie, an unlocked terminal) and, unlike the login screen,
+     * used to call Auth::guard('web')->validate() directly with no lockout
+     * at all — unlimited, unthrottled guesses against the real password,
+     * completely bypassing the account-lockout control the login screen
+     * enforces. It now shares that exact same lockout with LoginForm via
+     * User::isLockedOut()/registerFailedLoginAttempt().
      */
     public function confirmPassword(): void
     {
@@ -18,10 +28,30 @@ new #[Layout('layouts.guest')] class extends Component
             'password' => ['required', 'string'],
         ]);
 
+        /** @var User $user */
+        $user = Auth::user();
+
+        if ($user->isLockedOut()) {
+            $minutes = $user->lockoutMinutesRemaining();
+
+            throw ValidationException::withMessages([
+                'password' => "Too many failed attempts. This account is locked for another {$minutes} minute(s).",
+            ]);
+        }
+
         if (! Auth::guard('web')->validate([
-            'email' => Auth::user()->email,
+            'email' => $user->email,
             'password' => $this->password,
         ])) {
+            $result = $user->registerFailedLoginAttempt();
+
+            AuditLog::security('login_failed', $user->id, [
+                'email' => $user->email,
+                'known_account' => true,
+                'attempts' => $result['attempts'],
+                'context' => 'password_confirmation',
+            ], 'User');
+
             throw ValidationException::withMessages([
                 'password' => __('auth.password'),
             ]);
@@ -29,7 +59,7 @@ new #[Layout('layouts.guest')] class extends Component
 
         session(['auth.password_confirmed_at' => time()]);
 
-        $this->redirectIntended(default: Auth::user()->defaultLandingRoute(), navigate: true);
+        $this->redirectIntended(default: $user->defaultLandingRoute(), navigate: true);
     }
 }; ?>
 

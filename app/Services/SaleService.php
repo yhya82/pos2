@@ -251,7 +251,7 @@ class SaleService
                 'unit_price' => $unitPrice,
                 'subtotal' => $lineSubtotal,
                 'allocations' => $allocations,
-                'line_discount_type' => $lineDiscountAmount > 0 ? $product->promo_discount_type : 'none',
+                'line_discount_type' => $lineDiscountAmount > 0 ? $product->promoDiscountType() : 'none',
                 'line_discount_amount' => $lineDiscountAmount,
             ];
         }

@@ -105,6 +105,22 @@ class SecurityCenterTest extends TestCase
         $this->assertSame(10, SecuritySetting::current()->password_min_length);
     }
 
+    public function test_password_min_length_cannot_be_configured_below_8(): void
+    {
+        Livewire::actingAs($this->admin)->test(SettingsManager::class)
+            ->set('activeSection', 'security')
+            ->call('setSecurityTab', 'policy')
+            ->call('openPolicyEditor')
+            ->set('security.session_timeout_minutes', 45)
+            ->set('security.max_failed_login_attempts', 5)
+            ->set('security.lockout_duration_minutes', 15)
+            ->set('security.password_min_length', 6)
+            ->set('security.password_history_count', 5)
+            ->set('security.password_expiry_days', 90)
+            ->call('saveSecurity')
+            ->assertHasErrors('security.password_min_length');
+    }
+
     public function test_devices_tab_reflects_real_time_presence_not_just_an_unexpired_session(): void
     {
         $other = User::factory()->create();

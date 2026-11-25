@@ -212,7 +212,7 @@
                 <tbody>
                     @forelse ($movements as $movement)
                         <tr wire:key="movement-{{ $movement->id }}">
-                            <td class="mut">{{ $movement->created_at->format('Y-m-d H:i') }}</td>
+                            <td class="mut">{{ $movement->created_at->format('Y-m-d h:i A') }}</td>
                             <td>{{ $movement->product->name }}</td>
                             <td>
                                 <span @class([

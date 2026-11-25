@@ -85,9 +85,16 @@ class RefundModalTest extends TestCase
         $role->permissions()->attach(Permission::where('module', 'returns')->where('action', 'create')->value('id'));
         $cashier = User::factory()->create(['role_id' => $role->id]);
 
+        // Without sales,view_all (a fresh custom role never has it unless
+        // granted), Sale::visibleTo() now scopes this role to its own sales
+        // before canRefundSale() is ever reached — the sale isn't just
+        // forbidden to act on, it isn't visible at all, so this is a 404
+        // (ModelNotFoundException) rather than a 403, same as AccessScopeTest's
+        // equivalent "a cashier cannot select another cashier's sale" case.
+        $this->expectException(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+
         Livewire::actingAs($cashier)->test(RefundModal::class)
-            ->call('open', $sale->id)
-            ->assertForbidden();
+            ->call('open', $sale->id);
     }
 
     public function test_a_fully_returned_sale_shows_an_error_not_the_form(): void

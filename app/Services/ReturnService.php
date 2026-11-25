@@ -13,6 +13,7 @@ use App\Models\SaleLineItem;
 use App\Models\SalesReturn;
 use App\Models\SalesReturnLineItem;
 use App\Models\ReturnReceipt;
+use App\Models\SalesSetting;
 use App\Models\StoreSetting;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -39,6 +40,19 @@ class ReturnService
      *
      * @return array<int, array{sale_line_item_id: int, product_name: string, unit_price: float, max_returnable: float, original_qty: float, already_returned: float, quantity: string, condition_type: string}>
      */
+    /**
+     * 0 (the default) means no limit. Shared by processReturn() (the
+     * authoritative check — can't be bypassed) and the Returns/Refund
+     * screens (an earlier, friendlier "why can't I pick this sale" message
+     * before anyone fills out the whole form).
+     */
+    public function isPastReturnWindow(Sale $sale): bool
+    {
+        $days = (int) SalesSetting::current()->return_window_days;
+
+        return $days > 0 && $sale->sale_date->copy()->addDays($days)->isPast();
+    }
+
     public function returnableLines(Sale $sale): array
     {
         return $sale->lineItems
@@ -72,6 +86,16 @@ class ReturnService
         // The last line of defence, whichever screen or caller got here.
         if (! $processedBy->canRefundSale($originalSale)) {
             throw new RuntimeException('Only an administrator can refund a sale made by someone else.');
+        }
+
+        // Same elevated right that already widens WHICH sales someone can
+        // refund (returns,update) also lets them process one past the
+        // window — two independent gates (ownership, then window), not one
+        // replacing the other; both still apply to a regular cashier.
+        if ($this->isPastReturnWindow($originalSale) && ! $processedBy->hasPermission('returns', 'update')) {
+            $days = (int) SalesSetting::current()->return_window_days;
+
+            throw new RuntimeException("This sale is outside the {$days}-day return window.");
         }
 
         // 'refunded' means "at least one return has already been processed
@@ -175,13 +199,33 @@ class ReturnService
                 break;
             }
 
+            // quantity_deducted is this allocation's ORIGINAL, unchanging
+            // share of the sale — a line fulfilled from more than one batch
+            // can be returned across more than one separate return (a sale
+            // stays returnable after a partial return), so without
+            // subtracting what earlier returns already restored to this
+            // same batch, a second return would credit it all over again:
+            // phantom stock in this batch, and the sibling batch that
+            // should have received it permanently short.
+            $alreadyRestored = (float) DB::table('sales_return_line_item_batches')
+                ->join('sales_return_line_items', 'sales_return_line_items.id', '=', 'sales_return_line_item_batches.return_line_item_id')
+                ->where('sales_return_line_items.sale_line_item_id', $saleLineItem->id)
+                ->where('sales_return_line_item_batches.batch_id', $allocation->batch_id)
+                ->sum('sales_return_line_item_batches.quantity');
+
+            $availableToRestore = (float) $allocation->quantity_deducted - $alreadyRestored;
+
+            if ($availableToRestore <= 0) {
+                continue;
+            }
+
             $batch = Batch::where('id', $allocation->batch_id)->lockForUpdate()->first();
 
             if (! $batch) {
                 continue;
             }
 
-            $restoreQty = min((float) $allocation->quantity_deducted, $remainingToAllocate);
+            $restoreQty = min($availableToRestore, $remainingToAllocate);
 
             if ($restoreQty <= 0) {
                 continue;

@@ -10,6 +10,7 @@ use App\Models\SecuritySetting;
 use App\Models\SystemNotification;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Validate;
@@ -34,10 +35,18 @@ class LoginForm extends Form
      * 60-second threshold — unrelated to Security Settings, and
      * confusing to hit before the real, configured lockout ever applied.
      * It added no real protection an unknown email doesn't already lack
-     * (there's no account row to protect there either way), so it was
-     * removed rather than reconciled with this one. "Remember me" is
-     * deliberately not offered: the schema has no remember_token column,
-     * and session lifetime is governed explicitly by
+     * (there's no account row to protect there either way) FOR A SINGLE
+     * account — but it left a real gap this method now closes separately:
+     * nothing stopped spraying one guessed password across many different
+     * (known or unknown) emails from one IP, since the per-account lockout
+     * below only ever trips once several wrong guesses land against the
+     * SAME account. The two RateLimiter buckets just below are that:
+     * IP-only (catches spraying across accounts) and email+IP (a tighter
+     * cap on hammering one target), both independent of and in addition to
+     * the configurable per-account lockout, and checked before the account
+     * is even looked up so an attacker can't burn through it unthrottled
+     * either. "Remember me" is deliberately not offered: the schema has no
+     * remember_token column, and session lifetime is governed explicitly by
      * security_settings.session_timeout_minutes instead of a long-lived
      * cookie.
      *
@@ -45,12 +54,25 @@ class LoginForm extends Form
      */
     public function authenticate(): void
     {
+        $ip = request()->ip();
+        $ipKey = 'login-ip:'.$ip;
+        $pairKey = 'login-pair:'.Str::lower($this->email).'|'.$ip;
+
+        if (RateLimiter::tooManyAttempts($ipKey, 30) || RateLimiter::tooManyAttempts($pairKey, 10)) {
+            throw ValidationException::withMessages([
+                'form.email' => 'Too many login attempts from this network. Please wait a minute and try again.',
+            ]);
+        }
+
         $user = User::where('email', $this->email)->first();
 
         $this->ensureAccountIsActive($user);
         $this->ensureAccountIsNotLocked($user);
 
         if (! Auth::attempt($this->only(['email', 'password']))) {
+            RateLimiter::hit($ipKey, 60);
+            RateLimiter::hit($pairKey, 60);
+
             $message = $user
                 ? $this->failedAttemptMessage($this->registerFailedAttempt($user))
                 : 'Invalid credentials.';
@@ -67,6 +89,8 @@ class LoginForm extends Form
                 'form.email' => $message,
             ]);
         }
+
+        RateLimiter::clear($pairKey);
 
         AuditLog::security('login', $user->id, ['email' => $user->email], 'User');
 
@@ -147,11 +171,11 @@ class LoginForm extends Form
      */
     protected function ensureAccountIsNotLocked(?User $user): void
     {
-        if (! $user || ! $user->locked_until || $user->locked_until->isPast()) {
+        if (! $user || ! $user->isLockedOut()) {
             return;
         }
 
-        $minutes = (int) ceil(now()->diffInMinutes($user->locked_until, true));
+        $minutes = $user->lockoutMinutesRemaining();
 
         AuditLog::security('login_blocked', $user->id, ['email' => $user->email, 'reason' => 'account locked', 'minutes_left' => $minutes], 'User');
 
@@ -164,27 +188,26 @@ class LoginForm extends Form
      * @return array{attempts: int, locked: bool} so the caller can word
      *         the response differently the instant an account actually
      *         locks, versus a failed attempt that still has some left.
+     *         Shared with the "confirm password" step-up screen — see
+     *         User::registerFailedLoginAttempt().
      */
     protected function registerFailedAttempt(User $user): array
     {
-        $security = SecuritySetting::current();
-        $attempts = $user->failed_login_attempts + 1;
-
-        $locks = $attempts >= $security->max_failed_login_attempts;
-
-        $user->forceFill([
-            'failed_login_attempts' => $attempts,
-            'locked_until' => $locks ? now()->addMinutes($security->lockout_duration_minutes) : null,
-        ])->save();
-
-        if ($locks) {
-            AuditLog::security('account_locked', $user->id, ['email' => $user->email, 'failed_attempts' => $attempts, 'locked_minutes' => $security->lockout_duration_minutes], 'User');
-        }
-
-        return ['attempts' => $attempts, 'locked' => $locks];
+        return $user->registerFailedLoginAttempt();
     }
 
     /**
+     * Deliberately the same text ("Invalid credentials.") whether the email
+     * doesn't exist at all or it does and the password was simply wrong, and
+     * with no attempts-remaining count — telling an attacker exactly how
+     * many guesses a real account has left (and that it IS a real account,
+     * after only one guess) is an enumeration oracle for no real benefit to
+     * a genuine user, who just needs to try again anyway. The one exception
+     * is the locked message itself: that's a real, already-configured,
+     * user-relevant side effect (SRS-specified lockout_duration_minutes)
+     * that only shows up after several wrong guesses already succeeded at
+     * confirming the account exists, not after the first one.
+     *
      * @param  array{attempts: int, locked: bool}  $result
      */
     protected function failedAttemptMessage(array $result): string
@@ -195,14 +218,6 @@ class LoginForm extends Form
             return "Too many failed login attempts. This account is locked for {$minutes} minute(s).";
         }
 
-        $remaining = SecuritySetting::current()->max_failed_login_attempts - $result['attempts'];
-
-        if ($remaining <= 0) {
-            return 'Invalid credentials.';
-        }
-
-        $word = Str::plural('attempt', $remaining);
-
-        return "Invalid credentials. {$remaining} {$word} remaining before this account is locked.";
+        return 'Invalid credentials.';
     }
 }

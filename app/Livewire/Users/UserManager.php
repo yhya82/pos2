@@ -51,6 +51,8 @@ class UserManager extends Component
 
     public function render()
     {
+        $security = SecuritySetting::current();
+
         return view('livewire.users.user-manager', [
             'users' => User::with('role')
                 ->when($this->search, fn ($query) => $query->where(function ($q) {
@@ -61,8 +63,8 @@ class UserManager extends Component
                 ->orderBy('name')
                 ->paginate(10),
             'roles' => Role::where('status', 'active')->orderBy('name')->get(),
-            'passwordPolicyHint' => $this->passwordPolicyHint(),
-            'security' => SecuritySetting::current(),
+            'passwordPolicyHint' => $security->passwordPolicyHint(),
+            'security' => $security,
         ]);
     }
 
@@ -129,6 +131,34 @@ class UserManager extends Component
         $this->authorizeAction('users', $this->editingUserId ? 'update' : 'create');
 
         $validated = $this->validate();
+
+        $actor = auth()->user();
+
+        // A user can't change their own role — self-service role changes
+        // would let anyone holding nothing more than users,update (e.g. a
+        // "Supervisor" role meant only to edit contact info) quietly hand
+        // themselves a more privileged one. Only the actual role value
+        // matters here — the rest of the form (name/phone/status/...) must
+        // still be editable for your own account.
+        if ($this->editingUserId
+            && (int) $this->editingUserId === (int) $actor->id
+            && (int) $validated['roleId'] !== (int) $actor->role_id
+        ) {
+            $this->addError('roleId', "You can't change your own role.");
+
+            return;
+        }
+
+        // Only an administrator may grant the Administrator role itself —
+        // without this, that same "Supervisor"-with-users,update role could
+        // promote any OTHER account to full admin instead.
+        $targetRole = Role::findOrFail($validated['roleId']);
+
+        if ($targetRole->name === 'Administrator' && ! $actor->isAdministrator()) {
+            $this->addError('roleId', 'Only an administrator can assign the Administrator role.');
+
+            return;
+        }
 
         // Uniqueness has to be checked against the full +220-prefixed value
         // actually stored in the column — the form only collects the local
@@ -230,11 +260,6 @@ class UserManager extends Component
         $this->dispatch('flash-message', message: "Password changed for {$user->name}.", variant: 'success');
 
         $this->reset(['passwordUserId', 'passwordUserName', 'newPassword', 'confirmPassword']);
-    }
-
-    private function passwordPolicyHint(): string
-    {
-        return SecuritySetting::current()->passwordPolicyHint();
     }
 
     public function confirmDeactivate(int $userId): void

@@ -9,12 +9,12 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class SalesReturn extends Model
 {
-    /** A cashier sees only returns against their own sales. */
+    /** See Sale::scopeVisibleTo() — same sales,view_all permission. */
     public function scopeVisibleTo($query, User $user)
     {
-        return $user->isCashier()
-            ? $query->whereHas('originalSale', fn ($q) => $q->where('cashier_id', $user->id))
-            : $query;
+        return $user->hasPermission('sales', 'view_all')
+            ? $query
+            : $query->whereHas('originalSale', fn ($q) => $q->where('cashier_id', $user->id));
     }
 
     const UPDATED_AT = null;

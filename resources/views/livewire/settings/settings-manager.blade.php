@@ -163,7 +163,7 @@
             {{-- ============================== SALES ============================== --}}
             @if ($activeSection === 'sales')
                 <form wire:submit="saveSales" class="cardbody">
-                    <div class="f" style="margin-bottom:0;">
+                    <div class="f">
                         <label>Default Payment Method</label>
                         <select wire:model="sales.default_payment_method_id">
                             <option value="">None</option>
@@ -171,6 +171,12 @@
                                 <option value="{{ $method->id }}">{{ $method->name }}</option>
                             @endforeach
                         </select>
+                    </div>
+                    <div class="f" style="margin-bottom:0;">
+                        <label>Return Window (days)<span class="req">*</span></label>
+                        <input type="text" wire:model="sales.return_window_days">
+                        <p class="hint">A sale can no longer be returned past this many days after its sale date. 0 means no limit. Someone with the "refund any sale" permission can still process a return past the window.</p>
+                        <x-input-error :messages="$errors->get('sales.return_window_days')" class="mt-2" />
                     </div>
                     <div class="formfoot">
                         <button type="submit" class="btn p">Save</button>
@@ -497,7 +503,7 @@
                                             <td><span class="status {{ $isOnline ? 'ok' : 'plain' }}">{{ $isOnline ? 'Online now' : 'Away' }}</span></td>
                                             <td class="mut">{{ \Illuminate\Support\Str::limit($sess->user_agent ?? '—', 42) }}</td>
                                             <td class="mut">{{ $sess->ip_address }}</td>
-                                            <td class="mut">{{ $sess->created_at->format('Y-m-d H:i') }}</td>
+                                            <td class="mut">{{ $sess->created_at->format('Y-m-d h:i A') }}</td>
                                             <td class="mut">{{ $sess->expires_at->diffForHumans() }}</td>
                                             <td>
                                                 @unless ($isCurrent)
@@ -539,7 +545,7 @@
                                             };
                                         @endphp
                                         <tr>
-                                            <td class="mut">{{ $log->created_at->format('Y-m-d H:i:s') }}</td>
+                                            <td class="mut">{{ $log->created_at->format('Y-m-d h:i:s A') }}</td>
                                             <td>{{ $log->user?->email ?? ($detail['email'] ?? '—') }}</td>
                                             <td>@if($tone)<span class="status {{ $tone }}">{{ str($log->action)->replace('_', ' ')->ucfirst() }}</span>@else{{ str($log->action)->replace('_', ' ')->ucfirst() }}@endif</td>
                                             <td class="mut">{{ $detail['attempts'] ?? '—' }}</td>
@@ -583,7 +589,7 @@
                                             <b>{{ $label }}</b>
                                             <span>{{ $detail['email'] ?? ($log->user?->email ?? '') }}</span>
                                         </div>
-                                        <div class="meta">{{ $log->created_at->format('Y-m-d H:i') }}<br>{{ $log->user?->name ?? 'System' }}</div>
+                                        <div class="meta">{{ $log->created_at->format('Y-m-d h:i A') }}<br>{{ $log->user?->name ?? 'System' }}</div>
                                     </div>
                                 @endforeach
                             </div>
@@ -638,7 +644,7 @@
                                             <td class="num">{{ (int) $p->new_devices }}</td>
                                             <td class="num">{{ (int) $p->reuse_blocked }}</td>
                                             <td><span class="status {{ $lockedNow ? 'acc' : 'ok' }}">{{ $lockedNow ? 'Locked now' : 'Active' }}</span></td>
-                                            <td class="mut mono">{{ \Illuminate\Support\Carbon::parse($p->last_seen)->format('Y-m-d H:i') }}</td>
+                                            <td class="mut mono">{{ \Illuminate\Support\Carbon::parse($p->last_seen)->format('Y-m-d h:i A') }}</td>
                                         </tr>
                                     @empty
                                         <tr><td colspan="8" class="empty">No security events in the last 7 days.</td></tr>
@@ -667,8 +673,8 @@
                                         <td>
                                             <span @class(['status', 'ok' => $backup->status === 'completed', 'acc' => $backup->status === 'failed', 'warn' => $backup->status === 'pending'])>{{ ucfirst($backup->status) }}</span>
                                         </td>
-                                        <td class="mut">{{ $backup->created_at->format('Y-m-d H:i') }}</td>
-                                        <td class="mut">{{ $backup->completed_at?->format('Y-m-d H:i') ?? '—' }}</td>
+                                        <td class="mut">{{ $backup->created_at->format('Y-m-d h:i A') }}</td>
+                                        <td class="mut">{{ $backup->completed_at?->format('Y-m-d h:i A') ?? '—' }}</td>
                                     </tr>
                                 @empty
                                     <tr><td colspan="4" class="empty">No backups recorded yet.</td></tr>

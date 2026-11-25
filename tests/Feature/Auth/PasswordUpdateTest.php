@@ -19,7 +19,6 @@ class PasswordUpdateTest extends TestCase
         $this->actingAs($user);
 
         $component = Volt::test('profile.update-password-form')
-            ->set('current_password', 'password')
             ->set('password', 'NewPassword123!')
             ->set('password_confirmation', 'NewPassword123!')
             ->call('updatePassword');
@@ -31,20 +30,23 @@ class PasswordUpdateTest extends TestCase
         $this->assertTrue(Hash::check('NewPassword123!', $user->refresh()->password_hash));
     }
 
-    public function test_correct_password_must_be_provided_to_update_password(): void
+    public function test_confirmation_must_match_the_new_password(): void
     {
         $user = User::factory()->create();
 
         $this->actingAs($user);
 
         $component = Volt::test('profile.update-password-form')
-            ->set('current_password', 'wrong-password')
             ->set('password', 'NewPassword123!')
-            ->set('password_confirmation', 'NewPassword123!')
+            ->set('password_confirmation', 'SomethingElse123!')
             ->call('updatePassword');
 
+        // The mismatch error belongs on password_confirmation (what was
+        // actually mistyped), not password — that's also what the
+        // confirm field's shake/focus/red-highlight react to client-side.
         $component
-            ->assertHasErrors(['current_password'])
+            ->assertHasErrors(['password_confirmation'])
+            ->assertDispatched('password-mismatch')
             ->assertNoRedirect();
     }
 }

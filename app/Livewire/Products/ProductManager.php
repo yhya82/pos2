@@ -122,7 +122,10 @@ class ProductManager extends Component
         return [
             'name' => ['required', 'string', 'max:200'],
             'description' => ['nullable', 'string'],
-            'photo' => ['nullable', 'image', 'max:2048'],
+            // Laravel's bare 'image' rule accepts SVG, which isn't a raster
+            // image at all — it's XML that can embed a <script>, a latent
+            // XSS risk if it's ever rendered somewhere other than <img src>.
+            'photo' => ['nullable', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'categoryId' => ['required', 'exists:categories,id'],
             'supplierId' => ['required', 'exists:suppliers,id'],
             'barcode' => ['nullable', 'string', 'max:64', Rule::unique('products', 'barcode')->ignore($this->editingProductId)],
@@ -205,8 +208,8 @@ class ProductManager extends Component
         if ($this->editingProductId) {
             $existing = Product::findOrFail($this->editingProductId);
 
-            if ($existing->promo_discount_type !== 'none') {
-                $promoPrice = Product::priceAfterDiscount((float) $validated['sellingPrice'], $existing->promo_discount_type, (float) $existing->promo_discount_value);
+            if ($existing->promoDiscountType() !== 'none') {
+                $promoPrice = Product::priceAfterDiscount((float) $validated['sellingPrice'], $existing->promoDiscountType(), (float) $existing->promo_discount_value);
 
                 if ($promoPrice < (float) $validated['costPrice']) {
                     $this->addError('sellingPrice', 'With this product\'s current promotion the price would be '.number_format($promoPrice, 2).', below the cost of '.number_format((float) $validated['costPrice'], 2).'. Change the promotion first.');

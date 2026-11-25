@@ -77,12 +77,29 @@ class DashboardOverview extends Component
         $canViewReturns = ModuleSetting::enabled('return_management') && $user->hasPermission('returns', 'view');
         $canViewPurchaseOrders = ModuleSetting::enabled('purchase_management') && $user->hasPermission('purchase_orders', 'view');
 
+        // Revenue, Profit, Top Products, Inventory Value and Est. Profit are
+        // ALL gated by canSeeFinancials() one way or another — this is the
+        // one flag that actually decides whether the top section's fixed,
+        // admin-sized grid areas have anything to fill them. Without it,
+        // only Refunds/Outstanding Credit (if those modules are on) are left
+        // floating in a grid reserved for five cards that were never coming.
+        $restrictedFinanceLayout = ! $user->canSeeFinancials();
+
         [$from, $to] = $this->periodRange();
         $periodSales = $canViewRevenue ? $this->periodSales($from, $to) : null;
         $revenueChange = $canViewRevenue ? $this->revenueChange($periodSales->revenue) : ['percent' => null, 'isNew' => false];
 
+        // "Your activity today" — only for someone who actually works the
+        // till (sales,create) and only once store-wide revenue is already
+        // hidden from them; an admin already sees the real thing above.
+        $showOwnActivity = $restrictedFinanceLayout && $user->hasPermission('sales', 'create');
+        $ownActivity = $showOwnActivity ? $this->ownActivityToday($user) : null;
+
         return view('livewire.dashboard.dashboard-overview', [
             'currencyCode' => GeneralSetting::current()->currency_code,
+            'roleName' => $user->role->name,
+            'restrictedFinanceLayout' => $restrictedFinanceLayout,
+            'ownActivity' => $ownActivity,
             'canViewRevenue' => $canViewRevenue,
             'canViewInventory' => $canViewInventory,
             'canViewInventoryValue' => $canViewInventoryValue,
@@ -232,6 +249,26 @@ class DashboardOverview extends Component
             ->where('status', 'completed')
             ->selectRaw('COUNT(*) as transaction_count, COALESCE(SUM(total_amount), 0) as revenue')
             ->first();
+    }
+
+    /**
+     * Today's own takings — same scoping Sale::visibleTo() already applies
+     * everywhere else (own sales only, unless sales,view_all), so this is
+     * never a backdoor into someone else's numbers. Items sold is summed
+     * separately since it lives on the line items, not the sale header.
+     */
+    private function ownActivityToday($user): array
+    {
+        $saleIds = Sale::visibleTo($user)
+            ->whereDate('sale_date', now()->toDateString())
+            ->where('status', 'completed')
+            ->pluck('id');
+
+        return [
+            'transactions' => $saleIds->count(),
+            'total' => (float) Sale::whereIn('id', $saleIds)->sum('total_amount'),
+            'itemsSold' => (float) DB::table('sale_line_items')->whereIn('sale_id', $saleIds)->sum('quantity'),
+        ];
     }
 
     /**

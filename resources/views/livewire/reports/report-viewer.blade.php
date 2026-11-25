@@ -24,6 +24,12 @@
             <h1>Reports</h1>
             <p>Every reporting view already built into the schema ,grouped by area, filtered by date</p>
         </div>
+
+        {{-- Every visible report, zipped — see ReportViewer::exportAllCsv(). --}}
+        <button type="button" x-on:click="$dispatch('open-modal', 'confirm-export-all-csv')" class="export-btn export-all">
+            <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+            {{ __('Export All (CSV)') }}
+        </button>
     </div>
 
     <div class="layout">
@@ -60,6 +66,13 @@
                                 <p>{{ $currentReport['hint'] }}</p>
                             @endif
                         </div>
+
+                        {{-- Every row matching the current filters, not just
+                             this page — see ReportViewer::exportCsv(). --}}
+                        <button type="button" x-on:click="$dispatch('open-modal', 'confirm-export-csv')" class="export-btn">
+                            <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+                            {{ __('Export CSV') }}
+                        </button>
                     </div>
 
                     @if (isset($currentReport['dateColumn']))
@@ -162,4 +175,30 @@
             @endif
         </div>
     </div>
+
+    <x-modal name="confirm-export-csv" max-width="sm">
+        <div class="dialog">
+            <div class="dh">
+                <h2>{{ __('Export this report?') }}</h2>
+                <p>{{ __('Downloads every row matching the current filters as a CSV file, not just the page shown on screen.') }}</p>
+            </div>
+            <div class="df">
+                <button type="button" class="btn" x-on:click="$dispatch('close')">{{ __('Cancel') }}</button>
+                <button type="button" wire:click="exportCsv" x-on:click="$dispatch('close')" class="btn p">{{ __('Export') }}</button>
+            </div>
+        </div>
+    </x-modal>
+
+    <x-modal name="confirm-export-all-csv" max-width="sm">
+        <div class="dialog">
+            <div class="dh">
+                <h2>{{ __('Export every report?') }}</h2>
+                <p>{{ __('Downloads a zip file with every report you can see, each as its own CSV.') }}</p>
+            </div>
+            <div class="df">
+                <button type="button" class="btn" x-on:click="$dispatch('close')">{{ __('Cancel') }}</button>
+                <button type="button" wire:click="exportAllCsv" x-on:click="$dispatch('close')" class="btn p">{{ __('Export All') }}</button>
+            </div>
+        </div>
+    </x-modal>
 </div>

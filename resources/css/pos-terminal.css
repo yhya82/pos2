@@ -271,6 +271,11 @@ main {
 .pos-skin .seg { display: grid; grid-template-columns: repeat(var(--seg-cols, 4), 1fr); gap: 4px; background: var(--soft); padding: 4px; }
 .pos-skin .seg button { height: 36px; font-weight: 600; font-size: 13.5px; color: var(--ink); }
 .pos-skin .seg button[aria-pressed=true] { background: var(--acc); color: var(--acc-ink); }
+.pos-skin .f .confirmpay { display: flex; align-items: center; gap: 10px; height: 42px; margin-top: 12px; font-weight: 600; font-size: 13.5px; color: var(--acc); font-style: italic; cursor: pointer; }
+.pos-skin .f .confirmpay.ok { color: var(--ok); font-style: normal; }
+.pos-skin .confirmpay input[type=checkbox] { appearance: none; -webkit-appearance: none; margin: 0; width: 16px; height: 16px; flex-shrink: 0; border-radius: 50%; border: 2px solid var(--line); background: var(--bg); cursor: pointer; position: relative; box-shadow: none; outline: none; }
+.pos-skin .confirmpay input[type=checkbox]:checked { background: var(--ok); border-color: var(--ok); box-shadow: none; }
+.pos-skin .confirmpay input[type=checkbox]:checked::after { content: ''; position: absolute; left: 4px; top: 1px; width: 4px; height: 7px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
 .pos-skin .quick { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
 .pos-skin .quick button { border: 1px solid var(--line); padding: 4px 10px; font-size: 13px; font-weight: 600; color: var(--ink); }
 .pos-skin .quick button:hover { border-color: var(--acc); color: var(--acc); }

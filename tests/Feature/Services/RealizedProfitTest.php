@@ -28,7 +28,7 @@ class RealizedProfitTest extends TestCase
             cartLines: [['product_id' => $product->id, 'quantity' => $qty]],
             customerId: null,
             paymentMethodId: PaymentMethod::where('code', 'cash')->firstOrFail()->id,
-            referenceNumber: null,
+            paymentConfirmed: true,
             discountType: $discountType,
             discountValue: $discountValue,
             discountReason: $discountType === 'none' ? null : 'test',

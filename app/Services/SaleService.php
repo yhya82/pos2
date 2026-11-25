@@ -35,12 +35,12 @@ class SaleService
      *
      * @throws RuntimeException on empty cart, a non-whole quantity, insufficient stock, disabled/missing customer credit, or any discount
      */
-    public function completeSale( array $cartLines, ?int $customerId, int $paymentMethodId, ?string $referenceNumber,string $discountType, float $discountValue,?string $discountReason,User $cashier,): Sale {
+    public function completeSale( array $cartLines, ?int $customerId, int $paymentMethodId, bool $paymentConfirmed,string $discountType, float $discountValue,?string $discountReason,User $cashier,): Sale {
         if (empty($cartLines)) {
             throw new RuntimeException('Cannot complete a sale with no items.');
         }
 
-        $sale = DB::transaction(function () use ($cartLines, $customerId, $paymentMethodId, $referenceNumber, $discountType, $discountValue, $discountReason, $cashier) {
+        $sale = DB::transaction(function () use ($cartLines, $customerId, $paymentMethodId, $paymentConfirmed, $discountType, $discountValue, $discountReason, $cashier) {
             $paymentMethod = PaymentMethod::where('is_enabled', true)->findOrFail($paymentMethodId);
             $isCredit = $paymentMethod->code === 'credit';
 
@@ -120,7 +120,7 @@ class SaleService
             $sale->payment()->create([
                 'payment_method_id' => $paymentMethod->id,
                 'amount' => $totalAmount,
-                'reference_number' => $referenceNumber,
+                'payment_confirmed' => $paymentConfirmed,
                 'received_by' => $cashier->id,
                 'paid_at' => now(),
             ]);

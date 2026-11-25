@@ -40,7 +40,7 @@ class PosCartTest extends TestCase
         $result = null;
 
         Livewire::actingAs($this->cashier)->test(Terminal::class)
-            ->call('checkout', $cart, null, PaymentMethod::where('code', 'cash')->firstOrFail()->id, null)
+            ->call('checkout', $cart, null, PaymentMethod::where('code', 'cash')->firstOrFail()->id, true)
             ->assertReturned(function ($returned) use (&$result) {
                 $result = $returned;
 
@@ -56,7 +56,7 @@ class PosCartTest extends TestCase
             cartLines: [['product_id' => $this->product->id, 'quantity' => $quantity]],
             customerId: null,
             paymentMethodId: PaymentMethod::where('code', 'cash')->firstOrFail()->id,
-            referenceNumber: null,
+            paymentConfirmed: true,
             discountType: 'none', discountValue: 0, discountReason: null,
             cashier: $this->cashier,
         );
@@ -189,7 +189,7 @@ class PosCartTest extends TestCase
         $result = null;
 
         Livewire::actingAs($this->cashier)->test(Terminal::class)
-            ->call('checkout', [['product_id' => $this->product->id, 'quantity' => 1]], null, 999999, null)
+            ->call('checkout', [['product_id' => $this->product->id, 'quantity' => 1]], null, 999999, true)
             ->assertReturned(function ($returned) use (&$result) {
                 $result = $returned;
 
@@ -206,7 +206,7 @@ class PosCartTest extends TestCase
         $result = null;
 
         Livewire::actingAs($this->cashier)->test(Terminal::class)
-            ->call('checkout', [['product_id' => $this->product->id, 'quantity' => 1]], 999999, PaymentMethod::where('code', 'cash')->firstOrFail()->id, null)
+            ->call('checkout', [['product_id' => $this->product->id, 'quantity' => 1]], 999999, PaymentMethod::where('code', 'cash')->firstOrFail()->id, true)
             ->assertReturned(function ($returned) use (&$result) {
                 $result = $returned;
 

@@ -73,7 +73,13 @@ class UserManager extends Component
         $rules = [
             'name' => ['required', 'string', 'max:150'],
             'username' => ['required', 'string', 'max:100', Rule::unique('users', 'username')->ignore($this->editingUserId)],
-            'email' => ['nullable', 'string', 'email', 'max:150', Rule::unique('users', 'email')->ignore($this->editingUserId)],
+            // Required for a brand-new account; an existing account that
+            // predates this rule (or was created before it) can still be
+            // edited without being forced to backfill one right now.
+            'email' => [
+                $this->editingUserId ? 'nullable' : 'required',
+                'string', 'email', 'max:150', Rule::unique('users', 'email')->ignore($this->editingUserId),
+            ],
             'phone' => ['required', 'digits:9'],
             'roleId' => ['required', 'exists:roles,id'],
             'status' => ['required', 'in:active,inactive'],
@@ -189,7 +195,14 @@ class UserManager extends Component
         $isCreating = ! $this->editingUserId;
 
         if ($isCreating) {
-            $user = User::create($attributes);
+            // password_hash is NOT NULL with no default — the INSERT itself
+            // fails under strict mode without it, before setPassword()
+            // below ever runs. Merged in only for this branch, not into
+            // $attributes itself, since that same array is reused for the
+            // edit path, where $this->password is always empty (editing
+            // never touches the password field) and must never overwrite
+            // an existing account's real one.
+            $user = User::create($attributes + ['password_hash' => $this->password]);
             // A brand-new account has no session of its own yet to protect.
             $user->setPassword($this->password);
         } else {

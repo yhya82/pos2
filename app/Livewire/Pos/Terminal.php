@@ -132,17 +132,26 @@ class Terminal extends Component
         array $cart,
         ?int $customerId,
         int $paymentMethodId,
-        ?string $referenceNumber,
+        bool $paymentConfirmed,
         SaleService $saleService,
     ): array {
         $this->authorizeAction('sales', 'create');
+
+        // Cash and credit have nothing to confirm — only a mobile money/bank
+        // transfer method (Aps/Wave) actually requires the cashier to tick
+        // that the payment came through before the sale can complete.
+        $paymentMethod = PaymentMethod::find($paymentMethodId);
+
+        if ($paymentMethod && in_array($paymentMethod->code, ['mobile_money', 'bank_transfer'], true) && ! $paymentConfirmed) {
+            return ['success' => false, 'message' => 'Please confirm the payment was received before completing the sale.'];
+        }
 
         try {
             $sale = $saleService->completeSale(
                 $cart,
                 $customerId,
                 $paymentMethodId,
-                $referenceNumber,
+                $paymentConfirmed,
                 // No discounts at the till: prices are the product's (including
                 // any promotion set on the product itself), nothing more.
                 'none',

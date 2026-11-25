@@ -205,7 +205,7 @@
                     <label>Payment method</label>
                     <div class="seg" :style="'--seg-cols:' + paymentMethods.length">
                         <template x-for="method in paymentMethods" :key="method.id">
-                            <button type="button" :aria-pressed="method.id === paymentMethodId" @click="paymentMethodId = method.id" x-text="method.name"></button>
+                            <button type="button" :aria-pressed="method.id === paymentMethodId" @click="paymentMethodId = method.id; paymentConfirmed = false" x-text="method.name"></button>
                         </template>
                     </div>
                 </div>
@@ -221,8 +221,11 @@
                 </div>
 
                 <div class="f" x-show="!isCredit() && paymentMethodCode() !== 'cash'" x-cloak>
-                    <label for="pos_ref">Reference number</label>
-                    <input id="pos_ref" type="text" x-model="referenceNumber">
+                    <label>Payment received</label>
+                    <label class="confirmpay" :class="paymentConfirmed ? 'ok' : ''">
+                        <input type="checkbox" x-model="paymentConfirmed">
+                        <span x-text="paymentConfirmed ? 'Received' : 'Confirm payment'"></span>
+                    </label>
                 </div>
             </div>
 
@@ -240,7 +243,7 @@
                 <div class="tot"><span>Total</span><b><i x-text="currencyCode"></i><span x-text="money(total())"></span></b></div>
             </div>
 
-            <button type="button" class="go" :disabled="processing || cart.length === 0 || (isCredit() && !customerId)" @click="completeSale()">
+            <button type="button" class="go" :disabled="processing || cart.length === 0 || (isCredit() && !customerId) || (!isCredit() && paymentMethodCode() !== 'cash' && !paymentConfirmed)" @click="completeSale()">
                 <span x-text="goLabel()"></span>
             </button>
         </aside>
@@ -321,7 +324,7 @@
             paymentMethodId: config.paymentMethods.find(m => m.code === 'cash')?.id
                 ?? config.defaultPaymentMethodId
                 ?? (config.paymentMethods[0]?.id ?? null),
-            referenceNumber: '',
+            paymentConfirmed: false,
             tenderedAmount: '',
             tenderedError: false,
             processing: false,
@@ -561,6 +564,7 @@
             // rather than letting you click and only then finding out.
             goLabel() {
                 if (this.isCredit() && !this.customerId) return 'Choose a customer for credit';
+                if (!this.isCredit() && this.paymentMethodCode() !== 'cash' && !this.paymentConfirmed) return 'Confirm payment first';
 
                 return 'Complete sale';
             },
@@ -614,6 +618,12 @@
                     return;
                 }
 
+                if (!this.isCredit() && this.paymentMethodCode() !== 'cash' && !this.paymentConfirmed) {
+                    this.toast('Please confirm the payment was received.');
+
+                    return;
+                }
+
                 this.tenderedError = false;
                 this.processing = true;
 
@@ -621,7 +631,7 @@
                     this.cart.map(l => ({ product_id: l.product_id, quantity: l.quantity })),
                     this.customerId,
                     this.paymentMethodId,
-                    this.paymentMethodCode() === 'cash' ? null : this.referenceNumber,
+                    this.isCredit() || this.paymentMethodCode() === 'cash' ? true : this.paymentConfirmed,
                 );
 
                 this.processing = false;
@@ -649,7 +659,7 @@
                 this.cart = [];
                 this.priceNotices = [];
                 this.customerId = null;
-                this.referenceNumber = '';
+                this.paymentConfirmed = false;
                 this.tenderedAmount = '';
             },
 

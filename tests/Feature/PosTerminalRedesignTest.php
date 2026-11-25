@@ -44,7 +44,7 @@ class PosTerminalRedesignTest extends TestCase
             cartLines: [['product_id' => $product->id, 'quantity' => $qty]],
             customerId: null,
             paymentMethodId: PaymentMethod::where('code', 'cash')->firstOrFail()->id,
-            referenceNumber: null,
+            paymentConfirmed: true,
             discountType: 'none', discountValue: 0, discountReason: null,
             cashier: $cashier,
         );
@@ -101,7 +101,7 @@ class PosTerminalRedesignTest extends TestCase
         $result = null;
 
         Livewire::actingAs($this->cashier)->test(Terminal::class)
-            ->call('checkout', [['product_id' => $product->id, 'quantity' => 2]], null, PaymentMethod::where('code', 'cash')->firstOrFail()->id, null)
+            ->call('checkout', [['product_id' => $product->id, 'quantity' => 2]], null, PaymentMethod::where('code', 'cash')->firstOrFail()->id, true)
             ->assertReturned(function ($returned) use (&$result) {
                 $result = $returned;
 

@@ -118,9 +118,9 @@ class DashboardRedesignTest extends TestCase
         $cash = PaymentMethod::where('code', 'cash')->firstOrFail()->id;
 
         // Yesterday: 10.00. Today: 20.00 — a real 100% increase.
-        Livewire::actingAs($user)->test(Terminal::class)->call('checkout', [['product_id' => $product->id, 'quantity' => 1]], null, $cash, null);
+        Livewire::actingAs($user)->test(Terminal::class)->call('checkout', [['product_id' => $product->id, 'quantity' => 1]], null, $cash, true);
         Sale::latest('id')->first()->update(['sale_date' => now()->subDay()]);
-        Livewire::actingAs($user)->test(Terminal::class)->call('checkout', [['product_id' => $product->id, 'quantity' => 2]], null, $cash, null);
+        Livewire::actingAs($user)->test(Terminal::class)->call('checkout', [['product_id' => $product->id, 'quantity' => 2]], null, $cash, true);
 
         Livewire::actingAs($user)->test(DashboardOverview::class)
             ->assertSee('+100% vs yesterday')
@@ -150,7 +150,7 @@ class DashboardRedesignTest extends TestCase
         Batch::factory()->for($product)->remaining(10)->create();
 
         Livewire::actingAs($user)->test(Terminal::class)
-            ->call('checkout', [['product_id' => $product->id, 'quantity' => 1]], null, PaymentMethod::where('code', 'cash')->firstOrFail()->id, null);
+            ->call('checkout', [['product_id' => $product->id, 'quantity' => 1]], null, PaymentMethod::where('code', 'cash')->firstOrFail()->id, true);
 
         Livewire::actingAs($user)->test(DashboardOverview::class)
             ->assertSee('No prior data vs yesterday')
@@ -169,9 +169,9 @@ class DashboardRedesignTest extends TestCase
         $cash = PaymentMethod::where('code', 'cash')->firstOrFail()->id;
 
         // This year so far: 20.00.
-        Livewire::actingAs($user)->test(Terminal::class)->call('checkout', [['product_id' => $product->id, 'quantity' => 2]], null, $cash, null);
+        Livewire::actingAs($user)->test(Terminal::class)->call('checkout', [['product_id' => $product->id, 'quantity' => 2]], null, $cash, true);
         // Same stretch last year: 10.00 — a real 100% increase.
-        Livewire::actingAs($user)->test(Terminal::class)->call('checkout', [['product_id' => $product->id, 'quantity' => 1]], null, $cash, null);
+        Livewire::actingAs($user)->test(Terminal::class)->call('checkout', [['product_id' => $product->id, 'quantity' => 1]], null, $cash, true);
         Sale::latest('id')->first()->update(['sale_date' => now()->copy()->subYear()]);
 
         Livewire::actingAs($user)->test(DashboardOverview::class)
@@ -242,9 +242,9 @@ class DashboardRedesignTest extends TestCase
         Batch::factory()->for($cheap)->remaining(50)->create();
 
         Livewire::actingAs($user)->test(Terminal::class)
-            ->call('checkout', [['product_id' => $expensive->id, 'quantity' => 1]], null, $cash, null);
+            ->call('checkout', [['product_id' => $expensive->id, 'quantity' => 1]], null, $cash, true);
         Livewire::actingAs($user)->test(Terminal::class)
-            ->call('checkout', [['product_id' => $cheap->id, 'quantity' => 20]], null, $cash, null);
+            ->call('checkout', [['product_id' => $cheap->id, 'quantity' => 20]], null, $cash, true);
 
         $topProducts = Livewire::actingAs($user)->test(DashboardOverview::class)->viewData('topProducts');
 
@@ -290,7 +290,7 @@ class DashboardRedesignTest extends TestCase
         Batch::factory()->for($product)->remaining(20)->create();
 
         Livewire::actingAs($user)->test(Terminal::class)
-            ->call('checkout', [['product_id' => $product->id, 'quantity' => 3]], null, PaymentMethod::where('code', 'cash')->firstOrFail()->id, null);
+            ->call('checkout', [['product_id' => $product->id, 'quantity' => 3]], null, PaymentMethod::where('code', 'cash')->firstOrFail()->id, true);
 
         Livewire::actingAs($user)->test(DashboardOverview::class)
             ->assertSee('Best Seller')
@@ -375,10 +375,97 @@ class DashboardRedesignTest extends TestCase
 
     public function test_a_role_with_no_dashboard_visibility_at_all_sees_the_fallback_message(): void
     {
-        $user = $this->userWith([['sales', 'create']]);
+        // Genuinely nothing — not even sales,create, which now earns its
+        // own "Your activity today" section instead of this fallback.
+        $user = $this->userWith([]);
 
         Livewire::actingAs($user)->test(DashboardOverview::class)
             ->assertSee("doesn't have visibility into any dashboard data yet", false);
+    }
+
+    public function test_a_role_with_only_sales_create_sees_its_own_activity_instead_of_the_fallback(): void
+    {
+        $user = $this->userWith([['sales', 'create']]);
+
+        Livewire::actingAs($user)->test(DashboardOverview::class)
+            ->assertDontSee("doesn't have visibility into any dashboard data yet", false)
+            ->assertSee('Your sales total today');
+    }
+
+    public function test_the_header_shows_the_viewers_actual_role_name_not_a_generic_label(): void
+    {
+        $role = Role::create(['name' => 'Floor Manager', 'description' => 'test', 'status' => 'active']);
+        $user = User::factory()->create(['role_id' => $role->id]);
+
+        Livewire::actingAs($user)->test(DashboardOverview::class)
+            ->assertSee('Floor Manager');
+    }
+
+    private function sell(User $cashier, Product $product, int $qty = 1): Sale
+    {
+        return app(\App\Services\SaleService::class)->completeSale(
+            cartLines: [['product_id' => $product->id, 'quantity' => $qty]],
+            customerId: null,
+            paymentMethodId: PaymentMethod::where('code', 'cash')->firstOrFail()->id,
+            paymentConfirmed: true,
+            discountType: 'none',
+            discountValue: 0,
+            discountReason: null,
+            cashier: $cashier,
+        );
+    }
+
+    public function test_own_activity_is_scoped_to_the_viewers_own_sales_only(): void
+    {
+        $product = Product::factory()->create(['selling_price' => 10]);
+        Batch::factory()->for($product)->remaining(20)->create();
+
+        $me = $this->userWith([['sales', 'create']]);
+        $other = User::factory()->cashier()->create();
+
+        $this->sell($me, $product, 2);
+        $this->sell($other, $product, 5);
+
+        Livewire::actingAs($me)->test(DashboardOverview::class)
+            ->assertSee('Your sales total today')
+            ->assertViewHas('ownActivity', fn ($activity) => $activity['transactions'] === 1 && (float) $activity['itemsSold'] === 2.0);
+    }
+
+    public function test_own_activity_is_hidden_for_an_administrator_who_already_sees_store_wide_revenue(): void
+    {
+        Livewire::actingAs($this->admin)->test(DashboardOverview::class)
+            ->assertDontSee('Your sales total today');
+    }
+
+    public function test_own_activity_is_hidden_for_a_role_without_sales_create(): void
+    {
+        $user = $this->userWith([['inventory', 'view']]);
+
+        Livewire::actingAs($user)->test(DashboardOverview::class)
+            ->assertDontSee('Your sales total today');
+    }
+
+    /**
+     * A role without financials.view never renders the top financial
+     * section at all — Refunds/Outstanding Credit move into the .g4
+     * row instead, alongside Low Stock/Out of Stock, so they land in
+     * the same line rather than a section of their own.
+     */
+    public function test_the_top_financial_section_is_not_rendered_for_a_role_without_financials_view(): void
+    {
+        \App\Models\ModuleSetting::where('module_name', 'return_management')->update(['is_enabled' => true]);
+        $user = $this->userWith([['returns', 'view']]);
+
+        Livewire::actingAs($user)->test(DashboardOverview::class)
+            ->assertDontSeeHtml('<section class="g">', false)
+            ->assertSeeHtml('<section class="g4">', false)
+            ->assertSeeHtml('Refunds', false);
+    }
+
+    public function test_the_top_financial_section_is_rendered_for_someone_who_can_see_financials(): void
+    {
+        Livewire::actingAs($this->admin)->test(DashboardOverview::class)
+            ->assertSeeHtml('<section class="g">', false);
     }
 
     public function test_restock_links_to_the_product_profile_only_with_products_and_inventory_permission(): void

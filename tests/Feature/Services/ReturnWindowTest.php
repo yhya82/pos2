@@ -52,7 +52,7 @@ class ReturnWindowTest extends TestCase
             cartLines: [['product_id' => $product->id, 'quantity' => 2]],
             customerId: null,
             paymentMethodId: PaymentMethod::where('code', 'cash')->firstOrFail()->id,
-            referenceNumber: null,
+            paymentConfirmed: true,
             discountType: 'none',
             discountValue: 0,
             discountReason: null,

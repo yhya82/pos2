@@ -79,6 +79,10 @@ html.dark .reports-skin { color-scheme: dark; }
 .reports-skin .cardhead .ic.danger { background: var(--acc-soft); color: var(--acc); }
 .reports-skin .cardhead h2 { margin: 0; font-size: 15.5px; font-weight: 800; letter-spacing: -.01em; }
 .reports-skin .cardhead p { margin: 1px 0 0; font-size: 12px; color: var(--mut); }
+.reports-skin .export-btn { margin-left: auto; flex-shrink: 0; display: flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; border: 1px solid var(--ok); background: var(--ok); color: #fff; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; transition: filter .15s; }
+.reports-skin .export-btn:hover { filter: brightness(0.9); }
+.reports-skin .export-btn svg { width: 14px; height: 14px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.reports-skin .top .export-btn { margin-left: 0; }
 
 .reports-skin .pills { display: inline-flex; border: 1px solid var(--line); }
 .reports-skin .pills button { height: 32px; padding: 0 12px; font-size: 12px; font-weight: 600; color: var(--mut); background: var(--surf); border-right: 1px solid var(--line); }

@@ -56,6 +56,17 @@ class ProductManager extends Component
 
     public ?int $productIdPendingDeactivation = null;
 
+    /**
+     * Bumped every time create() opens the form — the photo field's
+     * wire:key used to be "photo-field-new" for every single "Add
+     * Product" click (editingProductId is always null then), so Livewire
+     * never tore that DOM node down between separate add-product sessions.
+     * Its Alpine-side image preview (client state, untouched by
+     * $this->reset()) survived into the next "new product" open, showing
+     * the previous product's picture until a real file was chosen.
+     */
+    public int $photoFieldKey = 0;
+
     public function updatingSearch(): void
     {
         $this->resetPage();
@@ -157,6 +168,7 @@ class ProductManager extends Component
         $this->sellingPrice = '';
         $this->minStockLevel = '0.000';
         $this->status = 'active';
+        $this->photoFieldKey++;
         $this->resetValidation();
 
         $this->dispatch('open-modal', 'product-form');

@@ -109,7 +109,7 @@
         <form wire:submit="save" id="product-form">
             <p class="hint" style="margin: -4px 0 16px;"><span class="req">*</span> required</p>
 
-            <div class="f" x-data="{ preview: null }" wire:key="photo-field-{{ $editingProductId ?? 'new' }}">
+            <div class="f" x-data="{ preview: null }" wire:key="photo-field-{{ $editingProductId ?? 'new-'.$photoFieldKey }}">
                 <label>Photo</label>
                 <div class="photopick">
                     <div class="thumb" style="width:56px;height:56px;">

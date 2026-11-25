@@ -333,6 +333,17 @@ class ReportViewer extends Component
 
     private function queryFor(string $key)
     {
+        return $this->baseQueryFor($key)->paginate(15);
+    }
+
+    /**
+     * The filtered-and-sorted query behind a report, WITHOUT pagination —
+     * shared by queryFor() (the table, paginated) and exportCsv() (every
+     * matching row, not just the current page), so the two can never drift
+     * apart on what counts as "this report's data" for the current filters.
+     */
+    private function baseQueryFor(string $key)
+    {
         $report = $this->availableReports()[$key];
 
         // Row-per-sold-line view, rolled up per product for the chosen date
@@ -347,8 +358,7 @@ class ReportViewer extends Component
                     ROUND(SUM(profit), 2) AS profit,
                     CASE WHEN SUM(net_revenue) > 0 THEN ROUND(SUM(profit) / SUM(net_revenue) * 100, 1) ELSE NULL END AS margin_pct')
                 ->groupBy('product_id', 'product_name')
-                ->orderByDesc('profit')
-                ->paginate(15);
+                ->orderByDesc('profit');
         }
 
         if ($key === 'receiving_losses') {
@@ -360,8 +370,7 @@ class ReportViewer extends Component
                 ->when($this->dateFrom && $this->dateTo, fn ($q) => $q->whereBetween('ri.created_at', [$this->dateFrom, $this->dateTo.' 23:59:59']))
                 ->selectRaw("ri.created_at, po.po_number, s.name AS supplier_name, p.name AS product_name, ri.issue_type, CONCAT(TRIM(TRAILING '.' FROM TRIM(TRAILING '0' FROM ri.qty)), ' ', su.name) AS qty_label, ri.loss_value, ri.claim_status, ri.credited_amount")
                 ->orderByDesc('ri.created_at')
-                ->orderByDesc('ri.id')
-                ->paginate(15);
+                ->orderByDesc('ri.id');
         }
 
         // One row per supplier: what they still owe, and what's been settled.
@@ -377,8 +386,7 @@ class ReportViewer extends Component
                     ROUND(SUM(ri.loss_value), 2) AS total_claimed")
                 ->groupBy('ri.supplier_id', 's.name')
                 ->orderByDesc('owed')
-                ->orderBy('s.name')
-                ->paginate(15);
+                ->orderBy('s.name');
         }
 
         $view = match ($key) {
@@ -406,16 +414,88 @@ class ReportViewer extends Component
             $query->orderByDesc($report['dateColumn']);
         }
 
-        return $query->paginate(15);
+        return $query;
     }
 
     /**
-     * A quick glance at the range's totals before scanning the table row by
-     * row — only for reports that already show a date range in the UI
-     * (isset($report['dateColumn'])), so Product Performance and the other
-     * date-less reports never get one. Every figure here is a fresh,
-     * unpaginated aggregate over the same filtered rows the table itself
-     * reads, not a sum of just the current page.
+     * Every row currently matching this report's filters — not just the
+     * table's current page — as a CSV download. Same columns (key/label)
+     * the table already renders, so a header/label can't drift from what's
+     * on screen, and money columns are formatted the same way too.
+     */
+    public function exportCsv(): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $reports = $this->availableReports();
+
+        abort_unless($this->selectedReport && isset($reports[$this->selectedReport]), 403);
+
+        $report = $reports[$this->selectedReport];
+        $content = $this->csvContentFor($report['columns'], $this->baseQueryFor($this->selectedReport)->get());
+        $filename = \Illuminate\Support\Str::slug($report['label']).'-'.now()->format('Ymd_His').'.csv';
+
+        return response()->streamDownload(fn () => print $content, $filename, ['Content-Type' => 'text/csv']);
+    }
+
+    /**
+     * Every visible report (whatever the viewer's own permissions/enabled
+     * modules allow — the same filtered list the picker shows), each as
+     * its own CSV inside one zip, respecting the current date range for
+     * whichever of them actually have one. Reports don't share a column
+     * shape, so one combined CSV isn't meaningful — a zip of per-report
+     * CSVs is.
+     */
+    public function exportAllCsv(): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    {
+        $reports = $this->availableReports();
+
+        abort_if(empty($reports), 403);
+
+        $zipPath = tempnam(sys_get_temp_dir(), 'reports_');
+
+        $zip = new \ZipArchive();
+        $zip->open($zipPath, \ZipArchive::OVERWRITE);
+
+        foreach ($reports as $key => $report) {
+            $content = $this->csvContentFor($report['columns'], $this->baseQueryFor($key)->get());
+            $zip->addFromString(\Illuminate\Support\Str::slug($report['label']).'.csv', $content);
+        }
+
+        $zip->close();
+
+        return response()->download($zipPath, 'reports-'.now()->format('Ymd_His').'.zip')->deleteFileAfterSend(true);
+    }
+
+    /**
+     * @param  array<int, array{key: string, label: string, money?: bool}>  $columns
+     */
+    private function csvContentFor(array $columns, $rows): string
+    {
+        $handle = fopen('php://temp', 'w+');
+
+        fputcsv($handle, array_map(fn ($c) => $c['label'], $columns));
+
+        foreach ($rows as $row) {
+            fputcsv($handle, array_map(function ($c) use ($row) {
+                $value = $row->{$c['key']} ?? '';
+
+                return ($c['money'] ?? false) ? number_format((float) $value, 2) : $value;
+            }, $columns));
+        }
+
+        rewind($handle);
+        $content = stream_get_contents($handle);
+        fclose($handle);
+
+        return $content;
+    }
+
+    /**
+     * A quick glance at the report's totals before scanning the table row
+     * by row. Every figure here is a fresh, unpaginated aggregate over the
+     * same rows the table itself reads (date-filtered the same way, for
+     * reports that have a date range), not a sum of just the current page.
+     * Not every report has stats worth showing — those simply return null,
+     * independent of whether the report happens to have a date range.
      *
      * @return array<int, array{label: string, value: float|int, format: string, tone?: string, sub?: string}>|null
      */
@@ -423,7 +503,7 @@ class ReportViewer extends Component
     {
         $report = $this->availableReports()[$key] ?? null;
 
-        if (! $report || ! isset($report['dateColumn'])) {
+        if (! $report) {
             return null;
         }
 
@@ -482,6 +562,56 @@ class ReportViewer extends Component
                 ['label' => 'Total claimed', 'value' => (float) $row->total_claimed, 'format' => 'money', 'icon' => 'bar-chart'],
                 ['label' => 'Suppliers with claims', 'value' => (int) $row->supplier_count, 'format' => 'int', 'icon' => 'user'],
             ];
+        }
+
+        // Inventory group: point-in-time/all-time snapshots, not date-ranged
+        // — same underlying view queryFor() reads for the table, summed
+        // across every matching row instead of the current page.
+        if ($key === 'low_stock') {
+            $row = DB::table('v_low_stock')->selectRaw('COUNT(*) AS item_count, COALESCE(SUM(qty_on_hand), 0) AS total_qty')->first();
+
+            return [
+                ['label' => 'Low stock items', 'value' => (int) $row->item_count, 'format' => 'int', 'tone' => 'warn', 'icon' => 'alert-triangle'],
+                ['label' => 'Units on hand (these items)', 'value' => (int) $row->total_qty, 'format' => 'int', 'icon' => 'layers'],
+            ];
+        }
+
+        if ($key === 'out_of_stock') {
+            $count = DB::table('v_out_of_stock')->count();
+
+            return [
+                ['label' => 'Out of stock items', 'value' => $count, 'format' => 'int', 'tone' => 'warn', 'icon' => 'x-circle'],
+            ];
+        }
+
+        if ($key === 'inventory_valuation') {
+            $row = DB::table('v_inventory_valuation')
+                ->selectRaw('COALESCE(SUM(value_at_cost), 0) AS total_cost, COALESCE(SUM(value_at_selling_price), 0) AS total_selling, COALESCE(SUM(estimated_gross_profit), 0) AS total_profit')
+                ->first();
+
+            return [
+                ['label' => 'Value (cost)', 'value' => (float) $row->total_cost, 'format' => 'money', 'icon' => 'wallet'],
+                ['label' => 'Value (selling)', 'value' => (float) $row->total_selling, 'format' => 'money', 'tone' => 'ok', 'icon' => 'layers'],
+                ['label' => 'Est. profit', 'value' => (float) $row->total_profit, 'format' => 'money', 'tone' => (float) $row->total_profit >= 0 ? 'ok' : 'warn', 'icon' => 'trending-up'],
+            ];
+        }
+
+        if ($key === 'product_performance') {
+            // All-time, matching the report's own "no date filter" design —
+            // every product ever sold, not just the current sorted page.
+            $row = DB::table('v_product_sales_summary')
+                ->selectRaw('COUNT(*) AS product_count, COALESCE(SUM(total_qty_sold), 0) AS total_qty, COALESCE(SUM(total_revenue), 0) AS total_revenue')
+                ->first();
+
+            return [
+                ['label' => 'Revenue', 'value' => (float) $row->total_revenue, 'format' => 'money', 'tone' => 'ok', 'icon' => 'bar-chart'],
+                ['label' => 'Units sold', 'value' => (int) $row->total_qty, 'format' => 'int', 'icon' => 'trending-up'],
+                ['label' => 'Products sold', 'value' => (int) $row->product_count, 'format' => 'int', 'icon' => 'user'],
+            ];
+        }
+
+        if (! isset($report['dateColumn'])) {
+            return null;
         }
 
         $view = match ($key) {

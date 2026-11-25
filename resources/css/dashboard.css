@@ -126,12 +126,13 @@ main {
 }
 
 /* ---------------------------------------------------------------- top bar */
-.dash-skin .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.dash-skin .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
 .dash-skin .top > div:first-child { border-left: 4px solid var(--acc); padding-left: 14px; }
 .dash-skin .top h1 { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -.02em; line-height: 1.2; }
 .dash-skin .top p { margin: 2px 0 0; color: var(--mut); font-size: 13.5px; }
 .dash-skin .date { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--surf); padding: 9px 16px; font-weight: 500; flex-shrink: 0; }
 .dash-skin .date svg { width: 17px; height: 17px; }
+.dash-skin .rolechip { display: inline-block; font-size: 12px; font-weight: 600; padding: 5px 12px; color: var(--acc); background: var(--acc-soft); white-space: nowrap; }
 
 /* -------------------------------------------------------------- the grid */
 .dash-skin .g {
@@ -152,10 +153,24 @@ main {
 .dash-skin .g > .inv { grid-area: inv; }
 .dash-skin .g > .gp { grid-area: gp; }
 .dash-skin .g > .top-p { grid-area: top; }
-.dash-skin .g4 { display: grid; gap: 14px; grid-template-columns: repeat(4, 1fr); }
+/* auto-fit, not a fixed repeat(4,1fr) — Low Stock/Out of Stock/Pending
+   Orders/Online Users (or, for a restricted role, Refunds/Outstanding
+   Credit/Low Stock/Out of Stock) don't all render for every role, and a
+   fixed 4-column grid left the remaining column(s) sitting empty instead
+   of letting what's actually there reflow. Min lowered to 200px (from
+   240px) so all 4 fit on one row at typical container widths rather than
+   wrapping to two rows; capped at 320px so 1-2 cards still don't stretch
+   to fill the whole row when there's nothing else to share it with. */
+.dash-skin .g4 { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(200px, 320px)); }
+
+/* "Your activity today" — a role without financials.view, scoped to
+   their own sales only (see DashboardOverview::ownActivityToday()). Same
+   capped-width reasoning as .g4 above — simple stat cards never
+   stretched to fill the whole row. */
+.dash-skin .g-auto { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(220px, 320px)); }
 
 .dash-skin .card { background: var(--surf); border: 1px solid var(--line); padding: 20px; min-width: 0; }
-.dash-skin .g > .card, .dash-skin .g4 > .card { border-top: 3px solid var(--acc); }
+.dash-skin .g > .card, .dash-skin .g4 > .card, .dash-skin .g-auto > .card { border-top: 3px solid var(--acc); }
 
 .dash-skin .hd { display: flex; align-items: center; gap: 12px; }
 .dash-skin .hd > div:first-child { display: flex; align-items: center; gap: 12px; }
@@ -236,11 +251,12 @@ main {
 
 /* -------------------------------------------------------------- mobile */
 @container (max-width: 1150px) {
+    /* .g4 is deliberately left out here — repeat(auto-fit, minmax(…)) above
+       already reflows it at any width without a fixed override. */
     .dash-skin .g { grid-template-columns: repeat(2, 1fr); grid-template-areas: "rev rev" "prof ref" "cred cred" "inv gp" "top top"; }
-    .dash-skin .g4 { grid-template-columns: repeat(2, 1fr); }
 }
 @container (max-width: 700px) {
-    .dash-skin .g, .dash-skin .g4 { grid-template-columns: 1fr; grid-template-areas: "rev" "prof" "ref" "cred" "inv" "gp" "top"; }
+    .dash-skin .g { grid-template-columns: 1fr; grid-template-areas: "rev" "prof" "ref" "cred" "inv" "gp" "top"; }
     .dash-skin .chart, .dash-skin .axis { gap: 5px; }
     .dash-skin .rev .hd { flex-wrap: wrap; }
 }

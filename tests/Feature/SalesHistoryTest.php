@@ -23,7 +23,7 @@ class SalesHistoryTest extends TestCase
             cartLines: [['product_id' => $product->id, 'quantity' => $quantity]],
             customerId: null,
             paymentMethodId: PaymentMethod::where('code', 'cash')->firstOrFail()->id,
-            referenceNumber: null,
+            paymentConfirmed: true,
             discountType: 'none',
             discountValue: 0,
             discountReason: null,

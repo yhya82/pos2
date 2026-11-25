@@ -22,13 +22,37 @@
             <h1>Overview</h1>
             <p>Sales, stock and credit at a glance</p>
         </div>
-        <div class="date">
-            <x-icon name="calendar" />
-            {{ now()->format('F Y') }}
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <span class="rolechip">{{ $roleName }}</span>
+            <div class="date">
+                <x-icon name="calendar" />
+                {{ now()->format('F Y') }}
+            </div>
         </div>
     </div>
 
-    @if ($canViewRevenue || $canViewReturns || $canViewCustomers || $canViewInventoryValue)
+    @if ($ownActivity)
+        <section class="g-auto" style="margin-bottom:14px;">
+            <article class="card">
+                <div class="hd"><span class="ic"><x-icon name="banknotes" /></span><span class="lbl">Your sales total today</span></div>
+                <div class="mid">{{ $money($ownActivity['total']) }}</div>
+            </article>
+            <article class="card">
+                <div class="hd"><span class="ic"><x-icon name="arrow-trending-up" /></span><span class="lbl">Your transactions</span></div>
+                <div class="mid">{{ number_format($ownActivity['transactions']) }}</div>
+            </article>
+            <article class="card">
+                <div class="hd"><span class="ic"><x-icon name="archive-box" /></span><span class="lbl">Items sold</span></div>
+                <div class="mid">{{ rtrim(rtrim(number_format($ownActivity['itemsSold'], 3), '0'), '.') }}</div>
+            </article>
+        </section>
+    @endif
+
+    {{-- Refunds/Outstanding Credit move down into the unified "needs
+         attention" row below for a restricted role (see there) — this
+         section is then only ever the big financial cards, which only an
+         unrestricted (canSeeFinancials) role ever has anyway. --}}
+    @if (! $restrictedFinanceLayout && ($canViewRevenue || $canViewReturns || $canViewCustomers || $canViewInventoryValue))
         <section class="g">
             @if ($canViewRevenue)
                 <article class="card rev">
@@ -76,14 +100,14 @@
                 </article>
             @endif
 
-            @if ($canViewReturns)
+            @if (! $restrictedFinanceLayout && $canViewReturns)
                 <article class="card ref">
                     <div class="hd"><span class="ic"><x-icon name="arrow-uturn-left" /></span><span class="lbl">Refunds</span></div>
                     <div class="mid">{{ $money($refundsTotal) }}</div>
                 </article>
             @endif
 
-            @if ($canViewCustomers)
+            @if (! $restrictedFinanceLayout && $canViewCustomers)
                 <article class="card cred">
                     <div class="bh">
                         <span class="ic"><x-icon name="credit-card" /></span>
@@ -143,8 +167,41 @@
         </section>
     @endif
 
-    @if ($canViewInventory || $canViewPurchaseOrders || auth()->user()->canSeeFinancials())
+    @if ($canViewInventory || $canViewPurchaseOrders || auth()->user()->canSeeFinancials() || ($restrictedFinanceLayout && ($canViewReturns || $canViewCustomers)))
         <section class="g4">
+            {{-- Refunds/Outstanding Credit live here instead of the top
+                 financial section for a restricted role, so they land in
+                 the same row as Low Stock/Out of Stock rather than a
+                 section of their own. --}}
+            @if ($restrictedFinanceLayout && $canViewReturns)
+                <article class="card">
+                    <div class="hd"><span class="ic"><x-icon name="arrow-uturn-left" /></span><span class="lbl">Refunds</span></div>
+                    <div class="mid">{{ $money($refundsTotal) }}</div>
+                </article>
+            @endif
+
+            @if ($restrictedFinanceLayout && $canViewCustomers)
+                <article class="card">
+                    <div class="bh">
+                        <span class="ic"><x-icon name="credit-card" /></span>
+                        <div class="t">
+                            <b>Outstanding credit</b>
+                            <span class="cnt">{{ $outstandingCreditCustomers->count() }}</span>
+                        </div>
+                        <a class="va" href="{{ route('customers.index') }}" wire:navigate>View all &rarr;</a>
+                    </div>
+                    <div class="mid" style="margin-top:4px">{{ $money($outstandingCredit) }}</div>
+                    @forelse ($outstandingCreditCustomers as $customer)
+                        <div class="ln">
+                            <div class="m"><div class="n">{{ $customer->customer_name }}</div></div>
+                            <span class="a">{{ $money($customer->outstanding_balance) }}</span>
+                        </div>
+                    @empty
+                        <p class="none">No outstanding credit.</p>
+                    @endforelse
+                </article>
+            @endif
+
             @if ($canViewInventory)
                 <article class="card">
                     <div class="bh">
@@ -223,7 +280,7 @@
         </section>
     @endif
 
-    @unless ($canViewRevenue || $canViewInventory || $canViewCustomers || $canViewPurchaseOrders || auth()->user()->canSeeFinancials())
+    @unless ($canViewRevenue || $canViewInventory || $canViewCustomers || $canViewPurchaseOrders || $ownActivity || auth()->user()->canSeeFinancials())
         <div class="card" style="text-align:center;color:var(--mut)">
             You're logged in — your role doesn't have visibility into any dashboard data yet.
         </div>

@@ -67,7 +67,7 @@ class AccessScopeTest extends TestCase
             cartLines: [['product_id' => $this->product->id, 'quantity' => 2]],
             customerId: $customerId,
             paymentMethodId: PaymentMethod::where('code', 'cash')->firstOrFail()->id,
-            referenceNumber: null,
+            paymentConfirmed: true,
             discountType: 'none',
             discountValue: 0,
             discountReason: null,

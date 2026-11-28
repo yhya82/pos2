@@ -303,6 +303,24 @@ class User extends Authenticatable
     }
 
     /**
+     * True only for an active Administrator who is the last one — the
+     * store would otherwise be left with nobody able to manage users,
+     * roles, or settings. Used to block deactivating or re-roling this
+     * one account; an Administrator who is already inactive, or isn't
+     * the only one, is unaffected.
+     */
+    public function isOnlyActiveAdministrator(): bool
+    {
+        if (! $this->isAdministrator() || $this->status !== 'active') {
+            return false;
+        }
+
+        return static::whereHas('role', fn ($q) => $q->where('name', 'Administrator'))
+            ->where('status', 'active')
+            ->count() === 1;
+    }
+
+    /**
      * Refunding a sale someone else made needs the returns.update
      * permission; refunding one's own sale only ever needed the base
      * returns.create right to process a return at all (checked separately,

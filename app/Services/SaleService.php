@@ -35,12 +35,12 @@ class SaleService
      *
      * @throws RuntimeException on empty cart, a non-whole quantity, insufficient stock, disabled/missing customer credit, or any discount
      */
-    public function completeSale( array $cartLines, ?int $customerId, int $paymentMethodId, bool $paymentConfirmed,string $discountType, float $discountValue,?string $discountReason,User $cashier,): Sale {
+    public function completeSale( array $cartLines, ?int $customerId, int $paymentMethodId, bool $paymentConfirmed,string $discountType, float $discountValue,?string $discountReason,User $cashier, ?float $tenderedAmount = null,): Sale {
         if (empty($cartLines)) {
             throw new RuntimeException('Cannot complete a sale with no items.');
         }
 
-        $sale = DB::transaction(function () use ($cartLines, $customerId, $paymentMethodId, $paymentConfirmed, $discountType, $discountValue, $discountReason, $cashier) {
+        $sale = DB::transaction(function () use ($cartLines, $customerId, $paymentMethodId, $paymentConfirmed, $discountType, $discountValue, $discountReason, $cashier, $tenderedAmount) {
             $paymentMethod = PaymentMethod::where('is_enabled', true)->findOrFail($paymentMethodId);
             $isCredit = $paymentMethod->code === 'credit';
 
@@ -117,10 +117,15 @@ class SaleService
 
             $this->writeLinesAndDeductStock($sale, $lineData, $cashier);
 
+            // Only ever meaningful for cash — Aps/Wave/credit have no
+            // "amount handed over" to record.
+            $tenderedForReceipt = $paymentMethod->code === 'cash' ? $tenderedAmount : null;
+
             $sale->payment()->create([
                 'payment_method_id' => $paymentMethod->id,
                 'amount' => $totalAmount,
                 'payment_confirmed' => $paymentConfirmed,
+                'tendered_amount' => $tenderedForReceipt,
                 'received_by' => $cashier->id,
                 'paid_at' => now(),
             ]);
@@ -140,7 +145,7 @@ class SaleService
                 ]);
             }
 
-            $this->generateReceipt($sale, $lineData, $paymentMethod, $generalSettings);
+            $this->generateReceipt($sale, $lineData, $paymentMethod, $generalSettings, $tenderedForReceipt);
 
             AuditLog::record('create', 'sales', 'Sale', $sale->id);
 
@@ -363,7 +368,7 @@ class SaleService
         }
     }
 
-    private function generateReceipt(Sale $sale, array $lineData, PaymentMethod $paymentMethod, GeneralSetting $generalSettings): void
+    private function generateReceipt(Sale $sale, array $lineData, PaymentMethod $paymentMethod, GeneralSetting $generalSettings, ?float $tenderedAmount = null): void
     {
         $storeSettings = StoreSetting::current();
 
@@ -392,6 +397,8 @@ class SaleService
                 'tax_amount' => (string) $sale->tax_amount,
                 'total_amount' => (string) $sale->total_amount,
                 'payment_method' => $paymentMethod->name,
+                'tendered_amount' => $tenderedAmount !== null ? (string) $tenderedAmount : null,
+                'change_due' => $tenderedAmount !== null ? (string) round($tenderedAmount - (float) $sale->total_amount, 2) : null,
             ],
         ]);
     }

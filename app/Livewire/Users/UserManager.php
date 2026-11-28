@@ -65,6 +65,12 @@ class UserManager extends Component
             'roles' => Role::where('status', 'active')->orderBy('name')->get(),
             'passwordPolicyHint' => $security->passwordPolicyHint(),
             'security' => $security,
+            // Disables the Role field in the edit form itself, rather than
+            // just rejecting the change after Save — same rule UserManager::
+            // save() and confirmDeactivate() already enforce server-side.
+            'editingUserIsOnlyActiveAdministrator' => $this->editingUserId
+                ? (bool) User::find($this->editingUserId)?->isOnlyActiveAdministrator()
+                : false,
         ]);
     }
 
@@ -166,6 +172,18 @@ class UserManager extends Component
             return;
         }
 
+        $editingUser = $this->editingUserId ? User::findOrFail($this->editingUserId) : null;
+
+        // The only active Administrator can't be re-roled away from
+        // Administrator — that would leave nobody able to manage users,
+        // roles, or settings. Assign another Administrator first, then
+        // this account can be changed freely.
+        if ($editingUser?->isOnlyActiveAdministrator() && (int) $validated['roleId'] !== (int) $editingUser->role_id) {
+            $this->addError('roleId', "This is the only active Administrator — assign another Administrator first before changing this account's role.");
+
+            return;
+        }
+
         // Uniqueness has to be checked against the full +220-prefixed value
         // actually stored in the column — the form only collects the local
         // 9 digits, so Rule::unique('users', 'phone') on that raw input
@@ -206,7 +224,7 @@ class UserManager extends Component
             // A brand-new account has no session of its own yet to protect.
             $user->setPassword($this->password);
         } else {
-            $user = User::findOrFail($this->editingUserId);
+            $user = $editingUser;
             $previous = $user->only(['name', 'username', 'email', 'phone', 'role_id', 'status']);
             $user->update($attributes);
         }
@@ -281,6 +299,12 @@ class UserManager extends Component
 
         if ($userId === auth()->id()) {
             $this->dispatch('flash-message', message: "You can't deactivate your own account.", variant: 'error');
+
+            return;
+        }
+
+        if (User::findOrFail($userId)->isOnlyActiveAdministrator()) {
+            $this->dispatch('flash-message', message: 'This is the only active Administrator — assign another Administrator first before deactivating this account.', variant: 'error');
 
             return;
         }

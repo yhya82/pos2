@@ -118,9 +118,9 @@ class DashboardRedesignTest extends TestCase
         $cash = PaymentMethod::where('code', 'cash')->firstOrFail()->id;
 
         // Yesterday: 10.00. Today: 20.00 — a real 100% increase.
-        Livewire::actingAs($user)->test(Terminal::class)->call('checkout', [['product_id' => $product->id, 'quantity' => 1]], null, $cash, true);
+        Livewire::actingAs($user)->test(Terminal::class)->call('checkout', [['product_id' => $product->id, 'quantity' => 1]], null, $cash, true, null);
         Sale::latest('id')->first()->update(['sale_date' => now()->subDay()]);
-        Livewire::actingAs($user)->test(Terminal::class)->call('checkout', [['product_id' => $product->id, 'quantity' => 2]], null, $cash, true);
+        Livewire::actingAs($user)->test(Terminal::class)->call('checkout', [['product_id' => $product->id, 'quantity' => 2]], null, $cash, true, null);
 
         Livewire::actingAs($user)->test(DashboardOverview::class)
             ->assertSee('+100% vs yesterday')
@@ -150,7 +150,7 @@ class DashboardRedesignTest extends TestCase
         Batch::factory()->for($product)->remaining(10)->create();
 
         Livewire::actingAs($user)->test(Terminal::class)
-            ->call('checkout', [['product_id' => $product->id, 'quantity' => 1]], null, PaymentMethod::where('code', 'cash')->firstOrFail()->id, true);
+            ->call('checkout', [['product_id' => $product->id, 'quantity' => 1]], null, PaymentMethod::where('code', 'cash')->firstOrFail()->id, true, null);
 
         Livewire::actingAs($user)->test(DashboardOverview::class)
             ->assertSee('No prior data vs yesterday')
@@ -169,9 +169,9 @@ class DashboardRedesignTest extends TestCase
         $cash = PaymentMethod::where('code', 'cash')->firstOrFail()->id;
 
         // This year so far: 20.00.
-        Livewire::actingAs($user)->test(Terminal::class)->call('checkout', [['product_id' => $product->id, 'quantity' => 2]], null, $cash, true);
+        Livewire::actingAs($user)->test(Terminal::class)->call('checkout', [['product_id' => $product->id, 'quantity' => 2]], null, $cash, true, null);
         // Same stretch last year: 10.00 — a real 100% increase.
-        Livewire::actingAs($user)->test(Terminal::class)->call('checkout', [['product_id' => $product->id, 'quantity' => 1]], null, $cash, true);
+        Livewire::actingAs($user)->test(Terminal::class)->call('checkout', [['product_id' => $product->id, 'quantity' => 1]], null, $cash, true, null);
         Sale::latest('id')->first()->update(['sale_date' => now()->copy()->subYear()]);
 
         Livewire::actingAs($user)->test(DashboardOverview::class)
@@ -242,9 +242,9 @@ class DashboardRedesignTest extends TestCase
         Batch::factory()->for($cheap)->remaining(50)->create();
 
         Livewire::actingAs($user)->test(Terminal::class)
-            ->call('checkout', [['product_id' => $expensive->id, 'quantity' => 1]], null, $cash, true);
+            ->call('checkout', [['product_id' => $expensive->id, 'quantity' => 1]], null, $cash, true, null);
         Livewire::actingAs($user)->test(Terminal::class)
-            ->call('checkout', [['product_id' => $cheap->id, 'quantity' => 20]], null, $cash, true);
+            ->call('checkout', [['product_id' => $cheap->id, 'quantity' => 20]], null, $cash, true, null);
 
         $topProducts = Livewire::actingAs($user)->test(DashboardOverview::class)->viewData('topProducts');
 
@@ -290,7 +290,7 @@ class DashboardRedesignTest extends TestCase
         Batch::factory()->for($product)->remaining(20)->create();
 
         Livewire::actingAs($user)->test(Terminal::class)
-            ->call('checkout', [['product_id' => $product->id, 'quantity' => 3]], null, PaymentMethod::where('code', 'cash')->firstOrFail()->id, true);
+            ->call('checkout', [['product_id' => $product->id, 'quantity' => 3]], null, PaymentMethod::where('code', 'cash')->firstOrFail()->id, true, null);
 
         Livewire::actingAs($user)->test(DashboardOverview::class)
             ->assertSee('Best Seller')

@@ -12,7 +12,7 @@
             </div>
             <div class="meta">
                 <span class="rolechip" style="margin-right:6px;"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/></svg>{{ $user->role->name }}</span>
-                &middot; @{{ $user->username }}
+                &middot; &commat;{{ $user->username }}
                 @if ($user->email) &middot; {{ $user->email }} @endif
                 @if ($user->phone) &middot; {{ $user->formattedPhone() }} @endif
             </div>

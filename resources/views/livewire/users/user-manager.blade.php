@@ -45,7 +45,7 @@
                                 <span class="avatar">{{ $initials ?: '?' }}</span>
                                 <div>
                                     <div class="nm"><a href="{{ route('users.show', $user) }}" wire:navigate class="link">{{ $user->name }}</a></div>
-                                    <div class="un">@{{ $user->username }}</div>
+                                    <div class="un">&commat;{{ $user->username }}</div>
                                 </div>
                             </div>
                         </td>
@@ -67,9 +67,13 @@
                                     <button type="button" wire:click="changePassword({{ $user->id }})" class="actionbtn warn"><svg viewBox="0 0 24 24"><path d="M21 2l-9.6 9.6"/><path d="M15.5 7.5l3 3"/><circle cx="7.5" cy="15.5" r="5.5"/></svg>Change Password</button>
                                 @endif
                                 @if (auth()->user()->hasPermission('users', 'delete'))
-                                    <button type="button" wire:click="confirmDeactivate({{ $user->id }})" class="actionbtn danger">
-                                        {{ $user->status === 'active' ? 'Deactivate' : 'Reactivate' }}
-                                    </button>
+                                    @if ($user->isOnlyActiveAdministrator())
+                                        <button type="button" class="actionbtn danger" disabled title="This is the only active Administrator — assign another Administrator first.">Deactivate</button>
+                                    @else
+                                        <button type="button" wire:click="confirmDeactivate({{ $user->id }})" class="actionbtn danger">
+                                            {{ $user->status === 'active' ? 'Deactivate' : 'Reactivate' }}
+                                        </button>
+                                    @endif
                                 @endif
                             </td>
                         @endif
@@ -125,12 +129,15 @@
             <div class="f grid2">
                 <div>
                     <label for="user_role">Role<span class="req">*</span></label>
-                    <select wire:model="roleId" id="user_role">
+                    <select wire:model="roleId" id="user_role" @disabled($editingUserIsOnlyActiveAdministrator)>
                         <option value="">Select...</option>
                         @foreach ($roles as $role)
                             <option value="{{ $role->id }}">{{ $role->name }}</option>
                         @endforeach
                     </select>
+                    @if ($editingUserIsOnlyActiveAdministrator)
+                        <div class="hint">This is the only active Administrator — assign another Administrator first before changing this account's role.</div>
+                    @endif
                     <x-input-error :messages="$errors->get('roleId')" class="mt-2" />
                 </div>
                 <div>

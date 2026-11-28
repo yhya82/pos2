@@ -152,18 +152,17 @@ class AuthenticationTest extends TestCase
             ->assertHasErrors()
             ->assertSee('Invalid credentials.', false);
 
-        // A real account's first wrong attempt — identical wording, with no
-        // attempts-remaining count. Telling an attacker exactly how many
-        // guesses a real account has left (and confirming it's real at all,
-        // after just one guess) is an account-enumeration oracle; a genuine
-        // user doesn't need the count to know to just try again.
+        // A real account's first wrong attempt — same "Invalid credentials."
+        // opening, now with an attempts-remaining count appended.
         $component = Volt::test('pages.auth.login')
             ->set('form.email', $user->email)
             ->set('form.password', 'wrong-password')
             ->call('login')
             ->assertHasErrors();
 
-        $this->assertSame('Invalid credentials.', $component->errors()->first('form.email'));
+        $remaining = SecuritySetting::current()->max_failed_login_attempts - 1;
+
+        $this->assertSame("Invalid credentials. {$remaining} attempt(s) remaining before lockout.", $component->errors()->first('form.email'));
     }
 
     public function test_blank_login_fields_report_clean_field_names_not_form_dot_email(): void

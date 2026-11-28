@@ -15,6 +15,7 @@ class Payment extends Model
         'amount',
         'reference_number',
         'payment_confirmed',
+        'tendered_amount',
         'received_by',
         'paid_at',
     ];
@@ -24,6 +25,7 @@ class Payment extends Model
         return [
             'amount' => 'decimal:2',
             'payment_confirmed' => 'boolean',
+            'tendered_amount' => 'decimal:2',
             'paid_at' => 'datetime',
         ];
     }

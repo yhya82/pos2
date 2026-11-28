@@ -632,6 +632,7 @@
                     this.customerId,
                     this.paymentMethodId,
                     this.isCredit() || this.paymentMethodCode() === 'cash' ? true : this.paymentConfirmed,
+                    this.paymentMethodCode() === 'cash' ? (Number(this.tenderedAmount) || 0) : null,
                 );
 
                 this.processing = false;
@@ -659,6 +660,10 @@
                 this.cart = [];
                 this.priceNotices = [];
                 this.customerId = null;
+                // Back to Cash for the next sale — a cashier who just took an
+                // Aps/Wave payment shouldn't have it still selected (and still
+                // needing a fresh confirmation) for whoever's up next.
+                this.paymentMethodId = this.paymentMethods.find(m => m.code === 'cash')?.id ?? this.paymentMethodId;
                 this.paymentConfirmed = false;
                 this.tenderedAmount = '';
             },
@@ -732,6 +737,8 @@
                 if (Number(t.tax_amount) > 0) h += row('Tax', this.money(t.tax_amount));
                 h += row('Total', this.receiptMoney(t.total_amount), 'b');
                 h += row('Payment', esc(t.payment_method));
+                if (t.tendered_amount !== null) h += row('Tendered', this.money(t.tendered_amount));
+                if (t.change_due !== null) h += row('Change due', this.money(t.change_due));
                 h += '<hr><div class="rmeta c">Thank you for your purchase</div>';
 
                 return h;

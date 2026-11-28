@@ -197,16 +197,12 @@ class LoginForm extends Form
     }
 
     /**
-     * Deliberately the same text ("Invalid credentials.") whether the email
-     * doesn't exist at all or it does and the password was simply wrong, and
-     * with no attempts-remaining count — telling an attacker exactly how
-     * many guesses a real account has left (and that it IS a real account,
-     * after only one guess) is an enumeration oracle for no real benefit to
-     * a genuine user, who just needs to try again anyway. The one exception
-     * is the locked message itself: that's a real, already-configured,
-     * user-relevant side effect (SRS-specified lockout_duration_minutes)
-     * that only shows up after several wrong guesses already succeeded at
-     * confirming the account exists, not after the first one.
+     * Shows attempts remaining before lockout once there's a real account to
+     * count against — requested despite the enumeration tradeoff that used
+     * to keep this message generic (an attacker guessing emails now learns
+     * which ones are real after one try). The locked message itself is
+     * unaffected: that's the real, already-configured, user-relevant side
+     * effect (SRS-specified lockout_duration_minutes).
      *
      * @param  array{attempts: int, locked: bool}  $result
      */
@@ -218,6 +214,8 @@ class LoginForm extends Form
             return "Too many failed login attempts. This account is locked for {$minutes} minute(s).";
         }
 
-        return 'Invalid credentials.';
+        $remaining = SecuritySetting::current()->max_failed_login_attempts - $result['attempts'];
+
+        return "Invalid credentials. {$remaining} attempt(s) remaining before lockout.";
     }
 }

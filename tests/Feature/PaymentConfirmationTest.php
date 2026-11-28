@@ -46,6 +46,7 @@ class PaymentConfirmationTest extends TestCase
                 null,
                 PaymentMethod::where('code', $paymentMethodCode)->firstOrFail()->id,
                 $paymentConfirmed,
+                null,
             )
             ->assertReturned(function ($returned) use (&$result) {
                 $result = $returned;

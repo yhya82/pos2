@@ -115,6 +115,12 @@
             <tr class="grand"><td>Net Total</td><td class="right">{{ $receipt->business_snapshot['currency_code'] }} {{ number_format((float) $receipt->totals_snapshot['total_amount'] - $totalRefunded, 2) }}</td></tr>
         @endif
         <tr><td>Payment</td><td class="right">{{ $receipt->totals_snapshot['payment_method'] }}</td></tr>
+        @if (($receipt->totals_snapshot['tendered_amount'] ?? null) !== null)
+            <tr><td>Tendered</td><td class="right">{{ number_format($receipt->totals_snapshot['tendered_amount'], 2) }}</td></tr>
+        @endif
+        @if (($receipt->totals_snapshot['change_due'] ?? null) !== null)
+            <tr><td>Change due</td><td class="right">{{ number_format($receipt->totals_snapshot['change_due'], 2) }}</td></tr>
+        @endif
     </table>
 
     <hr>

@@ -133,6 +133,7 @@ class Terminal extends Component
         ?int $customerId,
         int $paymentMethodId,
         bool $paymentConfirmed,
+        ?float $tenderedAmount,
         SaleService $saleService,
     ): array {
         $this->authorizeAction('sales', 'create');
@@ -158,6 +159,7 @@ class Terminal extends Component
                 0.0,
                 null,
                 auth()->user(),
+                $tenderedAmount,
             );
         } catch (RuntimeException $e) {
             return ['success' => false, 'message' => $e->getMessage()];
